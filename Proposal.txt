@@ -1,0 +1,19 @@
+We want to create a fluid simulation based on smoothed-particle-hydrodynamics accelerated
+by a spatial hash-grid rendered with a simple volumetric renderer.
+
+1. Particle Physics Simulation
+- Rodi Düger (ucklt, 2374938)
+
+2. Spatial Hash-Grid
+- Markus Hall (udxht, 2226502)
+
+3. Volume Renderer
+- Benedikt Krimmel (udwxw, 2363260)
+
+Things to consider:
+ImGui
+Particle-Boundaries
+
+References:
+https://sph-tutorial.physics-simulation.org/pdf/SPH_Tutorial.pdf
+https://animation.rwth-aachen.de/media/papers/77/2022-CGF-STAR_SPH.pdf
