@@ -403,6 +403,7 @@ void createLogicalDevice(vk::Instance& instance, vk::PhysicalDevice& pDevice, vk
 
     vk::PhysicalDeviceFeatures deviceFeatures = {};
     deviceFeatures.fillModeNonSolid = 1;
+    deviceFeatures.vertexPipelineStoresAndAtomics = 1;
 
     vk::DeviceCreateInfo dci({}, queuesInfo.size(), queuesInfo.data(),
                              CAST(validationLayers), validationLayers.data(),
