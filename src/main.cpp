@@ -16,6 +16,7 @@
 
 #include "renderdoc.h"
 #include <render.h>
+#include "sph_scene_parameters.h"
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -25,6 +26,9 @@ int width = 1200;
 int height = 1000;
 
 void render() {
+    SPHSceneParameters parameters { "../scenes/default.yaml" };
+    std::cout << "--- Scene parameters ---\n" << parameters.printToYaml() << "\n------------------------\n";
+
     AppResources app;
 
     initApp(app, true, "Project", width, height);

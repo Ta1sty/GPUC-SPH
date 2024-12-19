@@ -1,0 +1,3 @@
+type: sph_box_2d
+initialization_function: uniform_poisson_disk
+num_particles: 128
