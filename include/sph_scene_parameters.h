@@ -12,18 +12,20 @@ enum class SceneType {
 };
 
 enum class InitializationFunction {
-    UNIFORM_POISSON_DISK // uniform_poisson_disk
+    UNIFORM,
+    POISSON_DISK
 };
 
 struct SPHSceneParameters {
     SceneType type = SceneType::SPH_BOX_2D;
-    InitializationFunction initializationFunction = InitializationFunction::UNIFORM_POISSON_DISK;
+    InitializationFunction initializationFunction = InitializationFunction::UNIFORM;
     uint32_t numParticles = 128;
+    uint32_t randomSeed = 0;
 
     SPHSceneParameters() = default;
     SPHSceneParameters(const SPHSceneParameters &other) = default;
     explicit SPHSceneParameters(const std::string &file);
-    std::string printToYaml() const;
+    [[nodiscard]] std::string printToYaml() const;
 };
 
 

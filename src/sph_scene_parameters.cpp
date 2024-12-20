@@ -6,6 +6,7 @@
 
 #include <yaml-cpp/yaml.h>
 #include <stdexcept>
+#include <random>
 
 template <typename T>
 T parseEnum(const YAML::Node &yaml, const std::string &key, std::initializer_list<std::pair<std::string, T>> mappings) {
@@ -43,7 +44,8 @@ std::initializer_list<std::pair<std::string, SceneType>> sceneTypeMappings = {
         { "sph_box_2d", SceneType::SPH_BOX_2D }
 };
 std::initializer_list<std::pair<std::string, InitializationFunction>> initializationFunctionMappings = {
-        { "uniform_poisson_disk", InitializationFunction::UNIFORM_POISSON_DISK }
+        { "uniform", InitializationFunction::UNIFORM },
+        { "poisson_disk", InitializationFunction::POISSON_DISK }
 };
 
 SPHSceneParameters::SPHSceneParameters(const std::string &file) {
@@ -55,6 +57,8 @@ SPHSceneParameters::SPHSceneParameters(const std::string &file) {
                                                                initializationFunctionMappings);
 
     numParticles = parse<uint32_t>(yaml, "num_particles", numParticles);
+    std::random_device rd; // seed with TRNG if no seed is supplied
+    randomSeed = parse<uint32_t>(yaml, "random_seed", rd());
 }
 
 std::string SPHSceneParameters::printToYaml() const {
@@ -63,6 +67,7 @@ std::string SPHSceneParameters::printToYaml() const {
     yaml["type"] = dumpEnum(type, sceneTypeMappings);
     yaml["initialization_function"] = dumpEnum(initializationFunction, initializationFunctionMappings);
     yaml["num_particles"] = numParticles;
+    yaml["random_seed"] = randomSeed;
 
     return YAML::Dump(yaml);
 }

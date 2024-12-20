@@ -72,6 +72,7 @@ set(SOURCES
         src/stb.cpp
         src/renderdoc.cpp
         src/sph_scene_parameters.cpp
+        src/sph_simulation_state.cpp
 )
 
 add_compile_definitions(WORKING_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

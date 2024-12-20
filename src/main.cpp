@@ -17,6 +17,7 @@
 #include "renderdoc.h"
 #include <render.h>
 #include "sph_scene_parameters.h"
+#include "sph_simulation_state.h"
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -26,12 +27,16 @@ int width = 1200;
 int height = 1000;
 
 void render() {
-    SPHSceneParameters parameters { "../scenes/default.yaml" };
-    std::cout << "--- Scene parameters ---\n" << parameters.printToYaml() << "\n------------------------\n";
 
     AppResources app;
 
     initApp(app, true, "Project", width, height);
+
+    SPHSceneParameters parameters { "../scenes/default.yaml" };
+    std::cout << "--- Scene parameters ---\n" << parameters.printToYaml() << "\n------------------------\n";
+    SPHSimulationState simulationState {};
+    simulationState.initialize(parameters, app);
+    simulationState.cleanup(app);
 
     // Since our application is now frame-based, renderdoc can find frame delimiters on its own
     renderdoc::initialize();
