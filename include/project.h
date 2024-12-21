@@ -14,6 +14,7 @@
 #include <vulkan/vulkan.hpp>
 #include <fstream>
 #include <vector>
+#include <memory>
 #include "initialization.h"
 #include "utils.h"
 #include "task_common.h"
@@ -21,6 +22,8 @@
 #include "helper.h"
 
 struct ProjectData {
+    UiBindings uiBindings;
+
     struct PushConstant {
         glm::mat4 mvp;
         glm::vec4 pos;
@@ -88,6 +91,7 @@ class ProjectRender {
 public:
     AppResources& app;
     Render& render;
+    std::unique_ptr<ImguiUi> imguiUi = nullptr;
 
     vk::Pipeline opaquePipeline;
     vk::Pipeline transparentPipeline;
@@ -96,8 +100,8 @@ public:
     bool renderForceLines = false;
     bool fPress = false;
 
-
     ProjectRender(AppResources& app, Render& render): app(app), render(render) {
+        imguiUi = std::make_unique<ImguiUi>(app);
     };
 
     void createPipeline(vk::Pipeline& pipeline, ProjectData& data, const std::string& vertex,
@@ -228,6 +232,8 @@ public:
     }
 
     void prepare(ProjectData& data) {
+        imguiUi->initCommandBuffers();
+
         {
             // Opaque
             vk::PipelineColorBlendAttachmentState blendState = {false};
@@ -262,6 +268,7 @@ public:
     }
 
     void destroy() {
+        imguiUi = nullptr;
         app.device.destroyPipeline(opaquePipeline);
         app.device.destroyPipeline(transparentPipeline);
         app.device.destroyPipeline(linesPipeline);
@@ -308,7 +315,11 @@ public:
                                           nullptr);
                     cb.draw(3 * 10 * 10 * 10, 1, 0, 0);
                 }
-            });
+            },
+            [&](uint32_t index){
+                return imguiUi->updateCommandBuffer(index, data.uiBindings);
+            }
+        );
     }
 };
 

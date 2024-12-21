@@ -71,6 +71,7 @@ set(SOURCES
         src/obj.cpp
         src/stb.cpp
         src/renderdoc.cpp
+        src/imgui_ui.cpp
 )
 
 add_compile_definitions(WORKING_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
