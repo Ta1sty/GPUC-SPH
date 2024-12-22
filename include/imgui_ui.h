@@ -6,6 +6,7 @@
 struct UiBindings{
     uint32_t frameIndex;
     bool sampleCheckbox;
+
 };
 
 class ImguiUi {

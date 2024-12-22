@@ -72,6 +72,13 @@ set(SOURCES
         src/stb.cpp
         src/renderdoc.cpp
         src/imgui_ui.cpp
+        src/simulation.cpp
+        src/renderer.cpp
+        include/renderer.h
+        src/hashgrid.cpp
+        include/hashgrid.h
+        src/particle_simulation.cpp
+        include/particle_simulation.h
 )
 
 add_compile_definitions(WORKING_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
