@@ -200,6 +200,7 @@ debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeveri
             }
         }
     }
+    std::cout<<std::endl;
     return VK_TRUE;
 }
 
