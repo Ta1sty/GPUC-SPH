@@ -8,6 +8,8 @@
 #include <stdexcept>
 #include <random>
 
+namespace sph {
+
 template <typename T>
 T parseEnum(const YAML::Node &yaml, const std::string &key, std::initializer_list<std::pair<std::string, T>> mappings) {
     if (!yaml[key])
@@ -48,7 +50,7 @@ std::initializer_list<std::pair<std::string, InitializationFunction>> initializa
         { "poisson_disk", InitializationFunction::POISSON_DISK }
 };
 
-SPHSceneParameters::SPHSceneParameters(const std::string &file) {
+SceneParameters::SceneParameters(const std::string &file) {
     YAML::Node yaml = YAML::LoadFile(file);
 
     type = parseEnum<SceneType>(yaml, "type", sceneTypeMappings);
@@ -61,7 +63,7 @@ SPHSceneParameters::SPHSceneParameters(const std::string &file) {
     randomSeed = parse<uint32_t>(yaml, "random_seed", rd());
 }
 
-std::string SPHSceneParameters::printToYaml() const {
+std::string SceneParameters::printToYaml() const {
     YAML::Node yaml;
 
     yaml["type"] = dumpEnum(type, sceneTypeMappings);
@@ -72,4 +74,4 @@ std::string SPHSceneParameters::printToYaml() const {
     return YAML::Dump(yaml);
 }
 
-
+} // namespace sph

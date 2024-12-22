@@ -5,6 +5,8 @@
 #include "sph_simulation_state.h"
 #include "initialization.h"
 
+namespace sph {
+
 std::vector<float> initUniform(SceneType sceneType, uint32_t numParticles, std::mt19937 &random) {
     std::vector<float> values;
 
@@ -31,7 +33,7 @@ std::vector<float> initPoissonDisk(SceneType sceneType, uint32_t numParticles, s
     }
 }
 
-void SPHSimulationState::initialize(const SPHSceneParameters &parameters, AppResources &app) {
+void SimulationState::initialize(const SceneParameters &newParameters, AppResources &app) {
     using BFlag = vk::BufferUsageFlagBits;
     auto makeDLocalBuffer = [&](vk::BufferUsageFlags usage, vk::DeviceSize size, const std::string &name) -> Buffer {
         Buffer b;
@@ -40,22 +42,23 @@ void SPHSimulationState::initialize(const SPHSceneParameters &parameters, AppRes
         return b;
     };
 
-    if (numParticles != parameters.numParticles || type != parameters.type) {
-        if (numParticles != 0)
+    if (newParameters.numParticles != parameters.numParticles || newParameters.type != parameters.type) {
+        if (parameters.numParticles != 0)
             cleanup(app);
 
-        numParticles = parameters.numParticles;
-        type = parameters.type;
+        parameters = newParameters;
 
-        switch (type) {
+        switch (parameters.type) {
             case SceneType::SPH_BOX_2D:
-                coordinateBufferSize = 2 * numParticles;
+                coordinateBufferSize = 2 * parameters.numParticles;
                 break;
         }
 
         particleCoordinates = makeDLocalBuffer(BFlag::eTransferDst | BFlag::eStorageBuffer,
                                                coordinateBufferSize * sizeof(float), "particleCoordinates");
         // TODO: create additional buffers?
+    } else {
+        parameters = newParameters;
     }
 
     random.seed(parameters.randomSeed);
@@ -64,10 +67,10 @@ void SPHSimulationState::initialize(const SPHSceneParameters &parameters, AppRes
 
     switch (parameters.initializationFunction) {
         case InitializationFunction::UNIFORM:
-            values = initUniform(type, numParticles, random);
+            values = initUniform(parameters.type, parameters.numParticles, random);
             break;
         case InitializationFunction::POISSON_DISK:
-            values = initPoissonDisk(type, numParticles, random);
+            values = initPoissonDisk(parameters.type, parameters.numParticles, random);
             break;
     }
 
@@ -75,7 +78,7 @@ void SPHSimulationState::initialize(const SPHSceneParameters &parameters, AppRes
                                 particleCoordinates, values);
 }
 
-void SPHSimulationState::cleanup(AppResources &app) {
+void SimulationState::cleanup(AppResources &app) {
     auto Bclean = [&](Buffer& b) {
         app.device.destroyBuffer(b.buf);
         app.device.freeMemory(b.mem);
@@ -84,3 +87,5 @@ void SPHSimulationState::cleanup(AppResources &app) {
     Bclean(particleCoordinates);
     // TODO: cleanup additional buffers
 }
+
+} // namespace sph

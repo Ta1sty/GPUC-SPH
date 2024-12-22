@@ -11,21 +11,28 @@
 
 #include <random>
 
-class SPHSimulationState {
+namespace sph {
+
+class SimulationState {
 public:
-    SPHSimulationState() = default;
-    void initialize(const SPHSceneParameters &parameters, AppResources &app);
+    SimulationState() = default;
+    void initialize(const SceneParameters &parameters, AppResources &app);
 
     void cleanup(AppResources &app);
 
+    [[nodiscard]] SceneParameters getParameters() const { return parameters; }
+    [[nodiscard]] uint32_t getCoordinateBufferSize() const { return coordinateBufferSize; }
+    [[nodiscard]] const Buffer& getParticleCoordinateBuffer() const { return particleCoordinates; }
+
 private:
-    uint32_t numParticles = 0;
+    SceneParameters parameters;
+
     uint32_t coordinateBufferSize = 0;
-    SceneType type = SceneType::SPH_BOX_2D;
     std::mt19937 random;
 
     Buffer particleCoordinates;
 };
 
+} // namespace sph
 
 #endif //GPUC_PROJECT_SPH_SIMULATION_STATE_H

@@ -7,8 +7,10 @@
 
 #include <string>
 
+namespace sph {
+
 enum class SceneType {
-    SPH_BOX_2D // sph_box_2d
+    SPH_BOX_2D
 };
 
 enum class InitializationFunction {
@@ -16,17 +18,20 @@ enum class InitializationFunction {
     POISSON_DISK
 };
 
-struct SPHSceneParameters {
+struct SceneParameters {
+public:
     SceneType type = SceneType::SPH_BOX_2D;
     InitializationFunction initializationFunction = InitializationFunction::UNIFORM;
     uint32_t numParticles = 128;
-    uint32_t randomSeed = 0;
+    uint32_t randomSeed = 0; // initialized with TRNG if omitted
 
-    SPHSceneParameters() = default;
-    SPHSceneParameters(const SPHSceneParameters &other) = default;
-    explicit SPHSceneParameters(const std::string &file);
+public:
+    SceneParameters() = default;
+    SceneParameters(const SceneParameters &other) = default;
+    explicit SceneParameters(const std::string &file);
     [[nodiscard]] std::string printToYaml() const;
 };
 
+} // namespace sph
 
 #endif //GPUC_PROJECT_SPH_SCENE_PARAMETERS_H

@@ -32,9 +32,9 @@ void render() {
 
     initApp(app, true, "Project", width, height);
 
-    SPHSceneParameters parameters { "../scenes/default.yaml" };
+    sph::SceneParameters parameters { "../scenes/default.yaml" };
     std::cout << "--- Scene parameters ---\n" << parameters.printToYaml() << "\n------------------------\n";
-    SPHSimulationState simulationState {};
+    sph::SimulationState simulationState {};
     simulationState.initialize(parameters, app);
     simulationState.cleanup(app);
 
