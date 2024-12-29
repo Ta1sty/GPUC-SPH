@@ -40,10 +40,10 @@ SimulationState::SimulationState(const SimulationParameters &parameters) : uiBin
 
 Simulation::Simulation(SimulationParameters parameters) : parameters(parameters), state(parameters) {
 
-    particleSimulation = std::make_unique<ParticleSimulation>();
+    particlePhysics = std::make_unique<ParticleSimulation>();
     hashGrid = std::make_unique<HashGrid>();
     imguiUi = std::make_unique<ImguiUi>(resources);
-    renderer = std::make_unique<ParticleRenderer>();
+    particleRenderer = std::make_unique<ParticleRenderer>();
 
     vk::FenceCreateInfo timelineFenceInfo(vk::FenceCreateFlagBits::eSignaled);
     timelineFence = resources.device.createFence(timelineFenceInfo);
@@ -90,9 +90,9 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     std::array<std::tuple<vk::Queue,vk::CommandBuffer>,count> buffers;
 
     buffers[0] = {resources.transferQueue, cmdReset};
-    buffers[1] = { resources.computeQueue, particleSimulation->run() };
+    buffers[1] = {resources.computeQueue, particlePhysics->run() };
     buffers[2] = { resources.computeQueue, hashGrid->run() };
-    buffers[3] =  { resources.graphicsQueue, renderer->run()};
+    buffers[3] =  {resources.graphicsQueue, particleRenderer->run()};
     buffers[4] =  { resources.graphicsQueue, copy(imageIndex)};
     buffers[5] =  { resources.graphicsQueue, imguiUi->updateCommandBuffer(imageIndex, state.uiBindings)};
 
@@ -147,7 +147,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
 vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
 
-    vk::Image srcImage = renderer->getImage();
+    vk::Image srcImage = particleRenderer->getImage();
     vk::ImageLayout srcImageLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
     if (state.uiBindings.debugImagePhysics) {

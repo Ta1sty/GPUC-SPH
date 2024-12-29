@@ -51,9 +51,9 @@ class Simulation {
 
     std::unique_ptr<ImguiUi> imguiUi;
 
-    std::unique_ptr<ParticleRenderer> renderer;
+    std::unique_ptr<ParticleRenderer> particleRenderer;
     std::unique_ptr<HashGrid> hashGrid;
-    std::unique_ptr<ParticleSimulation> particleSimulation;
+    std::unique_ptr<ParticleSimulation> particlePhysics;
 
     // clears the color values for the debug images
     vk::CommandBuffer cmdReset;
