@@ -2,11 +2,25 @@
 
 #include "simulation.h"
 
-class Renderer {
-    vk::Image outputImages;
-    vk::Framebuffer frameBuffers;
-
-    vk::Pipeline renderPipeline;
+class Renderer2D {
 public:
-    vk::CommandBuffer run();
+    Renderer2D();
+    ~Renderer2D();
+
+    vk::CommandBuffer run(const SimulationState &state);
+
+private:
+    vk::Pipeline particlePipeline;
+    vk::Pipeline backgroundFieldPipeline;
+};
+
+class Renderer {
+public:
+    Renderer();
+    ~Renderer();
+
+    vk::CommandBuffer run(const SimulationState &state);
+
+private:
+    Renderer2D renderer2D;
 };

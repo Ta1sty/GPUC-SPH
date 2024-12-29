@@ -10,8 +10,6 @@ struct UiBindings{
 };
 
 class ImguiUi {
-    AppResources &resources;
-
     vk::DescriptorPool descriptorPool;
     vk::RenderPass renderPass;
 
@@ -20,7 +18,7 @@ class ImguiUi {
     std::vector<vk::Framebuffer> frameBuffers;
 
 public:
-    explicit ImguiUi(AppResources &resources);
+    explicit ImguiUi();
     ~ImguiUi();
 
     void initCommandBuffers();

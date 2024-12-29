@@ -4,8 +4,7 @@
 #include "imgui_impl_glfw.h"
 
 
-ImguiUi::ImguiUi(AppResources &resources) : resources(resources) {
-
+ImguiUi::ImguiUi() {
     const vk::DescriptorPoolSize pool_sizes[] =
             {
                     {vk::DescriptorType::eSampler,       10},

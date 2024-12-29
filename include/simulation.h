@@ -1,43 +1,56 @@
 #pragma once
 
-#include "imgui_ui.h"
 #include <vulkan/vulkan.hpp>
 #include <memory>
+#include <random>
+
+#include "imgui_ui.h"
 #include "initialization.h"
+#include "parameters.h"
 
-// constant setting throughout the simulation
-struct SimulationParameters {
-
-};
-
-// changed during simulation
+/**
+ * Physical state of the simulation (particle positions, forces, rng state, etc.).
+ */
 struct SimulationState {
-    UiBindings uiBindings;
+public:
+    SimulationState() = delete;
+    SimulationState(const SimulationState &other) = delete; // don't accidentally copy
+    SimulationState(const SimulationParameters &parameters);
+    ~SimulationState();
 
-    vk::Image debugImage1;
-    vk::Image debugImage2;
+    [[nodiscard]] SimulationParameters getParameters() const { return parameters; }
+    [[nodiscard]] uint32_t getCoordinateBufferSize() const { return coordinateBufferSize; }
+    [[nodiscard]] const Buffer& getParticleCoordinateBuffer() const { return particleCoordinates; }
 
-    vk::Buffer particles;
+private:
+    SimulationParameters parameters;
 
-    vk::Buffer hashGridBuffer;
+    uint32_t coordinateBufferSize = 0;
+    std::mt19937 random;
 
+    Buffer particleCoordinates;
 };
 
-class Renderer;
 class HashGrid;
 class ParticleSimulation;
+class Renderer;
 
 // handles interop of the 3 parts, also copies rendered image to swapchain image
 class Simulation {
+public:
+    Simulation();
+    ~Simulation() = default;
+
+    void run();
+
+private:
     const SimulationParameters parameters;
-    SimulationState state;
 
     ImguiUi imguiUi;
     Camera camera;
 
+    std::unique_ptr<SimulationState> state;
     std::unique_ptr<Renderer> renderer;
     std::unique_ptr<HashGrid> hashGrid;
     std::unique_ptr<ParticleSimulation> particleSimulation;
-
-    void run();
 };
