@@ -1,12 +1,15 @@
 #pragma once
 
-#include "render.h"
+#include "initialization.h"
 
 // put ui bindings here
 struct UiBindings{
     uint32_t frameIndex;
     bool sampleCheckbox;
 
+    bool debugImagePhysics;
+    bool debugImageSort;
+    bool debugImageRenderer;
 };
 
 class ImguiUi {

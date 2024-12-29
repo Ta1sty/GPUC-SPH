@@ -114,6 +114,10 @@ void ImguiUi::initCommandBuffers() {
 }
 
 vk::CommandBuffer ImguiUi::updateCommandBuffer(uint32_t index, UiBindings &bindings) {
+    if (commandBuffers.empty()) {
+        initCommandBuffers();
+    }
+
     auto cmd = commandBuffers[index];
 
     cmd.reset();
@@ -153,7 +157,12 @@ void ImguiUi::drawUi(UiBindings &bindings) {
     ImGui::Begin("Settings");
 
     ImGui::Checkbox("SampleCheckbox", &bindings.sampleCheckbox);
+
     ImGui::Text(bindings.sampleCheckbox ? "true" : "false");
+
+    ImGui::Checkbox("DebugPhysics", &bindings.debugImagePhysics);
+    ImGui::Checkbox("DebugSort", &bindings.debugImageSort);
+    ImGui::Checkbox("DebugRender", &bindings.debugImageRenderer);
 
     ImGui::End();
 }

@@ -409,13 +409,22 @@ void createLogicalDevice(vk::Instance& instance, vk::PhysicalDevice& pDevice, vk
         }
     }
 
+    vk::PhysicalDeviceTimelineSemaphoreFeatures timelineFeatures = {};
+    timelineFeatures.timelineSemaphore = true;
+
     vk::PhysicalDeviceFeatures deviceFeatures = {};
     deviceFeatures.fillModeNonSolid = 1;
     deviceFeatures.vertexPipelineStoresAndAtomics = 1;
 
-    vk::DeviceCreateInfo dci({}, queuesInfo.size(), queuesInfo.data(),
-                             CAST(validationLayers), validationLayers.data(),
-                             CAST(extensionNames), extensionNames.data(), &deviceFeatures); // no extension
+
+    vk::DeviceCreateInfo dci(
+            {},
+            queuesInfo,
+            validationLayers,
+            extensionNames,
+            &deviceFeatures,
+            &timelineFeatures
+    );
 
     device = pDevice.createDevice(dci);
     VULKAN_HPP_DEFAULT_DISPATCHER.init(device);
@@ -567,7 +576,7 @@ void createSwapchain(AppResources& app) {
         selectedSurfaceFormat.colorSpace, // Swapchain colour space
         selectedExtent, // Swapchain image extents
         1, // Number of layers for each image in chain
-        vk::ImageUsageFlagBits::eColorAttachment, // What attachment images will be used as
+        vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst, // What attachment images will be used as
         vk::SharingMode::eExclusive,
         0,
         nullptr,

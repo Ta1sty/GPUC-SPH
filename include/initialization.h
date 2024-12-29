@@ -1,9 +1,12 @@
-#ifndef INITIALIZATION
-#define INITIALIZATION
-#include <vulkan/vulkan.hpp>
-#include <cstring>
-#include <GLFW/glfw3.h>
+#pragma once
 
+#include "utils.h"
+#include <vulkan/vulkan.hpp>
+#include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <cstring>
+#include <memory>
+#include "task_common.h"
 
 struct AppResources
 {
@@ -55,4 +58,3 @@ void createSwapchain(AppResources &app);
 void printDeviceCapabilities(vk::PhysicalDevice &pDevice);
 
 void initApp(AppResources &app, bool withWindow = false, const std::string& name = "GPGPU/GPU-C", int width = 800, int height = 600);
-#endif
