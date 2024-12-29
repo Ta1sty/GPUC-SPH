@@ -71,6 +71,14 @@ set(SOURCES
         src/obj.cpp
         src/stb.cpp
         src/renderdoc.cpp
+        src/imgui_ui.cpp
+        src/simulation.cpp
+        src/renderer.cpp
+        include/renderer.h
+        src/hashgrid.cpp
+        include/hashgrid.h
+        src/particle_simulation.cpp
+        include/particle_simulation.h
         src/sph_scene_parameters.cpp
         src/sph_simulation_state.cpp
         src/sph_render.cpp
@@ -86,7 +94,7 @@ add_shader(${PROJECT_NAME} shaders/phong.frag)
 add_shader(${PROJECT_NAME} shaders/lines.vert)
 add_shader(${PROJECT_NAME} shaders/particle.vert)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} PUBLIC Vulkan::Vulkan stb glfw tinyobj yaml-cpp)
+target_link_libraries(${PROJECT_NAME} PUBLIC Vulkan::Vulkan stb glfw tinyobj)
 
 if(RENDERDOC_PATH)
     target_include_directories(${PROJECT_NAME} PRIVATE ${RENDERDOC_PATH})

@@ -4,6 +4,7 @@
 #include <cstring>
 #include <GLFW/glfw3.h>
 
+
 struct AppResources
 {
     vk::Instance instance;
@@ -26,6 +27,8 @@ struct AppResources
 
     void destroy();
 };
+
+extern AppResources &resources;
 
 VKAPI_ATTR VkBool32 VKAPI_CALL
 debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

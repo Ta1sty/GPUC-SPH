@@ -1,0 +1,33 @@
+Organisieren des Projekts
+
+APP-RESOURCEN SIND GLOBAL GÜLTIG! 'resources' - definiert in initialization.h
+
+für init & cleanup constructor + destructor verwenden!
+
+Project.h verwefen (drinnelassen für copy & paste)
+
+geteilte implementierung:
+
+Hashgrid:
+Hashgrid.h
+
+Particle Simulation:
+Particle_Simulation.h
+
+Renderer:
+Renderer.h
+
+gemeinsame implementierung:
+simulation.h
+imguiui.h
+
+wiederverwendbare utils:
+utils.h
+task_common.h
+host_timer.h
+helper.h
+renderdoc.h
+
+nicht verwenden (fliegt raus):
+project.h
+render.h

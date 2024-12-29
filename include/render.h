@@ -9,6 +9,7 @@
 #include <glm/gtc/constants.hpp>
 #include <cmath>
 #include "task_common.h"
+#include "imgui_ui.h"
 
 class Camera {
 public:
@@ -287,8 +288,8 @@ public:
         doRawMouseInput = false;
     }
 
-    template <typename O, typename T>
-    void renderFrame(O opaque, T transparent) {
+    template <typename O, typename T, typename U>
+    void renderFrame(O opaque, T transparent, U ui) {
         auto idx = currentFrameIdx % framesinlight;
         if (app.device.waitForFences({fences[idx]}, true, ~0) != vk::Result::eSuccess)
             throw std::runtime_error("Waiting for fence didn't succeed!");
@@ -298,27 +299,27 @@ public:
             throw std::runtime_error("Couldn't acquire next swapchain image!");
         auto swapchainIndex = result.value;
 
-        auto cb = commandBuffers[idx];
-        cb.begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+        vk::CommandBuffer render_cb = commandBuffers[idx];
+        render_cb.begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
         vk::ClearValue clearValues[2];
         clearValues[0].color.uint32 = {{0, 0, 0, 0}};
         clearValues[1].depthStencil.depth = 1;
-        cb.beginRenderPass(
+        render_cb.beginRenderPass(
             {renderPass, framebuffers[swapchainIndex], {{0, 0}, app.extent}, 2, &clearValues[0]},
             vk::SubpassContents::eInline);
-        opaque(cb);
-        cb.nextSubpass(vk::SubpassContents::eInline);
-        transparent(cb);
-        cb.endRenderPass();
-        cb.end();
+        opaque(render_cb);
+        render_cb.nextSubpass(vk::SubpassContents::eInline);
+        transparent(render_cb);
+        render_cb.endRenderPass();
+        render_cb.end();
+
+        vk::CommandBuffer ui_cb = ui(swapchainIndex);
 
         vk::PipelineStageFlags dstStages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
+        std::array<vk::CommandBuffer,2> buffers = {render_cb, ui_cb};
         std::vector<vk::SubmitInfo> submitInfos = {
-            {
-                1, &swapchainAcquireSemaphores[idx], &dstStages,
-                1, &cb, 1, &completionSemaphores[idx]
-            }
+            vk::SubmitInfo(swapchainAcquireSemaphores[idx], dstStages, buffers, completionSemaphores[idx]),
         };
         app.graphicsQueue.submit(submitInfos, fences[idx]);
 
