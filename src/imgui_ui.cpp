@@ -2,6 +2,7 @@
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
+#include "parameters.h"
 
 
 ImguiUi::ImguiUi() {
@@ -149,17 +150,25 @@ vk::CommandBuffer ImguiUi::updateCommandBuffer(uint32_t index, UiBindings &bindi
 }
 
 void ImguiUi::drawUi(UiBindings &bindings) {
-    ImGui::ShowDemoWindow();
+    if (bindings.renderParameters.showDemoWindow)
+        ImGui::ShowDemoWindow();
 
     ImGui::Begin("Settings");
 
-    ImGui::Checkbox("SampleCheckbox", &bindings.sampleCheckbox);
+    if (ImGui::CollapsingHeader("Render Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+        auto &render = bindings.renderParameters;
+        ImGui::Checkbox("Show demo window", &render.showDemoWindow);
+        ImGui::Checkbox("DebugPhysics", &render.debugImagePhysics);
+        ImGui::Checkbox("DebugSort", &render.debugImageSort);
+        ImGui::Checkbox("DebugRender", &render.debugImageRenderer);
+    }
 
-    ImGui::Text(bindings.sampleCheckbox ? "true" : "false");
+    if (ImGui::CollapsingHeader("Simulation Parameters")) {
+        bindings.updateFlags.resetSimulation |= ImGui::Button("Restart Simulation");
 
-    ImGui::Checkbox("DebugPhysics", &bindings.debugImagePhysics);
-    ImGui::Checkbox("DebugSort", &bindings.debugImageSort);
-    ImGui::Checkbox("DebugRender", &bindings.debugImageRenderer);
+        auto &simulation = bindings.simulationParameters;
+        ImGui::DragInt("Num Particles", reinterpret_cast<int*>(&simulation.numParticles), 16, 16, 1024 * 1024 * 1024);
+    }
 
     ImGui::End();
 }

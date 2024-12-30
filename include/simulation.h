@@ -8,9 +8,6 @@
 #include "initialization.h"
 #include "parameters.h"
 
-/**
- * Physical state of the simulation (particle positions, forces, rng state, etc.).
- */
 #include "imgui_ui.h"
 #include "debug_image.h"
 #include "particle_physics.h"
@@ -31,27 +28,29 @@ class ParticleRenderer;
 class HashGrid;
 class ParticleSimulation;
 
-// changed during simulation
+/**
+ * Physical state of the simulation (particle positions, forces, rng state, etc.).
+ */
 struct SimulationState {
-    UiBindings uiBindings;
-    std::unique_ptr<Camera> camera;
 public:
     SimulationState() = delete;
     SimulationState(const SimulationState &other) = delete; // don't accidentally copy
     SimulationState(const SimulationParameters &parameters);
     ~SimulationState();
 
-    std::unique_ptr<DebugImage> debugImagePhysics;
-    std::unique_ptr<DebugImage> debugImageSort;
-    std::unique_ptr<DebugImage> debugImageRenderer;
     [[nodiscard]] SimulationParameters getParameters() const { return parameters; }
     [[nodiscard]] uint32_t getCoordinateBufferSize() const { return coordinateBufferSize; }
-    [[nodiscard]] const Buffer& getParticleCoordinateBuffer() const { return particleCoordinates; }
+    [[nodiscard]] const vk::Buffer& getParticleCoordinateBuffer() const { return particleCoordinateBuffer; }
 
-    vk::Buffer particleBuffer;
+    vk::Buffer particleCoordinateBuffer;
     vk::DeviceMemory particleMemory;
     SimulationParameters parameters;
 
+    std::unique_ptr<DebugImage> debugImagePhysics;
+    std::unique_ptr<DebugImage> debugImageSort;
+    std::unique_ptr<DebugImage> debugImageRenderer;
+
+    std::unique_ptr<Camera> camera;
     vk::Buffer hashGridBuffer;
     vk::DeviceMemory hashGridMemory;
     uint32_t coordinateBufferSize = 0;
@@ -61,13 +60,15 @@ public:
 // handles interop of the 3 parts, also copies rendered image to swapchain image
 class Simulation {
 public:
-    Simulation();
+    Simulation() = delete;
+    explicit Simulation(const SimulationParameters &parameters);
     ~Simulation() = default;
 
-    void run();
+    void run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::Semaphore signalRenderFinished, vk::Fence signalSubmitFinished);
 
 private:
-    const SimulationParameters parameters;
+    SimulationParameters simulationParameters;
+    RenderParameters renderParameters;
 
     std::unique_ptr<ImguiUi> imguiUi;
 
@@ -90,7 +91,5 @@ private:
     vk::Semaphore initSemaphore();
     vk::CommandBuffer copy(uint32_t imageIndex);
 public:
-    explicit Simulation(SimulationParameters parameters);
-    void run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::Semaphore signalRenderFinished, vk::Fence signalSubmitFinished);
     std::unique_ptr<ParticleSimulation> particleSimulation;
 };

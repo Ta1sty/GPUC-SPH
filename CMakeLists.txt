@@ -77,6 +77,7 @@ set(SOURCES
         src/stb.cpp
         src/task_common.cpp
         src/utils.cpp
+        src/parameters.cpp
 )
 
 add_compile_definitions(WORKING_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
@@ -89,7 +90,7 @@ add_shader(${PROJECT_NAME} shaders/phong.frag)
 add_shader(${PROJECT_NAME} shaders/lines.vert)
 add_shader(${PROJECT_NAME} shaders/particle.vert)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} PUBLIC Vulkan::Vulkan stb glfw tinyobj)
+target_link_libraries(${PROJECT_NAME} PUBLIC Vulkan::Vulkan stb glfw tinyobj yaml-cpp)
 
 if(RENDERDOC_PATH)
     target_include_directories(${PROJECT_NAME} PRIVATE ${RENDERDOC_PATH})

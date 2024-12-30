@@ -32,6 +32,9 @@ public:
 /**
  * Parameters that only influence the visualization of the Simulation.
  */
-class RenderParameters {
-
+struct RenderParameters {
+    bool showDemoWindow = false;
+    bool debugImagePhysics = false;
+    bool debugImageSort = false;
+    bool debugImageRenderer = false;
 };

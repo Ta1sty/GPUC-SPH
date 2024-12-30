@@ -24,7 +24,6 @@ int height = 1000;
 
 
 void render() {
-
     AppResources app;
 
     initApp(app, true, "Project", width, height);
@@ -41,25 +40,23 @@ void render() {
 //    Project project(app, render, 400000, workingDir + "Assets/cubeMonkey.obj");
 //    ProjectSolution solution(app, project.data, 192, 192);
 
-    SimulationParameters parameters {
-        .numParticles = 1000
-    };
+    SimulationParameters parameters { "../scenes/default.yaml" };
     Simulation simulation(parameters);
 
     renderdoc::endCapture();
 
     // Loop until the user closes the window
     while (true) {
-        double time = glfwGetTime();
-        render.timedelta = time - render.prevtime;
-        render.prevtime = time;
-
-        render.preInput();
+//        double time = glfwGetTime();
+//        render.timedelta = time - render.prevtime;
+//        render.prevtime = time;
+//
+//        render.preInput();
 
         // Poll for and process events
         glfwPollEvents();
 
-        render.input();
+//        render.input();
 
         if (glfwGetKey(app.window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(app.window, 1);
@@ -78,7 +75,7 @@ void render() {
 //    solution.cleanup();
 //    project.cleanup();
 
-    render.cleanup();
+//    render.cleanup();
 
     app.destroy();
 }

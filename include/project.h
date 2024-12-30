@@ -20,9 +20,16 @@
 #include "task_common.h"
 #include "render.h"
 #include "helper.h"
+#include "parameters.h"
 
 struct ProjectData {
+    /**
+     * Making unused code work with the new framework .-.
+     */
+    SimulationParameters simulationParameters;
+    RenderParameters renderParameters;
     UiBindings uiBindings;
+    inline ProjectData() : uiBindings({}, simulationParameters, renderParameters) {}
 
     struct PushConstant {
         glm::mat4 mvp;

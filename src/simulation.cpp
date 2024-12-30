@@ -6,61 +6,6 @@
 #include "render.h"
 #include "debug_image.h"
 
-SimulationState::SimulationState(const SimulationParameters &parameters) : uiBindings() {
-
-    camera = std::make_unique<Camera>();
-    debugImagePhysics = std::make_unique<DebugImage>("debug-image-particle");
-    debugImageSort = std::make_unique<DebugImage>("debug-image-sort");
-    debugImageRenderer = std::make_unique<DebugImage>("debug-image-render");
-
-    createBuffer(
-            resources.pDevice,
-            resources.device,
-            parameters.numParticles * sizeof(Particle),
-            {vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc},
-            {vk::MemoryPropertyFlagBits::eDeviceLocal},
-            "buffer-particles",
-            particleBuffer,
-            particleMemory
-    );
-
-    createBuffer(
-            resources.pDevice,
-            resources.device,
-            parameters.numParticles * sizeof(HashGridCell),
-            {vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc},
-            {vk::MemoryPropertyFlagBits::eDeviceLocal},
-            "buffer-hash-grid",
-            particleBuffer,
-            particleMemory
-    );
-
-}
-
-
-Simulation::Simulation(SimulationParameters parameters) : parameters(parameters), state(parameters) {
-
-    particlePhysics = std::make_unique<ParticleSimulation>();
-    hashGrid = std::make_unique<HashGrid>();
-    imguiUi = std::make_unique<ImguiUi>(resources);
-    particleRenderer = std::make_unique<ParticleRenderer>();
-
-    vk::FenceCreateInfo timelineFenceInfo(vk::FenceCreateFlagBits::eSignaled);
-    timelineFence = resources.device.createFence(timelineFenceInfo);
-
-    vk::CommandBufferAllocateInfo cmdAllocateInfo(resources.transferCommandPool, vk::CommandBufferLevel::ePrimary, 3);
-    auto allocated = resources.device.allocateCommandBuffers(cmdAllocateInfo);
-
-    cmdCopy = allocated[0];
-
-    cmdReset = allocated[1];
-    cmdReset.begin(vk::CommandBufferBeginInfo());
-    state.debugImagePhysics->clear(cmdReset, {1,0,0,1});
-    state.debugImageSort->clear(cmdReset, {0,1,0,1});
-    state.debugImageRenderer->clear(cmdReset, {0,0,1,1});
-    cmdReset.end();
-
-
 std::vector<float> initUniform(SceneType sceneType, uint32_t numParticles, std::mt19937 &random) {
     std::vector<float> values;
 
@@ -88,22 +33,16 @@ std::vector<float> initPoissonDisk(SceneType sceneType, uint32_t numParticles, s
 }
 
 SimulationState::SimulationState(const SimulationParameters &parameters) {
-    using BFlag = vk::BufferUsageFlagBits;
-    auto makeDLocalBuffer = [&](vk::BufferUsageFlags usage, vk::DeviceSize size, const std::string &name) -> Buffer {
-        Buffer b;
-        createBuffer(resources.pDevice, resources.device, size, usage, vk::MemoryPropertyFlagBits::eDeviceLocal, name, b.buf,
-                     b.mem);
-        return b;
-    };
+    camera = std::make_unique<Camera>();
+    debugImagePhysics = std::make_unique<DebugImage>("debug-image-particle");
+    debugImageSort = std::make_unique<DebugImage>("debug-image-sort");
+    debugImageRenderer = std::make_unique<DebugImage>("debug-image-render");
 
     switch (parameters.type) {
         case SceneType::SPH_BOX_2D:
-            coordinateBufferSize = 2 * parameters.numParticles;
+            coordinateBufferSize = sizeof(Particle) * parameters.numParticles;
             break;
     }
-
-    particleCoordinates = makeDLocalBuffer(BFlag::eTransferDst | BFlag::eStorageBuffer,
-                                           coordinateBufferSize * sizeof(float), "particleCoordinates");
 
     random.seed(parameters.randomSeed);
 
@@ -118,9 +57,58 @@ SimulationState::SimulationState(const SimulationParameters &parameters) {
             break;
     }
 
-    fillDeviceWithStagingBuffer(resources.pDevice, resources.device, resources.transferCommandPool, resources.transferQueue,
-                                particleCoordinates, values);
+    createBuffer(
+            resources.pDevice,
+            resources.device,
+            coordinateBufferSize,
+            {vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc},
+            {vk::MemoryPropertyFlagBits::eDeviceLocal},
+            "buffer-particles",
+            particleCoordinateBuffer,
+            particleMemory
+    );
 
+    createBuffer(
+            resources.pDevice,
+            resources.device,
+            parameters.numParticles * sizeof(HashGridCell),
+            {vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc},
+            {vk::MemoryPropertyFlagBits::eDeviceLocal},
+            "buffer-hash-grid",
+            particleCoordinateBuffer,
+            particleMemory
+    );
+
+    Buffer particleBuffer { particleCoordinateBuffer, particleMemory }; // TODO this is kind of dumb
+    fillDeviceWithStagingBuffer(resources.pDevice, resources.device, resources.transferCommandPool, resources.transferQueue,
+                                particleBuffer, values);
+}
+
+Simulation::Simulation(const SimulationParameters &parameters) : simulationParameters(parameters),
+                                                                 state(std::make_unique<SimulationState>(parameters)) {
+    particlePhysics = std::make_unique<ParticleSimulation>();
+    hashGrid = std::make_unique<HashGrid>();
+    imguiUi = std::make_unique<ImguiUi>();
+    particleRenderer = std::make_unique<ParticleRenderer>();
+
+    vk::FenceCreateInfo timelineFenceInfo(vk::FenceCreateFlagBits::eSignaled);
+    timelineFence = resources.device.createFence(timelineFenceInfo);
+
+    vk::CommandBufferAllocateInfo cmdAllocateInfo(resources.transferCommandPool, vk::CommandBufferLevel::ePrimary, 3);
+    auto allocated = resources.device.allocateCommandBuffers(cmdAllocateInfo);
+
+    cmdCopy = allocated[0];
+
+    cmdReset = allocated[1];
+    cmdReset.begin(vk::CommandBufferBeginInfo());
+    state->debugImagePhysics->clear(cmdReset, { 1, 0, 0, 1 });
+    state->debugImageSort->clear(cmdReset, { 0, 1, 0, 1 });
+    state->debugImageRenderer->clear(cmdReset, { 0, 0, 1, 1 });
+    cmdReset.end();
+
+    cmdEmpty = allocated[2];
+    cmdEmpty.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eSimultaneousUse));
+    cmdEmpty.end();
 }
 
 SimulationState::~SimulationState() {
@@ -129,17 +117,8 @@ SimulationState::~SimulationState() {
         resources.device.freeMemory(b.mem);
     };
 
-    Bclean(particleCoordinates);
-}
-
-Simulation::Simulation() {
-
-}
-
-void Simulation::run() {
-    cmdEmpty = allocated[2];
-    cmdEmpty.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eSimultaneousUse));
-    cmdEmpty.end();
+    resources.device.destroyBuffer(particleCoordinateBuffer);
+    resources.device.freeMemory(particleMemory);
 }
 
 vk::Semaphore Simulation::initSemaphore() {
@@ -159,19 +138,23 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     if (nullptr != timelineSemaphore) {
         vk::SemaphoreWaitInfo waitInfo({}, timelineSemaphore, count);
-        resultCheck(resources.device.waitSemaphores(waitInfo, -1), "Failed wait");
+        vk::detail::resultCheck(resources.device.waitSemaphores(waitInfo, -1), "Failed wait");
     }
 
     timelineSemaphore = initSemaphore();
 
+    UiBindings uiBindings { imageIndex, simulationParameters, renderParameters };
     std::array<std::tuple<vk::Queue,vk::CommandBuffer>,count> buffers;
 
-    buffers[0] = {resources.transferQueue, cmdReset};
-    buffers[1] = {resources.computeQueue, particlePhysics->run() };
-    buffers[2] = { resources.computeQueue, hashGrid->run() };
-    buffers[3] =  {resources.graphicsQueue, particleRenderer->run()};
-    buffers[4] =  { resources.graphicsQueue, copy(imageIndex)};
-    buffers[5] =  { resources.graphicsQueue, imguiUi->updateCommandBuffer(imageIndex, state.uiBindings)};
+    // TODO temporarily changed to transfer queue because
+    //  vulkan doesn't like stuff being allocated from the transfer
+    //  queue being run elsewhere
+    buffers[0] = { resources.transferQueue, cmdReset };
+    buffers[1] = { resources.transferQueue,  particlePhysics->run() };
+    buffers[2] = { resources.transferQueue,  hashGrid->run() };
+    buffers[3] = { resources.transferQueue, particleRenderer->run()};
+    buffers[4] = { resources.graphicsQueue, copy(imageIndex) };
+    buffers[5] = { resources.graphicsQueue, imguiUi->updateCommandBuffer(imageIndex, uiBindings) };
 
     for (uint64_t wait = 0,signal = 1; wait < buffers.size(); ++wait,++signal) {
         auto queue = std::get<0>(buffers[wait]);
@@ -227,16 +210,16 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
     vk::Image srcImage = particleRenderer->getImage();
     vk::ImageLayout srcImageLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
-    if (state.uiBindings.debugImagePhysics) {
-        srcImage = state.debugImagePhysics->image;
+    if (renderParameters.debugImagePhysics) {
+        srcImage = state->debugImagePhysics->image;
         srcImageLayout = vk::ImageLayout::eGeneral;
     }
-    if (state.uiBindings.debugImageSort) {
-        srcImage = state.debugImageSort->image;
+    if (renderParameters.debugImageSort) {
+        srcImage = state->debugImageSort->image;
         srcImageLayout = vk::ImageLayout::eGeneral;
     }
-    if (state.uiBindings.debugImageRenderer) {
-        srcImage = state.debugImageRenderer->image;
+    if (renderParameters.debugImageRenderer) {
+        srcImage = state->debugImageRenderer->image;
         srcImageLayout = vk::ImageLayout::eGeneral;
     }
 
@@ -336,8 +319,6 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
     return cmdCopy;
 }
 
-
-
 void Render::renderSimulationFrame(Simulation &simulation) {
     auto idx = currentFrameIdx % framesinlight;
     if (app.device.waitForFences({fences[idx]}, true, ~0) != vk::Result::eSuccess)
@@ -352,7 +333,7 @@ void Render::renderSimulationFrame(Simulation &simulation) {
     simulation.run(swapchainIndex, swapchainAcquireSemaphores[idx], completionSemaphores[idx], fences[idx]);
 
     vk::PresentInfoKHR presentInfo(completionSemaphores[idx], app.swapchain, swapchainIndex);
-    resultCheck(app.graphicsQueue.presentKHR(presentInfo),"Failed to present image");
+    vk::detail::resultCheck(app.graphicsQueue.presentKHR(presentInfo), "Failed to present image");
 
     currentFrameIdx = (currentFrameIdx + 1) % framesinlight;
 }
