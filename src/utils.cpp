@@ -233,17 +233,36 @@ void transitionImageLayout(vk::Device &device, vk::CommandPool &pool, vk::Queue 
 
         sourceStage = psf::eTopOfPipe;
         destinationStage = psf::eTransfer;
-    } else if ( oldLayout == vk::ImageLayout::eTransferDstOptimal && 
-                newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
+    } else if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferSrcOptimal) {
+        barrier.setDstAccessMask(vk::AccessFlagBits::eTransferRead);
+
+        sourceStage = psf::eTopOfPipe;
+        destinationStage = psf::eTransfer;
+    }else if (oldLayout == vk::ImageLayout::eTransferDstOptimal &&newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
         barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
         barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
 
         sourceStage = psf::eTransfer;
         destinationStage = psf::eComputeShader;
+    } else if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eGeneral){
+        barrier.setDstAccessMask(vk::AccessFlagBits::eTransferWrite);
+
+        sourceStage = psf::eTopOfPipe;
+        destinationStage = psf::eTransfer;
+    } else if (oldLayout == vk::ImageLayout::eTransferSrcOptimal && newLayout == vk::ImageLayout::eColorAttachmentOptimal) {
+        barrier.setDstAccessMask(vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite);
+
+        sourceStage = psf::eTransfer;
+        destinationStage = psf::eColorAttachmentOutput;
+    } else if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eColorAttachmentOptimal) {
+        barrier.setDstAccessMask(vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite);
+
+        sourceStage = psf::eBottomOfPipe;
+        destinationStage = psf::eColorAttachmentOutput;
     } else {
         throw std::invalid_argument("unsupported layout transition!");
     } 
-    
+
     commandBuffer.pipelineBarrier(
         sourceStage, destinationStage,
         vk::DependencyFlagBits::eByRegion,

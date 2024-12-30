@@ -1,14 +1,13 @@
+#pragma once
+
 #include <iostream>
 #include <cstdlib>
-#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 
 #include <vulkan/vulkan.hpp>
 #include <fstream>
 #include <vector>
 #include "initialization.h"
 #include "utils.h"
-#ifndef EX_TEMPLATE
-#define EX_TEMPLATE
 
 namespace Cmn {
 void createDescriptorSetLayout(vk::Device &device,
@@ -45,5 +44,3 @@ struct TaskResources
     void destroy(vk::Device &device);
 
 };
-
-#endif

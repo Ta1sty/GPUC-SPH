@@ -1,5 +1,5 @@
-#ifndef UTILS
-#define UTILS
+#pragma once
+
 #include <vector>
 #include <cstring>
 
@@ -109,5 +109,3 @@ void setObjectName(vk::Device &device, T handle, std::string name)
     device.setDebugUtilsObjectNameEXT(infoEXT);
 #endif
 }
-
-#endif

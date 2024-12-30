@@ -1,6 +1,6 @@
 #pragma once
 
-#include "simulation.h"
+#include "initialization.h"
 
 class HashGrid {
     vk::Pipeline gridPipeline;

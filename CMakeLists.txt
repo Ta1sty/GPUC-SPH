@@ -61,25 +61,22 @@ set(SOURCES_IMGUI
 
 set(SOURCES
         ${SOURCES_IMGUI}
-        src/main.cpp
-        src/initialization.cpp
-        src/utils.cpp
-        src/task_common.cpp
-        src/host_timer.cpp
-        src/project.cpp
-        src/particles.cpp
-        src/obj.cpp
-        src/stb.cpp
-        src/renderdoc.cpp
-        src/imgui_ui.cpp
-        src/simulation.cpp
-        src/renderer.cpp
-        include/renderer.h
+        src/debug_image.cpp
         src/hashgrid.cpp
-        include/hashgrid.h
-        src/particle_simulation.cpp
-        include/particle_simulation.h
-        src/parameters.cpp
+        src/host_timer.cpp
+        src/imgui_ui.cpp
+        src/initialization.cpp
+        src/main.cpp
+        src/obj.cpp
+        src/particle_renderer.cpp
+        src/particle_physics.cpp
+        src/particles.cpp
+        src/project.cpp
+        src/renderdoc.cpp
+        src/simulation.cpp
+        src/stb.cpp
+        src/task_common.cpp
+        src/utils.cpp
 )
 
 add_compile_definitions(WORKING_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
@@ -92,7 +89,7 @@ add_shader(${PROJECT_NAME} shaders/phong.frag)
 add_shader(${PROJECT_NAME} shaders/lines.vert)
 add_shader(${PROJECT_NAME} shaders/particle.vert)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} PUBLIC Vulkan::Vulkan stb glfw tinyobj yaml-cpp)
+target_link_libraries(${PROJECT_NAME} PUBLIC Vulkan::Vulkan stb glfw tinyobj)
 
 if(RENDERDOC_PATH)
     target_include_directories(${PROJECT_NAME} PRIVATE ${RENDERDOC_PATH})

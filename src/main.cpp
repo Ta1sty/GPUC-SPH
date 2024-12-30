@@ -15,14 +15,13 @@
 #include "project.h"
 
 #include "renderdoc.h"
-#include <render.h>
-
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_vulkan.h"
+#include "render.h"
+#include "simulation.h"
 
 int width = 1200;
 int height = 1000;
+
+
 
 void render() {
 
@@ -39,8 +38,13 @@ void render() {
     render.camera.phi = glm::pi<float>();
     render.camera.theta = 0.4 * glm::pi<float>();
     render.camera.aspect = (float)width/(float)height;
-    Project project(app, render, 400000, workingDir + "Assets/cubeMonkey.obj");
-    ProjectSolution solution(app, project.data, 192, 192);
+//    Project project(app, render, 400000, workingDir + "Assets/cubeMonkey.obj");
+//    ProjectSolution solution(app, project.data, 192, 192);
+
+    SimulationParameters parameters {
+        .numParticles = 1000
+    };
+    Simulation simulation(parameters);
 
     renderdoc::endCapture();
 
@@ -64,13 +68,15 @@ void render() {
             break;
 
         // Render here //
-        project.loop(solution);
+        render.renderSimulationFrame(simulation);
+
+//        project.loop(solution);
     }
 
     app.device.waitIdle();
 
-    solution.cleanup();
-    project.cleanup();
+//    solution.cleanup();
+//    project.cleanup();
 
     render.cleanup();
 
