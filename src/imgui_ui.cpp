@@ -61,24 +61,22 @@ ImguiUi::ImguiUi() {
     ImGui_ImplGlfw_InitForVulkan(resources.window, true);
 
     ImGui_ImplVulkan_InitInfo init_info = {
-            .Instance = resources.instance,
-            .PhysicalDevice = resources.pDevice,
-            .Device = resources.device,
-            .QueueFamily = resources.gQ,
-            .Queue = resources.graphicsQueue,
-            .PipelineCache = nullptr,
-            .DescriptorPool = descriptorPool,
-            .Subpass = 0,
-            .MinImageCount = static_cast<uint32_t>(resources.swapchainImages.size()),
-            .ImageCount = static_cast<uint32_t>(resources.swapchainImages.size()),
-            .MSAASamples = VK_SAMPLE_COUNT_1_BIT,
-
-            .UseDynamicRendering = false,
-            .ColorAttachmentFormat = {},
-
-            .Allocator = nullptr,
-            .CheckVkResultFn = nullptr,
-            .MinAllocationSize = 0
+            resources.instance,
+            resources.pDevice,
+            resources.device,
+            resources.gQ,
+            resources.graphicsQueue,
+            nullptr,
+            descriptorPool,
+            0,
+            static_cast<uint32_t>(resources.swapchainImages.size()),
+            static_cast<uint32_t>(resources.swapchainImages.size()),
+            VK_SAMPLE_COUNT_1_BIT,
+            false,
+            {},
+            nullptr,
+            nullptr,
+            0
     };
 
     ImGui_ImplVulkan_Init(&init_info, renderPass);

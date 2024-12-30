@@ -79,9 +79,6 @@ set(SOURCES
         include/hashgrid.h
         src/particle_simulation.cpp
         include/particle_simulation.h
-        src/sph_scene_parameters.cpp
-        src/sph_simulation_state.cpp
-        src/sph_render.cpp
         src/parameters.cpp
 )
 

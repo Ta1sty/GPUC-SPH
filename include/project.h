@@ -101,7 +101,7 @@ public:
     bool fPress = false;
 
     ProjectRender(AppResources& app, Render& render): app(app), render(render) {
-        imguiUi = std::make_unique<ImguiUi>(app);
+        imguiUi = std::make_unique<ImguiUi>();
     };
 
     void createPipeline(vk::Pipeline& pipeline, ProjectData& data, const std::string& vertex,
