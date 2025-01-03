@@ -7,7 +7,7 @@ inline std::string workingDir = std::string(WORKING_DIR) + "/";
 inline std::string workingDir = std::string("./");
 #endif
 
-const static std::string shaderDir = workingDir + "../build/";
+const static std::string shaderDir = workingDir + "build/shaders/";
 inline std::string shaderPath(const char* file) {
-    return shaderDir + file;
+    return shaderDir + file + ".spv";
 }

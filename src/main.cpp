@@ -11,6 +11,8 @@
 #include "initialization.h"
 #include "utils.h"
 #include <GLFW/glfw3.h>
+#include <chrono>
+#include <thread>
 
 #include "project.h"
 
@@ -96,5 +98,6 @@ int main() {
         std::cout << "unknown error/n";
         exit(-1);
     }
+
     return EXIT_SUCCESS;
 }

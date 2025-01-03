@@ -62,7 +62,7 @@ class Simulation {
 public:
     Simulation() = delete;
     explicit Simulation(const SimulationParameters &parameters);
-    ~Simulation() = default;
+    ~Simulation();
 
     void run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::Semaphore signalRenderFinished, vk::Fence signalSubmitFinished);
 
@@ -73,7 +73,7 @@ private:
     std::unique_ptr<ImguiUi> imguiUi;
 
     std::unique_ptr<ParticleRenderer> particleRenderer;
-    std::unique_ptr<SimulationState> state;
+    std::unique_ptr<SimulationState> simulationState;
     std::unique_ptr<HashGrid> hashGrid;
     std::unique_ptr<ParticleSimulation> particlePhysics;
 

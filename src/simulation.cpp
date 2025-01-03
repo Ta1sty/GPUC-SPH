@@ -85,11 +85,11 @@ SimulationState::SimulationState(const SimulationParameters &parameters) {
 }
 
 Simulation::Simulation(const SimulationParameters &parameters) : simulationParameters(parameters),
-                                                                 state(std::make_unique<SimulationState>(parameters)) {
+                                                                 simulationState(std::make_unique<SimulationState>(parameters)) {
     particlePhysics = std::make_unique<ParticleSimulation>();
     hashGrid = std::make_unique<HashGrid>();
     imguiUi = std::make_unique<ImguiUi>();
-    particleRenderer = std::make_unique<ParticleRenderer>();
+    particleRenderer = std::make_unique<ParticleRenderer>(simulationParameters);
 
     vk::FenceCreateInfo timelineFenceInfo(vk::FenceCreateFlagBits::eSignaled);
     timelineFence = resources.device.createFence(timelineFenceInfo);
@@ -101,9 +101,9 @@ Simulation::Simulation(const SimulationParameters &parameters) : simulationParam
 
     cmdReset = allocated[1];
     cmdReset.begin(vk::CommandBufferBeginInfo());
-    state->debugImagePhysics->clear(cmdReset, { 1, 0, 0, 1 });
-    state->debugImageSort->clear(cmdReset, { 0, 1, 0, 1 });
-    state->debugImageRenderer->clear(cmdReset, { 0, 0, 1, 1 });
+    simulationState->debugImagePhysics->clear(cmdReset, { 1, 0, 0, 1 });
+    simulationState->debugImageSort->clear(cmdReset, { 0, 1, 0, 1 });
+    simulationState->debugImageRenderer->clear(cmdReset, { 0, 0, 1, 1 });
     cmdReset.end();
 
     cmdEmpty = allocated[2];
@@ -143,6 +143,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     timelineSemaphore = initSemaphore();
 
+    // TODO @markus stimmt imageIndex hier?
     UiBindings uiBindings { imageIndex, simulationParameters, renderParameters };
     std::array<std::tuple<vk::Queue,vk::CommandBuffer>,count> buffers;
 
@@ -152,9 +153,15 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     buffers[0] = { resources.transferQueue, cmdReset };
     buffers[1] = { resources.transferQueue,  particlePhysics->run() };
     buffers[2] = { resources.transferQueue,  hashGrid->run() };
-    buffers[3] = { resources.transferQueue, particleRenderer->run()};
+    buffers[3] = { resources.transferQueue, particleRenderer->run(*simulationState)};
     buffers[4] = { resources.graphicsQueue, copy(imageIndex) };
     buffers[5] = { resources.graphicsQueue, imguiUi->updateCommandBuffer(imageIndex, uiBindings) };
+
+    auto flags = uiBindings.updateFlags;
+    if (flags.resetSimulation) {
+        // TODO needs to be done after fence (destroys buffers in use) or keep old instance as weak reference somewhere
+        // simulationState = std::make_unique<SimulationState>(simulationParameters);
+    }
 
     for (uint64_t wait = 0,signal = 1; wait < buffers.size(); ++wait,++signal) {
         auto queue = std::get<0>(buffers[wait]);
@@ -211,15 +218,15 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
     vk::ImageLayout srcImageLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
     if (renderParameters.debugImagePhysics) {
-        srcImage = state->debugImagePhysics->image;
+        srcImage = simulationState->debugImagePhysics->image;
         srcImageLayout = vk::ImageLayout::eGeneral;
     }
     if (renderParameters.debugImageSort) {
-        srcImage = state->debugImageSort->image;
+        srcImage = simulationState->debugImageSort->image;
         srcImageLayout = vk::ImageLayout::eGeneral;
     }
     if (renderParameters.debugImageRenderer) {
-        srcImage = state->debugImageRenderer->image;
+        srcImage = simulationState->debugImageRenderer->image;
         srcImageLayout = vk::ImageLayout::eGeneral;
     }
 
@@ -317,6 +324,10 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
     cmdCopy.end();
 
     return cmdCopy;
+}
+
+Simulation::~Simulation() {
+    // TODO clean up your vulkan objects!
 }
 
 void Render::renderSimulationFrame(Simulation &simulation) {
