@@ -2,19 +2,35 @@
 
 #include "initialization.h"
 
-// put ui bindings here
+struct SimulationParameters;
+struct RenderParameters;
+
+/**
+ * Wrap Parameters and update flags in convenience struct.
+ */
 struct UiBindings{
     uint32_t frameIndex;
-    bool sampleCheckbox;
+    SimulationParameters &simulationParameters;
+    RenderParameters &renderParameters;
 
-    bool debugImagePhysics;
-    bool debugImageSort;
-    bool debugImageRenderer;
+    /**
+     * Flags passed back to the simulation from the UI. Used to restart simulation, ...
+     */
+    struct UpdateFlags {
+        bool resetSimulation = false;
+    } updateFlags;
+
+    /**
+     * Wrap in constructor so you don't have to pass the update flags when initializing.
+     */
+    inline UiBindings(uint32_t frameIndex, SimulationParameters &simulationParameters,
+                      RenderParameters &renderParameters) : frameIndex(frameIndex),
+                                                            simulationParameters(simulationParameters),
+                                                            renderParameters(renderParameters),
+                                                            updateFlags() {}
 };
 
 class ImguiUi {
-    AppResources &resources;
-
     vk::DescriptorPool descriptorPool;
     vk::RenderPass renderPass;
 
@@ -23,7 +39,7 @@ class ImguiUi {
     std::vector<vk::Framebuffer> frameBuffers;
 
 public:
-    explicit ImguiUi(AppResources &resources);
+    explicit ImguiUi();
     ~ImguiUi();
 
     void initCommandBuffers();

@@ -20,9 +20,16 @@
 #include "task_common.h"
 #include "render.h"
 #include "helper.h"
+#include "parameters.h"
 
 struct ProjectData {
+    /**
+     * Making unused code work with the new framework .-.
+     */
+    SimulationParameters simulationParameters;
+    RenderParameters renderParameters;
     UiBindings uiBindings;
+    inline ProjectData() : uiBindings({}, simulationParameters, renderParameters) {}
 
     struct PushConstant {
         glm::mat4 mvp;
@@ -101,7 +108,7 @@ public:
     bool fPress = false;
 
     ProjectRender(AppResources& app, Render& render): app(app), render(render) {
-        imguiUi = std::make_unique<ImguiUi>(app);
+        imguiUi = std::make_unique<ImguiUi>();
     };
 
     void createPipeline(vk::Pipeline& pipeline, ProjectData& data, const std::string& vertex,

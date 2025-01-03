@@ -19,8 +19,7 @@ Links & PDFs
 # Mono auto generated files
 mono_crash.*
 build/
-cmake-build-debug/
-cmake-build-debug-mingw/
+cmake-build-*/
 device_selection_cache
 
 # Build results

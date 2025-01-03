@@ -1,16 +1,27 @@
 #pragma once
 
 #include "initialization.h"
+#include "parameters.h"
+
+struct SimulationState;
 
 class ParticleRenderer {
+public:
+    explicit ParticleRenderer(const SimulationParameters &simulationParameters);
+    vk::CommandBuffer run(const SimulationState &simulationState);
+    [[nodiscard]] vk::Image getImage();
+
+private:
     vk::Image colorAttachment;
     vk::ImageView colorAttachmentView;
     vk::DeviceMemory colorAttachmentMemory;
-    vk::Framebuffer frameBuffers;
+    vk::Framebuffer framebuffer;
 
-    vk::Pipeline renderPipeline;
-public:
-    explicit ParticleRenderer();
-    vk::CommandBuffer run();
-    [[nodiscard]] vk::Image getImage();
+    vk::Pipeline particlePipeline;
+    vk::RenderPass renderPass;
+
+    vk::Buffer vertexInput;
+    vk::DeviceMemory vertexInputMemory;
+
+    vk::CommandBuffer commandBuffer;
 };

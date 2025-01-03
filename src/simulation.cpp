@@ -6,21 +6,65 @@
 #include "render.h"
 #include "debug_image.h"
 
-SimulationState::SimulationState(const SimulationParameters &parameters) : uiBindings() {
+std::vector<float> initUniform(SceneType sceneType, uint32_t numParticles, std::mt19937 &random) {
+    std::vector<float> values;
 
+    switch (sceneType) {
+        case SceneType::SPH_BOX_2D:
+            values.resize(2 * numParticles);
+            std::uniform_real_distribution<float> distribution(0.0f, 1.0f);
+            for (auto &v : values) {
+                v = distribution(random);
+            }
+    }
+
+    return values;
+}
+
+std::vector<float> initPoissonDisk(SceneType sceneType, uint32_t numParticles, std::mt19937 &random) {
+    throw std::exception("initPoissonDisk() is not implemented");
+
+    std::vector<float> values;
+
+    switch (sceneType) {
+        case SceneType::SPH_BOX_2D:
+            break;
+    }
+}
+
+SimulationState::SimulationState(const SimulationParameters &parameters) {
     camera = std::make_unique<Camera>();
     debugImagePhysics = std::make_unique<DebugImage>("debug-image-particle");
     debugImageSort = std::make_unique<DebugImage>("debug-image-sort");
     debugImageRenderer = std::make_unique<DebugImage>("debug-image-render");
 
+    switch (parameters.type) {
+        case SceneType::SPH_BOX_2D:
+            coordinateBufferSize = sizeof(Particle) * parameters.numParticles;
+            break;
+    }
+
+    random.seed(parameters.randomSeed);
+
+    std::vector<float> values;
+
+    switch (parameters.initializationFunction) {
+        case InitializationFunction::UNIFORM:
+            values = initUniform(parameters.type, parameters.numParticles, random);
+            break;
+        case InitializationFunction::POISSON_DISK:
+            values = initPoissonDisk(parameters.type, parameters.numParticles, random);
+            break;
+    }
+
     createBuffer(
             resources.pDevice,
             resources.device,
-            parameters.numParticles * sizeof(Particle),
+            coordinateBufferSize,
             {vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc},
             {vk::MemoryPropertyFlagBits::eDeviceLocal},
             "buffer-particles",
-            particleBuffer,
+            particleCoordinateBuffer,
             particleMemory
     );
 
@@ -31,19 +75,21 @@ SimulationState::SimulationState(const SimulationParameters &parameters) : uiBin
             {vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc},
             {vk::MemoryPropertyFlagBits::eDeviceLocal},
             "buffer-hash-grid",
-            particleBuffer,
+            particleCoordinateBuffer,
             particleMemory
     );
 
+    Buffer particleBuffer { particleCoordinateBuffer, particleMemory }; // TODO this is kind of dumb
+    fillDeviceWithStagingBuffer(resources.pDevice, resources.device, resources.transferCommandPool, resources.transferQueue,
+                                particleBuffer, values);
 }
 
-
-Simulation::Simulation(SimulationParameters parameters) : parameters(parameters), state(parameters) {
-
+Simulation::Simulation(const SimulationParameters &parameters) : simulationParameters(parameters),
+                                                                 simulationState(std::make_unique<SimulationState>(parameters)) {
     particlePhysics = std::make_unique<ParticleSimulation>();
     hashGrid = std::make_unique<HashGrid>();
-    imguiUi = std::make_unique<ImguiUi>(resources);
-    particleRenderer = std::make_unique<ParticleRenderer>();
+    imguiUi = std::make_unique<ImguiUi>();
+    particleRenderer = std::make_unique<ParticleRenderer>(simulationParameters);
 
     vk::FenceCreateInfo timelineFenceInfo(vk::FenceCreateFlagBits::eSignaled);
     timelineFence = resources.device.createFence(timelineFenceInfo);
@@ -55,14 +101,24 @@ Simulation::Simulation(SimulationParameters parameters) : parameters(parameters)
 
     cmdReset = allocated[1];
     cmdReset.begin(vk::CommandBufferBeginInfo());
-    state.debugImagePhysics->clear(cmdReset, {1,0,0,1});
-    state.debugImageSort->clear(cmdReset, {0,1,0,1});
-    state.debugImageRenderer->clear(cmdReset, {0,0,1,1});
+    simulationState->debugImagePhysics->clear(cmdReset, { 1, 0, 0, 1 });
+    simulationState->debugImageSort->clear(cmdReset, { 0, 1, 0, 1 });
+    simulationState->debugImageRenderer->clear(cmdReset, { 0, 0, 1, 1 });
     cmdReset.end();
 
     cmdEmpty = allocated[2];
     cmdEmpty.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eSimultaneousUse));
     cmdEmpty.end();
+}
+
+SimulationState::~SimulationState() {
+    auto Bclean = [&](Buffer& b) {
+        resources.device.destroyBuffer(b.buf);
+        resources.device.freeMemory(b.mem);
+    };
+
+    resources.device.destroyBuffer(particleCoordinateBuffer);
+    resources.device.freeMemory(particleMemory);
 }
 
 vk::Semaphore Simulation::initSemaphore() {
@@ -82,19 +138,30 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     if (nullptr != timelineSemaphore) {
         vk::SemaphoreWaitInfo waitInfo({}, timelineSemaphore, count);
-        resultCheck(resources.device.waitSemaphores(waitInfo, -1), "Failed wait");
+        vk::detail::resultCheck(resources.device.waitSemaphores(waitInfo, -1), "Failed wait");
     }
 
     timelineSemaphore = initSemaphore();
 
+    // TODO @markus stimmt imageIndex hier?
+    UiBindings uiBindings { imageIndex, simulationParameters, renderParameters };
     std::array<std::tuple<vk::Queue,vk::CommandBuffer>,count> buffers;
 
-    buffers[0] = {resources.transferQueue, cmdReset};
-    buffers[1] = {resources.computeQueue, particlePhysics->run() };
-    buffers[2] = { resources.computeQueue, hashGrid->run() };
-    buffers[3] =  {resources.graphicsQueue, particleRenderer->run()};
-    buffers[4] =  { resources.graphicsQueue, copy(imageIndex)};
-    buffers[5] =  { resources.graphicsQueue, imguiUi->updateCommandBuffer(imageIndex, state.uiBindings)};
+    // TODO temporarily changed to transfer queue because
+    //  vulkan doesn't like stuff being allocated from the transfer
+    //  queue being run elsewhere
+    buffers[0] = { resources.transferQueue, cmdReset };
+    buffers[1] = { resources.transferQueue,  particlePhysics->run() };
+    buffers[2] = { resources.transferQueue,  hashGrid->run() };
+    buffers[3] = { resources.transferQueue, particleRenderer->run(*simulationState)};
+    buffers[4] = { resources.graphicsQueue, copy(imageIndex) };
+    buffers[5] = { resources.graphicsQueue, imguiUi->updateCommandBuffer(imageIndex, uiBindings) };
+
+    auto flags = uiBindings.updateFlags;
+    if (flags.resetSimulation) {
+        // TODO needs to be done after fence (destroys buffers in use) or keep old instance as weak reference somewhere
+        // simulationState = std::make_unique<SimulationState>(simulationParameters);
+    }
 
     for (uint64_t wait = 0,signal = 1; wait < buffers.size(); ++wait,++signal) {
         auto queue = std::get<0>(buffers[wait]);
@@ -150,16 +217,16 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
     vk::Image srcImage = particleRenderer->getImage();
     vk::ImageLayout srcImageLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
-    if (state.uiBindings.debugImagePhysics) {
-        srcImage = state.debugImagePhysics->image;
+    if (renderParameters.debugImagePhysics) {
+        srcImage = simulationState->debugImagePhysics->image;
         srcImageLayout = vk::ImageLayout::eGeneral;
     }
-    if (state.uiBindings.debugImageSort) {
-        srcImage = state.debugImageSort->image;
+    if (renderParameters.debugImageSort) {
+        srcImage = simulationState->debugImageSort->image;
         srcImageLayout = vk::ImageLayout::eGeneral;
     }
-    if (state.uiBindings.debugImageRenderer) {
-        srcImage = state.debugImageRenderer->image;
+    if (renderParameters.debugImageRenderer) {
+        srcImage = simulationState->debugImageRenderer->image;
         srcImageLayout = vk::ImageLayout::eGeneral;
     }
 
@@ -259,7 +326,9 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
     return cmdCopy;
 }
 
-
+Simulation::~Simulation() {
+    // TODO clean up your vulkan objects!
+}
 
 void Render::renderSimulationFrame(Simulation &simulation) {
     auto idx = currentFrameIdx % framesinlight;
@@ -275,7 +344,7 @@ void Render::renderSimulationFrame(Simulation &simulation) {
     simulation.run(swapchainIndex, swapchainAcquireSemaphores[idx], completionSemaphores[idx], fences[idx]);
 
     vk::PresentInfoKHR presentInfo(completionSemaphores[idx], app.swapchain, swapchainIndex);
-    resultCheck(app.graphicsQueue.presentKHR(presentInfo),"Failed to present image");
+    vk::detail::resultCheck(app.graphicsQueue.presentKHR(presentInfo), "Failed to present image");
 
     currentFrameIdx = (currentFrameIdx + 1) % framesinlight;
 }

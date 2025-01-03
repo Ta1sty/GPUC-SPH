@@ -2,10 +2,10 @@
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
+#include "parameters.h"
 
 
-ImguiUi::ImguiUi(AppResources &resources) : resources(resources) {
-
+ImguiUi::ImguiUi() {
     const vk::DescriptorPoolSize pool_sizes[] =
             {
                     {vk::DescriptorType::eSampler,       10},
@@ -62,24 +62,22 @@ ImguiUi::ImguiUi(AppResources &resources) : resources(resources) {
     ImGui_ImplGlfw_InitForVulkan(resources.window, true);
 
     ImGui_ImplVulkan_InitInfo init_info = {
-            .Instance = resources.instance,
-            .PhysicalDevice = resources.pDevice,
-            .Device = resources.device,
-            .QueueFamily = resources.gQ,
-            .Queue = resources.graphicsQueue,
-            .PipelineCache = nullptr,
-            .DescriptorPool = descriptorPool,
-            .Subpass = 0,
-            .MinImageCount = static_cast<uint32_t>(resources.swapchainImages.size()),
-            .ImageCount = static_cast<uint32_t>(resources.swapchainImages.size()),
-            .MSAASamples = VK_SAMPLE_COUNT_1_BIT,
-
-            .UseDynamicRendering = false,
-            .ColorAttachmentFormat = {},
-
-            .Allocator = nullptr,
-            .CheckVkResultFn = nullptr,
-            .MinAllocationSize = 0
+            resources.instance,
+            resources.pDevice,
+            resources.device,
+            resources.gQ,
+            resources.graphicsQueue,
+            nullptr,
+            descriptorPool,
+            0,
+            static_cast<uint32_t>(resources.swapchainImages.size()),
+            static_cast<uint32_t>(resources.swapchainImages.size()),
+            VK_SAMPLE_COUNT_1_BIT,
+            false,
+            {},
+            nullptr,
+            nullptr,
+            0
     };
 
     ImGui_ImplVulkan_Init(&init_info, renderPass);
@@ -152,17 +150,25 @@ vk::CommandBuffer ImguiUi::updateCommandBuffer(uint32_t index, UiBindings &bindi
 }
 
 void ImguiUi::drawUi(UiBindings &bindings) {
-    ImGui::ShowDemoWindow();
+    if (bindings.renderParameters.showDemoWindow)
+        ImGui::ShowDemoWindow();
 
     ImGui::Begin("Settings");
 
-    ImGui::Checkbox("SampleCheckbox", &bindings.sampleCheckbox);
+    if (ImGui::CollapsingHeader("Render Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+        auto &render = bindings.renderParameters;
+        ImGui::Checkbox("Show demo window", &render.showDemoWindow);
+        ImGui::Checkbox("DebugPhysics", &render.debugImagePhysics);
+        ImGui::Checkbox("DebugSort", &render.debugImageSort);
+        ImGui::Checkbox("DebugRender", &render.debugImageRenderer);
+    }
 
-    ImGui::Text(bindings.sampleCheckbox ? "true" : "false");
+    if (ImGui::CollapsingHeader("Simulation Parameters")) {
+        bindings.updateFlags.resetSimulation |= ImGui::Button("Restart Simulation");
 
-    ImGui::Checkbox("DebugPhysics", &bindings.debugImagePhysics);
-    ImGui::Checkbox("DebugSort", &bindings.debugImageSort);
-    ImGui::Checkbox("DebugRender", &bindings.debugImageRenderer);
+        auto &simulation = bindings.simulationParameters;
+        ImGui::DragInt("Num Particles", reinterpret_cast<int*>(&simulation.numParticles), 16, 16, 1024 * 1024 * 1024);
+    }
 
     ImGui::End();
 }

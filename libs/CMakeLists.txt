@@ -9,6 +9,7 @@ add_subdirectory(glfw)
 
 set_property(TARGET glfw PROPERTY FOLDER "libs")
 
+add_subdirectory(yaml-cpp)
 
 ### allows you to just put stb in the "target link library"
 add_library(stb INTERFACE)
