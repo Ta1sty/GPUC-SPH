@@ -288,7 +288,7 @@ vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState) 
 
     commandBuffer.begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
     vk::BufferCopy copyRegions { 0, 0, simulationState.coordinateBufferSize };
-    commandBuffer.copyBuffer(simulationState.particleCoordinateBuffer, vertexInput, 1, &copyRegions);
+    commandBuffer.copyBuffer(simulationState.particleCoordinateBuffer.buf, vertexInput, 1, &copyRegions);
 
     vk::ClearValue clearValue;
     clearValue.color.uint32 = {{ 0, 0, 0, 0 }};

@@ -1,0 +1,21 @@
+#version 450
+
+layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+
+#define GRID_PCR
+#include "spatial_lookup.glsl"
+
+void main(){
+    uint index = gl_GlobalInvocationID.x;
+
+    if (index >= constants.size) return;
+
+    uint currentKey = spatial_lookup[index].cellKey;
+
+    uint previousKey = uint(-1);
+    if (index > 0) previousKey = spatial_lookup[index - 1].cellKey;
+
+    if (currentKey != previousKey) {
+        spatial_indices[currentKey] = index;
+    }
+}

@@ -20,7 +20,7 @@
 #include "task_common.h"
 #include "render.h"
 #include "helper.h"
-#include "parameters.h"
+#include "simulation_parameters.h"
 
 struct ProjectData {
     /**

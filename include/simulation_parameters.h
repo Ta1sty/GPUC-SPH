@@ -1,6 +1,6 @@
 #pragma once
 
-#include <string>
+#include "utils.h"
 
 enum class SceneType {
     SPH_BOX_2D

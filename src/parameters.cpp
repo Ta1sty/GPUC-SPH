@@ -1,4 +1,4 @@
-#include "parameters.h"
+#include "simulation_parameters.h"
 
 #include <yaml-cpp/yaml.h>
 #include <stdexcept>

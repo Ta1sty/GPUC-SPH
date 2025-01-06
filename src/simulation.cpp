@@ -2,92 +2,14 @@
 
 #include "particle_renderer.h"
 #include "particle_physics.h"
-#include "hashgrid.h"
+#include "spatial_lookup.h"
 #include "render.h"
 #include "debug_image.h"
-
-std::vector<float> initUniform(SceneType sceneType, uint32_t numParticles, std::mt19937 &random) {
-    std::vector<float> values;
-
-    switch (sceneType) {
-        case SceneType::SPH_BOX_2D:
-            values.resize(2 * numParticles);
-            std::uniform_real_distribution<float> distribution(0.0f, 1.0f);
-            for (auto &v : values) {
-                v = distribution(random);
-            }
-    }
-
-    return values;
-}
-
-std::vector<float> initPoissonDisk(SceneType sceneType, uint32_t numParticles, std::mt19937 &random) {
-    throw std::exception("initPoissonDisk() is not implemented");
-
-    std::vector<float> values;
-
-    switch (sceneType) {
-        case SceneType::SPH_BOX_2D:
-            break;
-    }
-}
-
-SimulationState::SimulationState(const SimulationParameters &parameters) {
-    camera = std::make_unique<Camera>();
-    debugImagePhysics = std::make_unique<DebugImage>("debug-image-particle");
-    debugImageSort = std::make_unique<DebugImage>("debug-image-sort");
-    debugImageRenderer = std::make_unique<DebugImage>("debug-image-render");
-
-    switch (parameters.type) {
-        case SceneType::SPH_BOX_2D:
-            coordinateBufferSize = sizeof(Particle) * parameters.numParticles;
-            break;
-    }
-
-    random.seed(parameters.randomSeed);
-
-    std::vector<float> values;
-
-    switch (parameters.initializationFunction) {
-        case InitializationFunction::UNIFORM:
-            values = initUniform(parameters.type, parameters.numParticles, random);
-            break;
-        case InitializationFunction::POISSON_DISK:
-            values = initPoissonDisk(parameters.type, parameters.numParticles, random);
-            break;
-    }
-
-    createBuffer(
-            resources.pDevice,
-            resources.device,
-            coordinateBufferSize,
-            {vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc},
-            {vk::MemoryPropertyFlagBits::eDeviceLocal},
-            "buffer-particles",
-            particleCoordinateBuffer,
-            particleMemory
-    );
-
-    createBuffer(
-            resources.pDevice,
-            resources.device,
-            parameters.numParticles * sizeof(HashGridCell),
-            {vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc},
-            {vk::MemoryPropertyFlagBits::eDeviceLocal},
-            "buffer-hash-grid",
-            particleCoordinateBuffer,
-            particleMemory
-    );
-
-    Buffer particleBuffer { particleCoordinateBuffer, particleMemory }; // TODO this is kind of dumb
-    fillDeviceWithStagingBuffer(resources.pDevice, resources.device, resources.transferCommandPool, resources.transferQueue,
-                                particleBuffer, values);
-}
 
 Simulation::Simulation(const SimulationParameters &parameters) : simulationParameters(parameters),
                                                                  simulationState(std::make_unique<SimulationState>(parameters)) {
     particlePhysics = std::make_unique<ParticleSimulation>();
-    hashGrid = std::make_unique<HashGrid>();
+    hashGrid = std::make_unique<SpatialLookup>(simulationParameters);
     imguiUi = std::make_unique<ImguiUi>();
     particleRenderer = std::make_unique<ParticleRenderer>(simulationParameters);
 
@@ -117,8 +39,8 @@ SimulationState::~SimulationState() {
         resources.device.freeMemory(b.mem);
     };
 
-    resources.device.destroyBuffer(particleCoordinateBuffer);
-    resources.device.freeMemory(particleMemory);
+    resources.device.destroyBuffer(particleCoordinateBuffer.buf);
+    resources.device.freeMemory(particleCoordinateBuffer.mem);
 }
 
 vk::Semaphore Simulation::initSemaphore() {
@@ -138,7 +60,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     if (nullptr != timelineSemaphore) {
         vk::SemaphoreWaitInfo waitInfo({}, timelineSemaphore, count);
-        vk::detail::resultCheck(resources.device.waitSemaphores(waitInfo, -1), "Failed wait");
+        resultCheck(resources.device.waitSemaphores(waitInfo, -1), "Failed wait");
     }
 
     timelineSemaphore = initSemaphore();
@@ -152,7 +74,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     //  queue being run elsewhere
     buffers[0] = { resources.transferQueue, cmdReset };
     buffers[1] = { resources.transferQueue,  particlePhysics->run() };
-    buffers[2] = { resources.transferQueue,  hashGrid->run() };
+    buffers[2] = { resources.transferQueue,  hashGrid->run(*simulationState) };
     buffers[3] = { resources.transferQueue, particleRenderer->run(*simulationState)};
     buffers[4] = { resources.graphicsQueue, copy(imageIndex) };
     buffers[5] = { resources.graphicsQueue, imguiUi->updateCommandBuffer(imageIndex, uiBindings) };
@@ -210,6 +132,36 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
         queue.submit(submit);
     }
+
+
+    // FOR DEBUGGING
+
+    return;
+
+    resources.device.waitIdle();
+
+
+    std::vector<Particle> particles(simulationParameters.numParticles);
+    fillHostWithStagingBuffer(simulationState->particleCoordinateBuffer, particles);
+
+    std::vector<SpatialLookupEntry> spatial_lookup(simulationParameters.numParticles);
+    fillHostWithStagingBuffer(simulationState->spatialLookup, spatial_lookup);
+
+    std::vector<uint32_t> spatial_indices(simulationParameters.numParticles);
+    fillHostWithStagingBuffer(simulationState->spatialIndices, spatial_indices);
+
+    std::vector<SpatialLookupEntry> spatial_lookup_sorted(spatial_lookup.begin(), spatial_lookup.end());
+    std::sort(spatial_lookup_sorted.begin(), spatial_lookup_sorted.end(),
+              [](SpatialLookupEntry left,SpatialLookupEntry right)-> bool { return left.cellKey < right.cellKey;}
+    );
+
+    for (uint32_t i = 0;i<simulationParameters.numParticles;i++) {
+        if (spatial_lookup[i].cellKey != spatial_lookup_sorted[i].cellKey) {
+            throw std::runtime_error("spatial lookup not sorted");
+        }
+    }
+
+    int a = 0;
 }
 
 vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
@@ -344,7 +296,7 @@ void Render::renderSimulationFrame(Simulation &simulation) {
     simulation.run(swapchainIndex, swapchainAcquireSemaphores[idx], completionSemaphores[idx], fences[idx]);
 
     vk::PresentInfoKHR presentInfo(completionSemaphores[idx], app.swapchain, swapchainIndex);
-    vk::detail::resultCheck(app.graphicsQueue.presentKHR(presentInfo), "Failed to present image");
+    resultCheck(app.graphicsQueue.presentKHR(presentInfo), "Failed to present image");
 
     currentFrameIdx = (currentFrameIdx + 1) % framesinlight;
 }

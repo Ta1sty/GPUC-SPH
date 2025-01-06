@@ -1,0 +1,65 @@
+#version 450
+
+layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+
+#define GRID_PCR
+#include "spatial_lookup.glsl"
+
+shared SpatialLookupEntry[gl_WorkGroupSize.x] entries;
+
+void main(){
+    uint local_index = gl_LocalInvocationID.x;
+    uint local_size = gl_WorkGroupSize.x;
+
+    if (local_index >= constants.size) {
+        entries[local_index] = SpatialLookupEntry(uint(-1),uint(-1));
+    } else {
+        entries[local_index] = spatial_lookup[local_index];
+    }
+
+    barrier();
+
+    // simple bubblesort for one workgroup
+
+    for (uint i = 0; i < local_size; ++i) {
+
+        // swap (0,1);(2,3)...
+        if (local_index % 2 == 0) {
+            {
+                SpatialLookupEntry left = entries[local_index];
+                SpatialLookupEntry right = entries[local_index + 1];
+
+                if (left.cellKey > right.cellKey){
+                    entries[local_index] = right;
+                    entries[local_index + 1] = left;
+                }
+
+            }
+        } else {
+            // half the threads do nothing, dont care
+        }
+
+        barrier();
+
+        // swap (1,2);(3:4)...
+        if (local_index % 2 == 0 && local_index > 0){
+            SpatialLookupEntry left = entries[local_index - 1];
+            SpatialLookupEntry right = entries[local_index];
+
+            if (left.cellKey > right.cellKey){
+                entries[local_index - 1] = right;
+                entries[local_index] = left;
+            }
+
+        } else {
+            // half the threads do nothing, dont care
+        }
+
+        // Synchronize all threads in the workgroup
+        barrier();
+    }
+
+    if (local_index < constants.size) {
+        spatial_lookup[local_index] = entries[local_index];
+    }
+}

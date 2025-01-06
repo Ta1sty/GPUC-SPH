@@ -62,7 +62,7 @@ set(SOURCES_IMGUI
 set(SOURCES
         ${SOURCES_IMGUI}
         src/debug_image.cpp
-        src/hashgrid.cpp
+        src/spatial_lookup.cpp
         src/host_timer.cpp
         src/imgui_ui.cpp
         src/initialization.cpp
@@ -78,6 +78,7 @@ set(SOURCES
         src/task_common.cpp
         src/utils.cpp
         src/parameters.cpp
+        src/simulation_state.cpp
 )
 
 add_compile_definitions(WORKING_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
@@ -92,6 +93,12 @@ add_shader(${PROJECT_NAME} shaders/particle.vert)
 add_shader(${PROJECT_NAME} shaders/particle2d.geom)
 add_shader(${PROJECT_NAME} shaders/particle2d.vert)
 add_shader(${PROJECT_NAME} shaders/particle2d.frag)
+
+
+add_shader(${PROJECT_NAME} shaders/spatial_lookup.write.comp)
+add_shader(${PROJECT_NAME} shaders/spatial_lookup.sort.comp)
+add_shader(${PROJECT_NAME} shaders/spatial_lookup.index.comp)
+
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} PUBLIC Vulkan::Vulkan stb glfw tinyobj yaml-cpp)
 

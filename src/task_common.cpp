@@ -66,7 +66,7 @@ void bindCombinedImageSampler(vk::Device &device, vk::ImageView &view, vk::Sampl
     device.updateDescriptorSets(1U, &write, 0U, nullptr);
 }
 
-void bindBuffers(vk::Device &device, vk::Buffer &b, vk::DescriptorSet &set, uint32_t binding)
+void bindBuffers(vk::Device &device, const vk::Buffer &b, vk::DescriptorSet &set, uint32_t binding)
 {
     // Buffer info and data offset info
     vk::DescriptorBufferInfo descInfo(

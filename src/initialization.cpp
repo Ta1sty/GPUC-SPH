@@ -17,11 +17,6 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 // here you create the instance and physical / logical device and maybe compute/transfer queues
 // also check if device is suitable etc
 
-
-AppResources dontUse = AppResources();
-
-AppResources &resources = dontUse;
-
 struct DeviceSelectionCache {
     uint32_t vendorID;
     uint32_t deviceID;

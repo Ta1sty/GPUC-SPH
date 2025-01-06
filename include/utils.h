@@ -4,6 +4,35 @@
 #include <cstring>
 
 #include <vulkan/vulkan.hpp>
+#include "GLFW/glfw3.h"
+#include "helper.h"
+
+struct AppResources
+{
+    vk::Instance instance;
+    vk::DebugUtilsMessengerEXT dbgUtilsMgr;
+    vk::PhysicalDevice pDevice;
+
+    vk::Device device;
+    vk::Queue graphicsQueue, computeQueue, transferQueue;
+    uint32_t gQ, cQ, tQ;
+    vk::CommandPool graphicsCommandPool, computeCommandPool, transferCommandPool;
+    vk::QueryPool queryPool;
+
+    GLFWwindow* window;
+    vk::Extent2D extent;
+    vk::SurfaceKHR surface;
+    vk::SurfaceFormatKHR surfaceFormat;
+    vk::SwapchainKHR swapchain;
+    std::vector<vk::Image> swapchainImages;
+    std::vector<vk::ImageView> swapchainImageViews;
+
+    void destroy();
+};
+
+struct AppResources;
+
+extern AppResources &resources;
 
 #define CAST(a) static_cast<uint32_t>(a.size())
 struct Buffer
@@ -18,6 +47,9 @@ uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties,
 void ownershipTransfer(vk::Device &device, vk::CommandPool &srcCommandPool, vk::Queue &srcQueue, uint32_t srcQueueFamilyIndex, vk::CommandPool &dstCommandPool, vk::Queue &dstQueue, uint32_t dstQueueFamilyIndex, vk::Image &image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
 void transitionImageLayout(vk::Device &device, vk::CommandPool &pool, vk::Queue &queue, vk::Image &image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
 void copyBufferToImage(vk::Device &device, vk::CommandPool &pool, vk::Queue &queue, vk::Buffer &buffer, vk::Image &image, uint32_t width, uint32_t height, uint32_t depth);
+
+Buffer createDeviceLocalBuffer(const std::string &name, vk::DeviceSize size);
+
 void createBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
                   const vk::DeviceSize &size, vk::BufferUsageFlags usage,
                   vk::MemoryPropertyFlags properties, std::string name, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory);
@@ -77,6 +109,10 @@ void fillDeviceWithStagingBuffer(vk::PhysicalDevice &pDevice, vk::Device &device
     device.destroyBuffer(staging);
     device.freeMemory(mem);
 }
+template <typename T>
+void fillDeviceWithStagingBuffer(Buffer &b, const std::vector<T> &data) {
+    fillDeviceWithStagingBuffer(resources.pDevice, resources.device, resources.transferCommandPool, resources.transferQueue, b, data);
+}
 
 template <typename T>
 void fillHostWithStagingBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
@@ -102,6 +138,11 @@ void fillHostWithStagingBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
 }
 
 template <typename T>
+void fillHostWithStagingBuffer(Buffer &b, std::vector<T> &data) {
+    fillHostWithStagingBuffer<T>(resources.pDevice, resources.device, resources.transferCommandPool, resources.transferQueue, b, data);
+}
+
+template <typename T>
 void setObjectName(vk::Device &device, T handle, std::string name)
 {
 #ifndef NDEBUG
@@ -109,3 +150,6 @@ void setObjectName(vk::Device &device, T handle, std::string name)
     device.setDebugUtilsObjectNameEXT(infoEXT);
 #endif
 }
+
+void computeBarrier(vk::CommandBuffer &cmd);
+
