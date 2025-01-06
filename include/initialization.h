@@ -8,31 +8,6 @@
 #include <memory>
 #include "task_common.h"
 
-struct AppResources
-{
-    vk::Instance instance;
-    vk::DebugUtilsMessengerEXT dbgUtilsMgr;
-    vk::PhysicalDevice pDevice;
-
-    vk::Device device;
-    vk::Queue graphicsQueue, computeQueue, transferQueue;
-    uint32_t gQ, cQ, tQ;
-    vk::CommandPool graphicsCommandPool, computeCommandPool, transferCommandPool;
-    vk::QueryPool queryPool;
-
-    GLFWwindow* window;
-    vk::Extent2D extent;
-    vk::SurfaceKHR surface;
-    vk::SurfaceFormatKHR surfaceFormat;
-    vk::SwapchainKHR swapchain;
-    std::vector<vk::Image> swapchainImages;
-    std::vector<vk::ImageView> swapchainImageViews;
-
-    void destroy();
-};
-
-extern AppResources &resources;
-
 VKAPI_ATTR VkBool32 VKAPI_CALL
 debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                             VkDebugUtilsMessageTypeFlagsEXT messageTypes,

@@ -62,7 +62,7 @@ set(SOURCES_IMGUI
 set(SOURCES
         ${SOURCES_IMGUI}
         src/debug_image.cpp
-        src/hashgrid.cpp
+        src/spatial_lookup.cpp
         src/host_timer.cpp
         src/imgui_ui.cpp
         src/initialization.cpp
@@ -78,6 +78,7 @@ set(SOURCES
         src/task_common.cpp
         src/utils.cpp
         src/parameters.cpp
+        src/simulation_state.cpp
 )
 
 add_compile_definitions(WORKING_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

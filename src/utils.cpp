@@ -9,6 +9,10 @@
 #include "utils.h"
 #include <stb_image_write.h>
 
+AppResources dontUse = AppResources();
+
+AppResources &resources = dontUse;
+
 std::vector<char> readFile(const std::string &filename)
 {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
@@ -68,6 +72,7 @@ uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties,
 
     throw std::runtime_error("failed to find suitable memory type!");
 }
+
 
 void createBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
                   const vk::DeviceSize &size, vk::BufferUsageFlags usage,
@@ -283,4 +288,19 @@ void copyBufferToImage(vk::Device &device, vk::CommandPool &pool, vk::Queue &que
     commandBuffer.copyBufferToImage(buffer,image, vk::ImageLayout::eTransferDstOptimal, 1, &region);
     
     endSingleTimeCommands(device, queue, pool, commandBuffer);
+}
+
+Buffer createDeviceLocalBuffer(const std::string &name, vk::DeviceSize size) {
+    Buffer buffer;
+    createBuffer(
+            resources.pDevice,
+            resources.device,
+            size,
+            {vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst},
+            {vk::MemoryPropertyFlagBits::eDeviceLocal},
+            name,
+            buffer.buf,
+            buffer.mem
+    );
+    return buffer;
 }

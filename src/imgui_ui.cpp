@@ -2,7 +2,7 @@
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
-#include "parameters.h"
+#include "simulation_parameters.h"
 
 
 ImguiUi::ImguiUi() {

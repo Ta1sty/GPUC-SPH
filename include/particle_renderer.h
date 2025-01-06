@@ -1,9 +1,6 @@
 #pragma once
 
-#include "initialization.h"
-#include "parameters.h"
-
-struct SimulationState;
+#include "simulation_state.h"
 
 class ParticleRenderer {
 public:
