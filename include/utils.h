@@ -5,6 +5,7 @@
 
 #include <vulkan/vulkan.hpp>
 #include "GLFW/glfw3.h"
+#include "helper.h"
 
 struct AppResources
 {
@@ -137,8 +138,8 @@ void fillHostWithStagingBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
 }
 
 template <typename T>
-void fillHostWithStagingBuffer(Buffer &b, const std::vector<T> &data) {
-    fillHostWithStagingBuffer(resources.pDevice, resources.device, resources.transferCommandPool, resources.transferQueue, b, data);
+void fillHostWithStagingBuffer(Buffer &b, std::vector<T> &data) {
+    fillHostWithStagingBuffer<T>(resources.pDevice, resources.device, resources.transferCommandPool, resources.transferQueue, b, data);
 }
 
 template <typename T>
@@ -150,4 +151,5 @@ void setObjectName(vk::Device &device, T handle, std::string name)
 #endif
 }
 
+void computeBarrier(vk::CommandBuffer &cmd);
 

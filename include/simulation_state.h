@@ -10,8 +10,8 @@ struct Particle {
     glm::vec2 position;
 };
 
-struct HashGridCell {
-    uint32_t hashKey;
+struct SpatialLookupEntry {
+    uint32_t cellKey;
     uint32_t particleIndex;
 };
 
@@ -39,9 +39,8 @@ public:
 
     std::unique_ptr<Camera> camera;
 
-    // Spatial lookup
     Buffer spatialLookup;
-    Buffer startIndices;
+    Buffer spatialIndices;
 
     uint32_t coordinateBufferSize = 0;
     std::mt19937 random;

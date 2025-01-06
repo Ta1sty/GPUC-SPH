@@ -33,7 +33,7 @@ std::vector<float> initPoissonDisk(SceneType sceneType, uint32_t numParticles, s
     }
 }
 
-SimulationState::SimulationState(const SimulationParameters &parameters) {
+SimulationState::SimulationState(const SimulationParameters &parameters) : random(parameters.randomSeed) {
     camera = std::make_unique<Camera>();
     debugImagePhysics = std::make_unique<DebugImage>("debug-image-particle");
     debugImageSort = std::make_unique<DebugImage>("debug-image-sort");
@@ -44,8 +44,6 @@ SimulationState::SimulationState(const SimulationParameters &parameters) {
             coordinateBufferSize = sizeof(Particle) * parameters.numParticles;
             break;
     }
-
-    random.seed(parameters.randomSeed);
 
     particleCoordinateBuffer = createDeviceLocalBuffer("buffer-particles", coordinateBufferSize);
     std::vector<float> values;
@@ -60,7 +58,7 @@ SimulationState::SimulationState(const SimulationParameters &parameters) {
     fillDeviceWithStagingBuffer(particleCoordinateBuffer, values);
 
     // Spatial Lookup
-    spatialLookup = createDeviceLocalBuffer("spatialLookup", parameters.numParticles * 2 * sizeof (uint32_t)); // key-index
-    startIndices = createDeviceLocalBuffer("startIndices", parameters.numParticles * sizeof(uint32_t)); // index
+    spatialLookup = createDeviceLocalBuffer("spatialLookup", parameters.numParticles * sizeof (SpatialLookupEntry));
+    spatialIndices = createDeviceLocalBuffer("startIndices", parameters.numParticles * sizeof(uint32_t));
 
 }

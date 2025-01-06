@@ -304,3 +304,14 @@ Buffer createDeviceLocalBuffer(const std::string &name, vk::DeviceSize size) {
     );
     return buffer;
 }
+
+void computeBarrier(vk::CommandBuffer &cmd) {
+    cmd.pipelineBarrier(
+            {vk::PipelineStageFlagBits::eComputeShader},
+            {vk::PipelineStageFlagBits::eComputeShader},
+            {},
+            {vk::MemoryBarrier(vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead)},
+            {},
+            {}
+    );
+}

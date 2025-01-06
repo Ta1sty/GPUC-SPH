@@ -132,6 +132,36 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
         queue.submit(submit);
     }
+
+
+    // FOR DEBUGGING
+
+    return;
+
+    resources.device.waitIdle();
+
+
+    std::vector<Particle> particles(simulationParameters.numParticles);
+    fillHostWithStagingBuffer(simulationState->particleCoordinateBuffer, particles);
+
+    std::vector<SpatialLookupEntry> spatial_lookup(simulationParameters.numParticles);
+    fillHostWithStagingBuffer(simulationState->spatialLookup, spatial_lookup);
+
+    std::vector<uint32_t> spatial_indices(simulationParameters.numParticles);
+    fillHostWithStagingBuffer(simulationState->spatialIndices, spatial_indices);
+
+    std::vector<SpatialLookupEntry> spatial_lookup_sorted(spatial_lookup.begin(), spatial_lookup.end());
+    std::sort(spatial_lookup_sorted.begin(), spatial_lookup_sorted.end(),
+              [](SpatialLookupEntry left,SpatialLookupEntry right)-> bool { return left.cellKey < right.cellKey;}
+    );
+
+    for (uint32_t i = 0;i<simulationParameters.numParticles;i++) {
+        if (spatial_lookup[i].cellKey != spatial_lookup_sorted[i].cellKey) {
+            throw std::runtime_error("spatial lookup not sorted");
+        }
+    }
+
+    int a = 0;
 }
 
 vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
