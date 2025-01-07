@@ -57,7 +57,7 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
     uint32_t dx = (state.parameters.numParticles + workgroupSizeX - 1) / workgroupSizeX;
 
     PushConstants pushConstants {
-        .size = state.parameters.numParticles
+        state.parameters.numParticles
     };
 
     cmd.begin(vk::CommandBufferBeginInfo());

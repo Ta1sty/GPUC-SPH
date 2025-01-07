@@ -60,7 +60,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     if (nullptr != timelineSemaphore) {
         vk::SemaphoreWaitInfo waitInfo({}, timelineSemaphore, count);
-        resultCheck(resources.device.waitSemaphores(waitInfo, -1), "Failed wait");
+        vk::detail::resultCheck(resources.device.waitSemaphores(waitInfo, -1), "Failed wait");
     }
 
     timelineSemaphore = initSemaphore();
@@ -73,9 +73,9 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     //  vulkan doesn't like stuff being allocated from the transfer
     //  queue being run elsewhere
     buffers[0] = { resources.transferQueue, cmdReset };
-    buffers[1] = { resources.transferQueue,  particlePhysics->run() };
-    buffers[2] = { resources.transferQueue,  hashGrid->run(*simulationState) };
-    buffers[3] = { resources.transferQueue, particleRenderer->run(*simulationState)};
+    buffers[1] = { resources.transferQueue, particlePhysics->run() };
+    buffers[2] = { resources.computeQueue,  hashGrid->run(*simulationState) };
+    buffers[3] = { resources.graphicsQueue, particleRenderer->run(*simulationState)};
     buffers[4] = { resources.graphicsQueue, copy(imageIndex) };
     buffers[5] = { resources.graphicsQueue, imguiUi->updateCommandBuffer(imageIndex, uiBindings) };
 
@@ -296,7 +296,7 @@ void Render::renderSimulationFrame(Simulation &simulation) {
     simulation.run(swapchainIndex, swapchainAcquireSemaphores[idx], completionSemaphores[idx], fences[idx]);
 
     vk::PresentInfoKHR presentInfo(completionSemaphores[idx], app.swapchain, swapchainIndex);
-    resultCheck(app.graphicsQueue.presentKHR(presentInfo), "Failed to present image");
+    vk::detail::resultCheck(app.graphicsQueue.presentKHR(presentInfo), "Failed to present image");
 
     currentFrameIdx = (currentFrameIdx + 1) % framesinlight;
 }

@@ -45,7 +45,7 @@ SimulationState::SimulationState(const SimulationParameters &parameters) : rando
             break;
     }
 
-    particleCoordinateBuffer = createDeviceLocalBuffer("buffer-particles", coordinateBufferSize);
+    particleCoordinateBuffer = createDeviceLocalBuffer("buffer-particles", coordinateBufferSize, vk::BufferUsageFlagBits::eVertexBuffer);
     std::vector<float> values;
     switch (parameters.initializationFunction) {
         case InitializationFunction::UNIFORM:
@@ -60,5 +60,4 @@ SimulationState::SimulationState(const SimulationParameters &parameters) : rando
     // Spatial Lookup
     spatialLookup = createDeviceLocalBuffer("spatialLookup", parameters.numParticles * sizeof (SpatialLookupEntry));
     spatialIndices = createDeviceLocalBuffer("startIndices", parameters.numParticles * sizeof(uint32_t));
-
 }

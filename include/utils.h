@@ -48,7 +48,7 @@ void ownershipTransfer(vk::Device &device, vk::CommandPool &srcCommandPool, vk::
 void transitionImageLayout(vk::Device &device, vk::CommandPool &pool, vk::Queue &queue, vk::Image &image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
 void copyBufferToImage(vk::Device &device, vk::CommandPool &pool, vk::Queue &queue, vk::Buffer &buffer, vk::Image &image, uint32_t width, uint32_t height, uint32_t depth);
 
-Buffer createDeviceLocalBuffer(const std::string &name, vk::DeviceSize size);
+Buffer createDeviceLocalBuffer(const std::string &name, vk::DeviceSize size, vk::BufferUsageFlags additionalUsageBits = {});
 
 void createBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
                   const vk::DeviceSize &size, vk::BufferUsageFlags usage,

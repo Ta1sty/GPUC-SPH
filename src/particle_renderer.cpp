@@ -117,17 +117,19 @@ ParticleRenderer::ParticleRenderer(const SimulationParameters &simulationParamet
     vk::DescriptorSetLayout descriptorSetLayout;
     Cmn::createDescriptorSetLayout(resources.device, bindings, descriptorSetLayout);
 
-    //vk::PushConstantRange pcr {};
+    vk::PushConstantRange pcr {
+            vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct)
+    };
 
     vk::PipelineLayoutCreateInfo pipelineLayoutCI {
         vk::PipelineLayoutCreateFlags(),
         1U,
         &descriptorSetLayout,
-        0U,
-        nullptr
+        1U,
+        &pcr
     };
 
-    vk::PipelineLayout pipelineLayout = resources.device.createPipelineLayout(pipelineLayoutCI);
+    particlePipelineLayout = resources.device.createPipelineLayout(pipelineLayoutCI);
 
     vk::ShaderModule particleGeometrySM, particleVertexSM, particleFragmentSM;
 
@@ -252,7 +254,7 @@ ParticleRenderer::ParticleRenderer(const SimulationParameters &simulationParamet
             &depthStencilSCI,
             &colorBlendSCI,
             nullptr,
-            pipelineLayout,
+            particlePipelineLayout,
             renderPass,
             0, // subpass
             {},
@@ -265,18 +267,9 @@ ParticleRenderer::ParticleRenderer(const SimulationParameters &simulationParamet
 
     particlePipeline = pipelines.value[0];
 
-    // need to create a dedicated buffer for vertex input, as this cannot be done from a storage buffer
-    // this means we also need to copy the particle positions every invocation
-    createBuffer(
-            resources.pDevice,
-            resources.device,
-            simulationParameters.numParticles * 2 * 4,
-            { vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst },
-            { vk::MemoryPropertyFlagBits::eDeviceLocal },
-            "vertex-input-particles",
-            vertexInput,
-            vertexInputMemory
-    );
+    resources.device.destroyShaderModule(particleVertexSM);
+    resources.device.destroyShaderModule(particleGeometrySM);
+    resources.device.destroyShaderModule(particleFragmentSM);
 
     commandBuffer = resources.device.allocateCommandBuffers(
                 { resources.graphicsCommandPool, vk::CommandBufferLevel::ePrimary, 1U }
@@ -287,8 +280,6 @@ vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState) 
     // image must be in eColorAttachmentOptimal after the command buffer executed!
 
     commandBuffer.begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
-    vk::BufferCopy copyRegions { 0, 0, simulationState.coordinateBufferSize };
-    commandBuffer.copyBuffer(simulationState.particleCoordinateBuffer.buf, vertexInput, 1, &copyRegions);
 
     vk::ClearValue clearValue;
     clearValue.color.uint32 = {{ 0, 0, 0, 0 }};
@@ -297,11 +288,27 @@ vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState) 
             vk::SubpassContents::eInline);
     commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, particlePipeline);
     uint64_t offsets[] = { 0UL };
-    commandBuffer.bindVertexBuffers(0, 1, &vertexInput, offsets);
+    commandBuffer.bindVertexBuffers(0, 1, &simulationState.particleCoordinateBuffer.buf, offsets);
+
+    pushStruct.width = resources.extent.width;
+    pushStruct.height = resources.extent.height;
+    commandBuffer.pushConstants(particlePipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
     commandBuffer.draw(simulationState.parameters.numParticles, 1, 0, 0);
     commandBuffer.endRenderPass();
 
     commandBuffer.end();
 
     return commandBuffer;
+}
+
+ParticleRenderer::~ParticleRenderer() {
+    resources.device.destroyFramebuffer(framebuffer);
+    resources.device.destroyImageView(colorAttachmentView);
+    resources.device.destroyImage(colorAttachment);
+    resources.device.freeMemory(colorAttachmentMemory);
+
+    resources.device.freeCommandBuffers(resources.graphicsCommandPool, commandBuffer);
+    resources.device.destroyPipeline(particlePipeline);
+    resources.device.destroyPipelineLayout(particlePipelineLayout);
+    resources.device.destroyRenderPass(renderPass);
 }

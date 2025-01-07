@@ -290,13 +290,13 @@ void copyBufferToImage(vk::Device &device, vk::CommandPool &pool, vk::Queue &que
     endSingleTimeCommands(device, queue, pool, commandBuffer);
 }
 
-Buffer createDeviceLocalBuffer(const std::string &name, vk::DeviceSize size) {
+Buffer createDeviceLocalBuffer(const std::string &name, vk::DeviceSize size, vk::BufferUsageFlags additionalUsageBits) {
     Buffer buffer;
     createBuffer(
             resources.pDevice,
             resources.device,
             size,
-            {vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst},
+            {additionalUsageBits | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst},
             {vk::MemoryPropertyFlagBits::eDeviceLocal},
             name,
             buffer.buf,
