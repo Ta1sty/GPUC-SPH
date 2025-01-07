@@ -222,8 +222,21 @@ ParticleRenderer::~ParticleRenderer() {
 
     resources.device.freeCommandBuffers(resources.graphicsCommandPool, commandBuffer);
     resources.device.destroyPipeline(particlePipeline);
+    resources.device.destroyPipeline(backgroundPipeline);
     resources.device.destroyPipelineLayout(particlePipelineLayout);
     resources.device.destroyRenderPass(renderPass);
+
+    resources.device.destroySampler(colormapSampler);
+    resources.device.destroyImageView(colormapImageView);
+    resources.device.destroyImage(colormapImage);
+    resources.device.freeMemory(colormapImageMemory);
+
+    resources.device.freeDescriptorSets(descriptorPool, { descriptorSet });
+    resources.device.destroyDescriptorPool(descriptorPool);
+    resources.device.destroyDescriptorSetLayout(descriptorSetLayout);
+
+    quadVertexBuffer.cleanup();
+    quadIndexBuffer.cleanup();
 }
 
 void ParticleRenderer::createPipeline() {

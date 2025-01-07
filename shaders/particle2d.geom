@@ -29,16 +29,6 @@ void main() {
     );
     vec4 centerPosition = gl_in[0].gl_Position;
 
-
-    // C         D
-    // *-------- *
-    // | \       |
-    // |   \     |
-    // |     \   |
-    // |       \ |
-    // *---------*
-    // A          B
-
     VERTEX(-1,  1); // A
     VERTEX(-1, -1); // C
     VERTEX( 1,  1); // B
