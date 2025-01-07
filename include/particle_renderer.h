@@ -29,6 +29,7 @@ private:
     vk::Framebuffer framebuffer;
 
     vk::Pipeline particlePipeline;
+    vk::Pipeline backgroundPipeline;
     vk::PipelineLayout particlePipelineLayout;
     vk::RenderPass renderPass;
 
@@ -42,4 +43,7 @@ private:
     vk::DescriptorSetLayout descriptorSetLayout;
     vk::DescriptorPool descriptorPool;
     vk::DescriptorSet descriptorSet;
+
+    Buffer quadVertexBuffer;
+    Buffer quadIndexBuffer;
 };

@@ -13,11 +13,17 @@ uint cellHash(uvec2 cell) {
     return ((cell.x * 73856093) ^ (cell.y * 19349663)) % GRID_SIZE;
 }
 
+// https://thebookofshaders.com/07/
+float circle(in vec2 _st, in float _radius){
+    vec2 dist = _st-vec2(0.5);
+    return 1.0 - smoothstep(_radius - (_radius * 0.2),
+                            _radius + (_radius * 0.2),
+                            dot(dist, dist) * 4.0);
+}
+
 void main() {
-    if (dot(particleRelativePosition, particleRelativePosition) < 1.0f) {
-        uint cell = cellHash(uvec2(particleCenter * 8));
-        outColor = vec4(texture(colorscale, float(cell) / float(GRID_SIZE)).rgb, 1.0);
-    } else {
-        outColor = vec4(0,0,0,0);
-    }
+//        uint cell = cellHash(uvec2(particleCenter * 8));
+//        outColor = vec4(texture(colorscale, float(cell) / float(GRID_SIZE)).rgb, 1.0);
+    vec3 color = vec3(circle(particleRelativePosition, 0.5f));
+    outColor = vec4(color, circle(particleRelativePosition, 0.90f));
 }
