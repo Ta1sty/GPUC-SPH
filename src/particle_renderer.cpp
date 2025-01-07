@@ -349,7 +349,7 @@ void ParticleRenderer::createPipeline() {
 }
 
 void ParticleRenderer::createColormapTexture(const std::vector<colormaps::RGB_F32> &colormap) {
-    auto imageFormat = vk::Format::eR32G32B32Sfloat;
+    auto imageFormat = vk::Format::eR8G8B8A8Unorm;
     vk::Extent3D imageExtent = { static_cast<uint32_t>(colormap.size()), 1, 1 };
 
     vk::ImageCreateInfo imageCI {
@@ -360,7 +360,7 @@ void ParticleRenderer::createColormapTexture(const std::vector<colormaps::RGB_F3
             1,
             1,
             vk::SampleCountFlagBits::e1,
-            vk::ImageTiling::eLinear,
+            vk::ImageTiling::eOptimal,
             { vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst },
             vk::SharingMode::eExclusive,
             1,
@@ -389,7 +389,21 @@ void ParticleRenderer::createColormapTexture(const std::vector<colormaps::RGB_F3
 
     colormapImageView = resources.device.createImageView(viewCI);
 
-    fillImageWithStagingBuffer(colormapImage, vk::ImageLayout::eShaderReadOnlyOptimal, imageExtent, colormap);
+    struct RGBA_int8 {
+        uint8_t r, g, b, a;
+    };
+    std::vector<RGBA_int8> converted { colormap.size(), { 0, 0, 0}  };
+    for (size_t i = 0; i < colormap.size(); i++) {
+        auto &c = colormap[i];
+        converted[i] = {
+                static_cast<uint8_t>(c.r * 256.0f),
+                static_cast<uint8_t>(c.g * 256.0f),
+                static_cast<uint8_t>(c.b * 256.0f),
+                255
+        };
+    }
+
+    fillImageWithStagingBuffer(colormapImage, vk::ImageLayout::eShaderReadOnlyOptimal, imageExtent, converted);
 
     vk::SamplerCreateInfo samplerCI {
             {},
