@@ -19,11 +19,10 @@ layout (location = 1) out vec2 outParticleCoordinate;
 #define VERTEX(x, y) \
     gl_Position = centerPosition + vec4(vec2(x, y) * scaleFactor, 0.0f, 0.0f); \
     particleRelativePosition = vec2(x, y); \
+    outParticleCoordinate = inParticleCoordinate[0]; \
     EmitVertex();
 
 void main() {
-    outParticleCoordinate = inParticleCoordinate[0];
-
     vec2 scaleFactor = vec2(
         8.0f / float(p.windowSize.x),
         8.0f / float(p.windowSize.y)

@@ -17,5 +17,7 @@ void main() {
     if (dot(particleRelativePosition, particleRelativePosition) < 1.0f) {
         uint cell = cellHash(uvec2(particleCenter * 8));
         outColor = vec4(texture(colorscale, float(cell) / float(GRID_SIZE)).rgb, 1.0);
+    } else {
+        outColor = vec4(0,0,0,0);
     }
 }
