@@ -1,6 +1,7 @@
 #pragma once
 
 #include "simulation_state.h"
+#include "colormaps.h"
 
 class ParticleRenderer {
 public:
@@ -12,6 +13,9 @@ public:
     [[nodiscard]] vk::Image getImage();
 
 private:
+    void createPipeline();
+    void createColormapTexture(const std::vector<colormaps::RGB_F32> &colormap);
+
     struct PushStruct {
         uint32_t width = 0;
         uint32_t height = 0;
@@ -27,4 +31,8 @@ private:
     vk::RenderPass renderPass;
 
     vk::CommandBuffer commandBuffer;
+
+    vk::Image colormapImage;
+    vk::DeviceMemory colormapImageMemory;
+    vk::ImageView colormapImageView;
 };

@@ -84,6 +84,59 @@ void fillHostBuffer(vk::Device &device, vk::DeviceMemory &mem, std::vector<T> &o
     device.unmapMemory(mem);
 }
 
+template <typename T>
+void fillImageWithStagingBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
+                                vk::CommandPool &commandPool, vk::Queue &q,
+                                vk::Image &image, vk::ImageLayout targetLayout, const vk::Extent3D &extent,
+                                const std::vector<T> &data) {
+    vk::Buffer staging;
+    vk::DeviceMemory mem;
+    vk::DeviceSize byteSize = data.size() * sizeof(T);
+
+    vk::ImageSubresourceRange subresourceRange {{ vk::ImageAspectFlagBits::eColor }, 0, 1, 0, 1};
+
+    createBuffer(pDevice, device, byteSize, vk::BufferUsageFlagBits::eTransferSrc,
+                 vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible, "staging",
+                 staging, mem);
+    // V host -> staging V
+    fillDeviceBuffer<T>(device, mem, data);
+    auto cb = beginSingleTimeCommands(device, commandPool);
+
+    vk::ImageMemoryBarrier toTransferLayout {
+            {}, {}, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, {}, {}, image, subresourceRange
+    };
+    cb.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, {}, 0, nullptr, 0,
+                       nullptr, 1, &toTransferLayout);
+
+    vk::BufferImageCopy bufferImageCopy {
+        0,
+        0,
+        0,
+        {{ vk::ImageAspectFlagBits::eColor }, 0, 0, 1},
+        { 0, 0, 0 },
+        extent
+    };
+    cb.copyBufferToImage(staging, image, vk::ImageLayout::eTransferDstOptimal, 1, &bufferImageCopy);
+
+    vk::ImageMemoryBarrier toTargetLayout {
+            {}, {}, vk::ImageLayout::eTransferDstOptimal, targetLayout, {}, {}, image, subresourceRange
+    };
+    cb.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, {}, 0, nullptr, 0,
+                       nullptr, 1, &toTargetLayout);
+
+    endSingleTimeCommands(device, q, commandPool, cb);
+
+    device.destroyBuffer(staging);
+    device.freeMemory(mem);
+}
+
+template <typename T>
+void fillImageWithStagingBuffer(vk::Image &image, vk::ImageLayout targetLayout, const vk::Extent3D &extent,
+                                const std::vector<T> &data) {
+    fillImageWithStagingBuffer(resources.pDevice, resources.device, resources.transferCommandPool,
+                               resources.transferQueue, image, targetLayout, extent, data);
+}
+
 // C++ 17 allows using it like  this:
 // fillDeviceWithStagingBuffer(arguments)
 // instead of 

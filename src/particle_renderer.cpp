@@ -106,12 +106,58 @@ ParticleRenderer::ParticleRenderer(const SimulationParameters &simulationParamet
             {}, renderPass, 1, &colorAttachmentView, imageInfo.extent.width, imageInfo.extent.height, imageInfo.extent.depth
     });
 
+    createColormapTexture(colormaps::viridis);
+    createPipeline();
+
+    commandBuffer = resources.device.allocateCommandBuffers(
+                { resources.graphicsCommandPool, vk::CommandBufferLevel::ePrimary, 1U }
+            )[0];
+}
+
+vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState) {
+    // image must be in eColorAttachmentOptimal after the command buffer executed!
+
+    commandBuffer.begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+
+    vk::ClearValue clearValue;
+    clearValue.color.uint32 = {{ 0, 0, 0, 0 }};
+    commandBuffer.beginRenderPass(
+            { renderPass, framebuffer, {{ 0, 0}, resources.extent }, 1, &clearValue},
+            vk::SubpassContents::eInline);
+    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, particlePipeline);
+    uint64_t offsets[] = { 0UL };
+    commandBuffer.bindVertexBuffers(0, 1, &simulationState.particleCoordinateBuffer.buf, offsets);
+
+    pushStruct.width = resources.extent.width;
+    pushStruct.height = resources.extent.height;
+    commandBuffer.pushConstants(particlePipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
+    commandBuffer.draw(simulationState.parameters.numParticles, 1, 0, 0);
+    commandBuffer.endRenderPass();
+
+    commandBuffer.end();
+
+    return commandBuffer;
+}
+
+ParticleRenderer::~ParticleRenderer() {
+    resources.device.destroyFramebuffer(framebuffer);
+    resources.device.destroyImageView(colorAttachmentView);
+    resources.device.destroyImage(colorAttachment);
+    resources.device.freeMemory(colorAttachmentMemory);
+
+    resources.device.freeCommandBuffers(resources.graphicsCommandPool, commandBuffer);
+    resources.device.destroyPipeline(particlePipeline);
+    resources.device.destroyPipelineLayout(particlePipelineLayout);
+    resources.device.destroyRenderPass(renderPass);
+}
+
+void ParticleRenderer::createPipeline() {
     std::vector<vk::DescriptorSetLayoutBinding> bindings;
     bindings.emplace_back(
-        0,
-        vk::DescriptorType::eStorageBuffer,
-        1U,
-        vk::ShaderStageFlagBits::eGeometry
+            0,
+            vk::DescriptorType::eStorageBuffer,
+            1U,
+            vk::ShaderStageFlagBits::eGeometry
     );
 
     vk::DescriptorSetLayout descriptorSetLayout;
@@ -122,11 +168,11 @@ ParticleRenderer::ParticleRenderer(const SimulationParameters &simulationParamet
     };
 
     vk::PipelineLayoutCreateInfo pipelineLayoutCI {
-        vk::PipelineLayoutCreateFlags(),
-        1U,
-        &descriptorSetLayout,
-        1U,
-        &pcr
+            vk::PipelineLayoutCreateFlags(),
+            1U,
+            &descriptorSetLayout,
+            1U,
+            &pcr
     };
 
     particlePipelineLayout = resources.device.createPipelineLayout(pipelineLayoutCI);
@@ -197,8 +243,8 @@ ParticleRenderer::ParticleRenderer(const SimulationParameters &simulationParamet
             false,
             // Whether to discard data and skip rasterizer. Never creates fragments, only suitable for pipeline without framebuffer output
             vk::PolygonMode::eFill, // How to handle filling points between vertices
-            vk::CullModeFlagBits::eFront, // Which face of a tri to cull
-            vk::FrontFace::eCounterClockwise, // Winding to determine which side is front
+            vk::CullModeFlagBits::eBack, // Which face of a tri to cull
+            vk::FrontFace::eClockwise, // Winding to determine which side is front
             false, // Whether to add depth bias to fragments (good for stopping "shadow acne" in shadow mapping)
             0.f,
             0.f,
@@ -221,14 +267,14 @@ ParticleRenderer::ParticleRenderer(const SimulationParameters &simulationParamet
     };
 
     vk::PipelineColorBlendAttachmentState colorBlendAttachmentState {
-        true,
-        vk::BlendFactor::eOneMinusDstAlpha,
-        vk::BlendFactor::eDstAlpha,
-        vk::BlendOp::eAdd,
-        vk::BlendFactor::eOne,
-        vk::BlendFactor::eZero,
-        vk::BlendOp::eAdd,
-        vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+            true,
+            vk::BlendFactor::eOneMinusDstAlpha,
+            vk::BlendFactor::eDstAlpha,
+            vk::BlendOp::eAdd,
+            vk::BlendFactor::eOne,
+            vk::BlendFactor::eZero,
+            vk::BlendOp::eAdd,
+            vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
             vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
     };
 
@@ -270,45 +316,48 @@ ParticleRenderer::ParticleRenderer(const SimulationParameters &simulationParamet
     resources.device.destroyShaderModule(particleVertexSM);
     resources.device.destroyShaderModule(particleGeometrySM);
     resources.device.destroyShaderModule(particleFragmentSM);
-
-    commandBuffer = resources.device.allocateCommandBuffers(
-                { resources.graphicsCommandPool, vk::CommandBufferLevel::ePrimary, 1U }
-            )[0];
 }
 
-vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState) {
-    // image must be in eColorAttachmentOptimal after the command buffer executed!
+void ParticleRenderer::createColormapTexture(const std::vector<colormaps::RGB_F32> &colormap) {
+    auto imageFormat = vk::Format::eR32G32B32Sfloat;
+    vk::Extent3D imageExtent = { static_cast<uint32_t>(colormap.size()), 1, 1 };
 
-    commandBuffer.begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+    vk::ImageCreateInfo imageCI {
+            {},
+            vk::ImageType::e1D,
+            imageFormat,
+            imageExtent,
+            1,
+            1,
+            vk::SampleCountFlagBits::e1,
+            vk::ImageTiling::eLinear,
+            { vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst },
+            vk::SharingMode::eExclusive,
+            1,
+            &resources.gQ,
+            vk::ImageLayout::eUndefined,
+    };
 
-    vk::ClearValue clearValue;
-    clearValue.color.uint32 = {{ 0, 0, 0, 0 }};
-    commandBuffer.beginRenderPass(
-            { renderPass, framebuffer, {{ 0, 0}, resources.extent }, 1, &clearValue},
-            vk::SubpassContents::eInline);
-    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, particlePipeline);
-    uint64_t offsets[] = { 0UL };
-    commandBuffer.bindVertexBuffers(0, 1, &simulationState.particleCoordinateBuffer.buf, offsets);
+    createImage(
+            resources.pDevice,
+            resources.device,
+            imageCI,
+            { vk::MemoryPropertyFlagBits::eDeviceLocal },
+            "colormapTexture",
+            colormapImage,
+            colormapImageMemory
+    );
 
-    pushStruct.width = resources.extent.width;
-    pushStruct.height = resources.extent.height;
-    commandBuffer.pushConstants(particlePipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
-    commandBuffer.draw(simulationState.parameters.numParticles, 1, 0, 0);
-    commandBuffer.endRenderPass();
+    vk::ImageViewCreateInfo viewCI {
+            {},
+            colormapImage,
+            vk::ImageViewType::e1D,
+            imageFormat,
+            {},
+            {{ vk::ImageAspectFlagBits::eColor }, 0, 1, 0, 1 }
+    };
 
-    commandBuffer.end();
+    colormapImageView = resources.device.createImageView(viewCI);
 
-    return commandBuffer;
-}
-
-ParticleRenderer::~ParticleRenderer() {
-    resources.device.destroyFramebuffer(framebuffer);
-    resources.device.destroyImageView(colorAttachmentView);
-    resources.device.destroyImage(colorAttachment);
-    resources.device.freeMemory(colorAttachmentMemory);
-
-    resources.device.freeCommandBuffers(resources.graphicsCommandPool, commandBuffer);
-    resources.device.destroyPipeline(particlePipeline);
-    resources.device.destroyPipelineLayout(particlePipelineLayout);
-    resources.device.destroyRenderPass(renderPass);
+    fillImageWithStagingBuffer(colormapImage, vk::ImageLayout::eShaderReadOnlyOptimal, imageExtent, colormap);
 }
