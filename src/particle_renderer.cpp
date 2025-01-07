@@ -116,6 +116,7 @@ ParticleRenderer::ParticleRenderer(const SimulationParameters &simulationParamet
 
 vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState) {
     // image must be in eColorAttachmentOptimal after the command buffer executed!
+    updateDescriptorSets(simulationState);
 
     commandBuffer.begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
 
@@ -130,7 +131,27 @@ vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState) 
 
     pushStruct.width = resources.extent.width;
     pushStruct.height = resources.extent.height;
+
+    // map [0, 1]^2 into viewport
+    pushStruct.mvp = {
+            2, 0, 0, -1,
+            0, 2, 0, -1,
+            0, 0, 0,  0,
+            0, 0, 0,  1
+    };
+
+    // preserve aspect ratio
+    float aspectRatio = static_cast<float>(pushStruct.width) / static_cast<float>(pushStruct.height);
+    if (aspectRatio >= 1.0f) {
+        pushStruct.mvp[0] /= aspectRatio;
+    } else {
+        pushStruct.mvp[1] *= aspectRatio;
+    }
+    pushStruct.mvp = glm::transpose(pushStruct.mvp); // why are the indices wrong??
+
     commandBuffer.pushConstants(particlePipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
+    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, particlePipelineLayout, 0, 1, &descriptorSet,
+                                     0, nullptr);
     commandBuffer.draw(simulationState.parameters.numParticles, 1, 0, 0);
     commandBuffer.endRenderPass();
 
@@ -157,11 +178,20 @@ void ParticleRenderer::createPipeline() {
             0,
             vk::DescriptorType::eStorageBuffer,
             1U,
-            vk::ShaderStageFlagBits::eGeometry
+            vk::ShaderStageFlagBits::eFragment
+    );
+    bindings.emplace_back(
+            1,
+            vk::DescriptorType::eCombinedImageSampler,
+            1U,
+            vk::ShaderStageFlagBits::eFragment,
+            nullptr
     );
 
-    vk::DescriptorSetLayout descriptorSetLayout;
     Cmn::createDescriptorSetLayout(resources.device, bindings, descriptorSetLayout);
+    Cmn::createDescriptorPool(resources.device, bindings, descriptorPool);
+    Cmn::allocateDescriptorSet(resources.device, descriptorSet, descriptorPool, descriptorSetLayout);
+
 
     vk::PushConstantRange pcr {
             vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct)
@@ -360,4 +390,30 @@ void ParticleRenderer::createColormapTexture(const std::vector<colormaps::RGB_F3
     colormapImageView = resources.device.createImageView(viewCI);
 
     fillImageWithStagingBuffer(colormapImage, vk::ImageLayout::eShaderReadOnlyOptimal, imageExtent, colormap);
+
+    vk::SamplerCreateInfo samplerCI {
+            {},
+            vk::Filter::eLinear,
+            vk::Filter::eLinear,
+            vk::SamplerMipmapMode::eNearest,
+            vk::SamplerAddressMode::eClampToEdge,
+            vk::SamplerAddressMode::eClampToEdge,
+            vk::SamplerAddressMode::eClampToEdge,
+            {},
+            vk::False,
+            {},
+            vk::False,
+            {},
+            0,
+            0,
+            vk::BorderColor::eFloatOpaqueBlack,
+            vk::False
+    };
+
+    colormapSampler = resources.device.createSampler(samplerCI);
+}
+
+void ParticleRenderer::updateDescriptorSets(const SimulationState &simulationState) {
+    Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 0);
+    Cmn::bindCombinedImageSampler(resources.device, colormapImageView, colormapSampler, descriptorSet, 1);
 }

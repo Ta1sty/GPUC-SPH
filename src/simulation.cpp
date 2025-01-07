@@ -73,7 +73,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     //  vulkan doesn't like stuff being allocated from the transfer
     //  queue being run elsewhere
     buffers[0] = { resources.transferQueue, cmdReset };
-    buffers[1] = { resources.transferQueue, particlePhysics->run() };
+    buffers[1] = { resources.computeQueue, particlePhysics->run() };
     buffers[2] = { resources.computeQueue,  hashGrid->run(*simulationState) };
     buffers[3] = { resources.graphicsQueue, particleRenderer->run(*simulationState)};
     buffers[4] = { resources.graphicsQueue, copy(imageIndex) };
@@ -88,6 +88,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     for (uint64_t wait = 0,signal = 1; wait < buffers.size(); ++wait,++signal) {
         auto queue = std::get<0>(buffers[wait]);
         auto cmd = std::get<1>(buffers[wait]);
+        queue = nullptr == cmd ? resources.transferQueue : queue;
         cmd = nullptr == cmd ? cmdEmpty : cmd;
 
         vk::TimelineSemaphoreSubmitInfo timeline(

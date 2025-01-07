@@ -15,8 +15,10 @@ public:
 private:
     void createPipeline();
     void createColormapTexture(const std::vector<colormaps::RGB_F32> &colormap);
+    void updateDescriptorSets(const SimulationState &simulationState);
 
     struct PushStruct {
+        glm::mat4 mvp;
         uint32_t width = 0;
         uint32_t height = 0;
     } pushStruct;
@@ -35,4 +37,9 @@ private:
     vk::Image colormapImage;
     vk::DeviceMemory colormapImageMemory;
     vk::ImageView colormapImageView;
+    vk::Sampler colormapSampler;
+
+    vk::DescriptorSetLayout descriptorSetLayout;
+    vk::DescriptorPool descriptorPool;
+    vk::DescriptorSet descriptorSet;
 };

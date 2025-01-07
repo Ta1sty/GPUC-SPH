@@ -33,7 +33,7 @@ std::vector<float> initPoissonDisk(SceneType sceneType, uint32_t numParticles, s
     }
 }
 
-SimulationState::SimulationState(const SimulationParameters &parameters) : random(parameters.randomSeed) {
+SimulationState::SimulationState(const SimulationParameters &_parameters) : parameters(_parameters), random(parameters.randomSeed) {
     camera = std::make_unique<Camera>();
     debugImagePhysics = std::make_unique<DebugImage>("debug-image-particle");
     debugImageSort = std::make_unique<DebugImage>("debug-image-sort");

@@ -18,5 +18,5 @@ layout (binding = 1) buffer indexBuffer { uint spatial_indices[]; };
 layout (binding = 2) buffer particleBuffer { vec2 particles_coordinates[]; };
 
 uint cellHash(uvec2 cell) {
-    return (cell.x * 3 + cell.y * 5) % GRID_SIZE;
+    return ((cell.x * 73856093) ^ (cell.y * 19349663)) % GRID_SIZE;
 }
