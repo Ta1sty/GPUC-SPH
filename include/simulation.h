@@ -22,6 +22,9 @@ public:
     void run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::Semaphore signalRenderFinished, vk::Fence signalSubmitFinished);
 
 private:
+    void processUpdateFlags(const UiBindings::UpdateFlags &updateFlags);
+    void updateCommandBuffers();
+
     SimulationParameters simulationParameters;
     RenderParameters renderParameters;
 
@@ -45,6 +48,10 @@ private:
 
     vk::Semaphore initSemaphore();
     vk::CommandBuffer copy(uint32_t imageIndex);
+
+    UiBindings::UpdateFlags lastUpdate;
+
+    friend void Render::renderSimulationFrame(Simulation &simulation); // access stuff, kind of ugly to do it this way
 public:
     std::unique_ptr<ParticleSimulation> particleSimulation;
 };

@@ -66,8 +66,13 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     timelineSemaphore = initSemaphore();
 
     // TODO @markus stimmt imageIndex hier?
-    UiBindings uiBindings { imageIndex, simulationParameters, renderParameters };
+    UiBindings uiBindings { imageIndex, simulationParameters, renderParameters, simulationState.get() };
     std::array<std::tuple<vk::Queue,vk::CommandBuffer>,count> buffers;
+
+    auto imguiCommandBuffer = imguiUi->updateCommandBuffer(imageIndex, uiBindings);
+    lastUpdate = uiBindings.updateFlags;
+    if (lastUpdate.advanceSimulationStep && simulationState->paused)
+        simulationState->paused = false;
 
     // TODO temporarily changed to transfer queue because
     //  vulkan doesn't like stuff being allocated from the transfer
@@ -77,7 +82,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     buffers[2] = { resources.computeQueue,  hashGrid->run(*simulationState) };
     buffers[3] = { resources.graphicsQueue, particleRenderer->run(*simulationState)};
     buffers[4] = { resources.graphicsQueue, copy(imageIndex) };
-    buffers[5] = { resources.graphicsQueue, imguiUi->updateCommandBuffer(imageIndex, uiBindings) };
+    buffers[5] = { resources.graphicsQueue, imguiCommandBuffer };
 
     auto flags = uiBindings.updateFlags;
     if (flags.resetSimulation) {
@@ -283,6 +288,29 @@ Simulation::~Simulation() {
     // TODO clean up your vulkan objects!
 }
 
+void Simulation::processUpdateFlags(const UiBindings::UpdateFlags &updateFlags) {
+    if (updateFlags.resetSimulation) {
+        auto newState = std::make_unique<SimulationState>(simulationParameters);
+        // debug images are part of the simulation state and used in the cmdReset command buffer
+        // this needs to be rebuilt somewhere before the old state gets deleted, might as well be here
+        cmdReset.begin(vk::CommandBufferBeginInfo());
+        newState->debugImagePhysics->clear(cmdReset, { 1, 0, 0, 1 });
+        newState->debugImageSort->clear(cmdReset, { 0, 1, 0, 1 });
+        newState->debugImageRenderer->clear(cmdReset, { 0, 0, 1, 1 });
+        cmdReset.end();
+
+        simulationState = std::move(newState);
+        updateCommandBuffers();
+    }
+
+    if (updateFlags.togglePause)
+        simulationState->paused = !simulationState->paused;
+
+    // advance sets paused to true for only one step (see run()), needs to be reset here
+    if (updateFlags.advanceSimulationStep && !simulationState->paused)
+        simulationState->paused = true;
+}
+
 void Render::renderSimulationFrame(Simulation &simulation) {
     auto idx = currentFrameIdx % framesinlight;
     if (app.device.waitForFences({fences[idx]}, true, ~0) != vk::Result::eSuccess)
@@ -294,11 +322,17 @@ void Render::renderSimulationFrame(Simulation &simulation) {
 
     auto swapchainIndex = result.value;
 
+    simulation.processUpdateFlags(simulation.lastUpdate);
+
     simulation.run(swapchainIndex, swapchainAcquireSemaphores[idx], completionSemaphores[idx], fences[idx]);
 
     vk::PresentInfoKHR presentInfo(completionSemaphores[idx], app.swapchain, swapchainIndex);
     vk::detail::resultCheck(app.graphicsQueue.presentKHR(presentInfo), "Failed to present image");
 
     currentFrameIdx = (currentFrameIdx + 1) % framesinlight;
+}
+
+void Simulation::updateCommandBuffers() {
+    hashGrid->updateCmd(*simulationState);
 }
 

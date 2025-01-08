@@ -3,6 +3,7 @@
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
 #include "simulation_parameters.h"
+#include "simulation_state.h"
 
 
 ImguiUi::ImguiUi() {
@@ -150,10 +151,23 @@ vk::CommandBuffer ImguiUi::updateCommandBuffer(uint32_t index, UiBindings &bindi
 }
 
 void ImguiUi::drawUi(UiBindings &bindings) {
+    auto &updateFlags = bindings.updateFlags;
+
     if (bindings.renderParameters.showDemoWindow)
         ImGui::ShowDemoWindow();
 
     ImGui::Begin("Settings");
+
+    bool paused = !bindings.simulationState || bindings.simulationState->paused;
+    updateFlags.togglePause |= ImGui::Button(paused ? "Resume" : "Pause");
+    ImGui::SameLine();
+    if (!paused)
+        ImGui::BeginDisabled();
+    updateFlags.advanceSimulationStep |= ImGui::Button("Step");
+    if (!paused)
+        ImGui::EndDisabled();
+    ImGui::SameLine();
+    updateFlags.resetSimulation |= ImGui::Button("Reset");
 
     if (ImGui::CollapsingHeader("Render Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
         auto &render = bindings.renderParameters;
@@ -164,7 +178,7 @@ void ImguiUi::drawUi(UiBindings &bindings) {
     }
 
     if (ImGui::CollapsingHeader("Simulation Parameters")) {
-        bindings.updateFlags.resetSimulation |= ImGui::Button("Restart Simulation");
+        updateFlags.resetSimulation |= ImGui::Button("Restart Simulation");
 
         auto &simulation = bindings.simulationParameters;
         ImGui::DragInt("Num Particles", reinterpret_cast<int*>(&simulation.numParticles), 16, 16, 1024 * 1024 * 1024);
