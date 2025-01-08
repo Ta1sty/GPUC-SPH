@@ -2,11 +2,13 @@
 
 #include "utils.h"
 
-enum class SceneType {
+enum class SceneType
+{
     SPH_BOX_2D
 };
 
-enum class InitializationFunction {
+enum class InitializationFunction
+{
     UNIFORM,
     POISSON_DISK
 };
@@ -15,12 +17,14 @@ enum class InitializationFunction {
  * Parameters that influence setup and execution of the simulation.
  * Changing parameters requires the simulation to be restarted.
  */
-struct SimulationParameters {
+struct SimulationParameters
+{
 public:
     SceneType type = SceneType::SPH_BOX_2D;
     InitializationFunction initializationFunction = InitializationFunction::UNIFORM;
     uint32_t numParticles = 128;
     uint32_t randomSeed = 0; // initialized with TRNG if omitted
+    float gravity = -9.81f;  // Default Earth gravity
 
 public:
     SimulationParameters() = default;
@@ -32,7 +36,8 @@ public:
 /**
  * Parameters that only influence the visualization of the Simulation.
  */
-struct RenderParameters {
+struct RenderParameters
+{
     bool showDemoWindow = false;
     bool debugImagePhysics = false;
     bool debugImageSort = false;

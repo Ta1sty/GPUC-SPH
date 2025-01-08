@@ -8,6 +8,7 @@
 
 struct Particle {
     glm::vec2 position;
+    glm::vec2 velocity;
 };
 
 struct SpatialLookupEntry {
