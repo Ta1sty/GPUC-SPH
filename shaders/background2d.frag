@@ -13,6 +13,6 @@ uint cellHash(uvec2 cell) {
 }
 
 void main() {
-    uint cell = cellHash(uvec2(position * 8));
+    uint cell = cellHash(uvec2(position * 16));
     outColor = vec4(texture(colorscale, float(cell) / float(GRID_SIZE)).rgb, 1.0);
 }

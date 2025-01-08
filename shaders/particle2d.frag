@@ -14,11 +14,10 @@ uint cellHash(uvec2 cell) {
 }
 
 // https://thebookofshaders.com/07/
-float circle(in vec2 _st, in float _radius){
-    vec2 dist = _st-vec2(0.5);
+float circle(in vec2 dist, in float _radius){
     return 1.0 - smoothstep(_radius - (_radius * 0.2),
                             _radius + (_radius * 0.2),
-                            dot(dist, dist) * 4.0);
+                            dot(dist, dist));
 }
 
 void main() {

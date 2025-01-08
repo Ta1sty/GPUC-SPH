@@ -24,8 +24,8 @@ layout (location = 1) out vec2 outParticleCoordinate;
 
 void main() {
     vec2 scaleFactor = vec2(
-        24.0f / float(p.windowSize.x),
-        24.0f / float(p.windowSize.y)
+        12.0f / float(p.windowSize.x),
+        12.0f / float(p.windowSize.y)
     );
     vec4 centerPosition = gl_in[0].gl_Position;
 
