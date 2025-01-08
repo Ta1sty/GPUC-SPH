@@ -8,7 +8,7 @@
 
 Simulation::Simulation(const SimulationParameters &parameters) : simulationParameters(parameters),
                                                                  simulationState(std::make_unique<SimulationState>(parameters)) {
-    particlePhysics = std::make_unique<ParticleSimulation>();
+    particlePhysics = std::make_unique<ParticleSimulation>(simulationParameters);
     hashGrid = std::make_unique<SpatialLookup>(simulationParameters);
     imguiUi = std::make_unique<ImguiUi>();
     particleRenderer = std::make_unique<ParticleRenderer>(simulationParameters);
@@ -73,7 +73,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     //  vulkan doesn't like stuff being allocated from the transfer
     //  queue being run elsewhere
     buffers[0] = { resources.transferQueue, cmdReset };
-    buffers[1] = { resources.computeQueue, particlePhysics->run() };
+    buffers[1] = { resources.computeQueue, particlePhysics->run(*simulationState) };
     buffers[2] = { resources.computeQueue,  hashGrid->run(*simulationState) };
     buffers[3] = { resources.graphicsQueue, particleRenderer->run(*simulationState)};
     buffers[4] = { resources.graphicsQueue, copy(imageIndex) };

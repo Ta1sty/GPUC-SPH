@@ -41,21 +41,25 @@ SimulationState::SimulationState(const SimulationParameters &_parameters) : para
 
     switch (parameters.type) {
         case SceneType::SPH_BOX_2D:
-            coordinateBufferSize = sizeof(Particle) * parameters.numParticles;
+            coordinateBufferSize = sizeof(glm::vec2) * parameters.numParticles;
+            velocityBufferSize = sizeof(glm::vec2) * parameters.numParticles;
             break;
     }
-
+    // Particles
     particleCoordinateBuffer = createDeviceLocalBuffer("buffer-particles", coordinateBufferSize, vk::BufferUsageFlagBits::eVertexBuffer);
-    std::vector<float> values;
+    particleVelocityBuffer = createDeviceLocalBuffer("buffer-velocities", velocityBufferSize); //just a storage buffer
+    std::vector<float> coordinateValues;
+    std::vector<float> velocityValues(2 * parameters.numParticles, 0.0f); // initialize velocities to 0
+
     switch (parameters.initializationFunction) {
         case InitializationFunction::UNIFORM:
-            values = initUniform(parameters.type, parameters.numParticles, random);
+            coordinateValues = initUniform(parameters.type, parameters.numParticles, random);
             break;
         case InitializationFunction::POISSON_DISK:
-            values = initPoissonDisk(parameters.type, parameters.numParticles, random);
+            coordinateValues = initPoissonDisk(parameters.type, parameters.numParticles, random);
             break;
     }
-    fillDeviceWithStagingBuffer(particleCoordinateBuffer, values);
+    fillDeviceWithStagingBuffer(particleCoordinateBuffer, coordinateValues);
 
     // Spatial Lookup
     spatialLookup = createDeviceLocalBuffer("spatialLookup", parameters.numParticles * sizeof (SpatialLookupEntry));

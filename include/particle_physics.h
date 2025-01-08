@@ -4,6 +4,11 @@
 
 class ParticleSimulation {
     vk::Pipeline simulationPipeline;
+    vk::PipelineLayout simulationPipelineLayout;
 public:
-    vk::CommandBuffer run();
+    ParticleSimulation() = delete;
+    ParticleSimulation(const ParticleSimulation &particleRenderer) = delete;
+    explicit ParticleSimulation(const SimulationParameters &simulationParameters);
+    ~ParticleSimulation();
+    vk::CommandBuffer run(const SimulationState &simulationState);
 };

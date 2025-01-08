@@ -31,6 +31,7 @@ public:
     [[nodiscard]] const vk::Buffer& getParticleCoordinateBuffer() const { return particleCoordinateBuffer.buf; }
 
     Buffer particleCoordinateBuffer;
+    Buffer particleVelocityBuffer;
 
     const SimulationParameters parameters;
 
@@ -44,5 +45,6 @@ public:
     Buffer spatialIndices;
 
     uint32_t coordinateBufferSize = 0;
+    uint32_t velocityBufferSize = 0;
     std::mt19937 random;
 };
