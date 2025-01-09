@@ -509,7 +509,7 @@ void ParticleRenderer::createColormapTexture(const std::vector<colormaps::RGB_F3
 }
 
 void ParticleRenderer::updateDescriptorSets(const SimulationState &simulationState) {
-    Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 0);
+    Cmn::bindBuffers(resources.device, simulationState.particleCoordinateBuffer.buf, descriptorSet, 0);
     Cmn::bindCombinedImageSampler(resources.device, colormapImageView, colormapSampler, descriptorSet, 1);
 }
 
