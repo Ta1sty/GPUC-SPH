@@ -178,12 +178,13 @@ void ImguiUi::drawUi(UiBindings &bindings) {
 
     if (ImGui::CollapsingHeader("Render Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
         auto &render = bindings.renderParameters;
-        ImGui::Checkbox("Show demo window", &render.showDemoWindow);
-        ImGui::Checkbox("DebugPhysics", &render.debugImagePhysics);
-        ImGui::Checkbox("DebugSort", &render.debugImageSort);
-        ImGui::Checkbox("DebugRender", &render.debugImageRenderer);
+        EnumCombo("Selected Image", &render.selectedImage, selectedImageMappings);
 
         EnumCombo("Background Field", &render.backgroundField, renderBackgroundFieldMappings);
+        ImGui::DragFloat("Particle Radius", &render.particleRadius, 0.5, 1.0, 64.0, "%.1f");
+
+        ImGui::Separator();
+        ImGui::Checkbox("ImGui demo window", &render.showDemoWindow);
     }
 
     if (ImGui::CollapsingHeader("Simulation Parameters")) {

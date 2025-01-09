@@ -43,6 +43,12 @@ const Mappings<InitializationFunction> initializationFunctionMappings {
         { "uniform", InitializationFunction::UNIFORM },
         { "poisson_disk", InitializationFunction::POISSON_DISK }
 };
+const Mappings<SelectedImage> selectedImageMappings {
+        { "render", SelectedImage::RENDER },
+        { "debug_physics", SelectedImage::DEBUG_PHYSICS },
+        { "debug_sort", SelectedImage::DEBUG_SORT },
+        { "debug_renderer", SelectedImage::DEBUG_RENDERER }
+};
 const Mappings<RenderBackgroundField> renderBackgroundFieldMappings {
         { "cell_hash", RenderBackgroundField::CELL_HASH },
         { "density", RenderBackgroundField::DENSITY }

@@ -164,6 +164,7 @@ vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState, 
     UniformBufferStruct ub {
         simulationState.parameters.numParticles,
         static_cast<uint32_t>(renderParameters.backgroundField),
+        renderParameters.particleRadius
     };
 
     if (!(ub == uniformBufferContent)) {
@@ -223,7 +224,7 @@ void ParticleRenderer::createPipeline() {
             2,
             vk::DescriptorType::eUniformBuffer,
             1U,
-            vk::ShaderStageFlagBits::eFragment
+            vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eGeometry
     );
 
     Cmn::createDescriptorSetLayout(resources.device, bindings, descriptorSetLayout);

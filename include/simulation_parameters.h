@@ -46,6 +46,14 @@ public:
     [[nodiscard]] std::string printToYaml() const;
 };
 
+enum class SelectedImage {
+    RENDER,
+    DEBUG_PHYSICS,
+    DEBUG_SORT,
+    DEBUG_RENDERER
+};
+extern const Mappings<SelectedImage> selectedImageMappings;
+
 enum class RenderBackgroundField {
     CELL_HASH,
     DENSITY,
@@ -57,9 +65,8 @@ extern const Mappings<RenderBackgroundField> renderBackgroundFieldMappings;
  */
 struct RenderParameters {
     bool showDemoWindow = false;
-    bool debugImagePhysics = false;
-    bool debugImageSort = false;
-    bool debugImageRenderer = false;
+    SelectedImage selectedImage = SelectedImage::RENDER;
 
     RenderBackgroundField backgroundField = RenderBackgroundField::CELL_HASH;
+    float particleRadius = 12.0f;
 };

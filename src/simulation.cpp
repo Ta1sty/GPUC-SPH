@@ -176,17 +176,21 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
     vk::Image srcImage = particleRenderer->getImage();
     vk::ImageLayout srcImageLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
-    if (renderParameters.debugImagePhysics) {
-        srcImage = simulationState->debugImagePhysics->image;
-        srcImageLayout = vk::ImageLayout::eGeneral;
-    }
-    if (renderParameters.debugImageSort) {
-        srcImage = simulationState->debugImageSort->image;
-        srcImageLayout = vk::ImageLayout::eGeneral;
-    }
-    if (renderParameters.debugImageRenderer) {
-        srcImage = simulationState->debugImageRenderer->image;
-        srcImageLayout = vk::ImageLayout::eGeneral;
+    switch (renderParameters.selectedImage) {
+        case SelectedImage::DEBUG_PHYSICS:
+            srcImage = simulationState->debugImageSort->image;
+            srcImageLayout = vk::ImageLayout::eGeneral;
+            break;
+        case SelectedImage::DEBUG_SORT:
+            srcImage = simulationState->debugImageRenderer->image;
+            srcImageLayout = vk::ImageLayout::eGeneral;
+            break;
+        case SelectedImage::DEBUG_RENDERER:
+            srcImage = simulationState->debugImagePhysics->image;
+            srcImageLayout = vk::ImageLayout::eGeneral;
+            break;
+        default:
+            break;
     }
 
     auto barrier = [&](vk::Image image,

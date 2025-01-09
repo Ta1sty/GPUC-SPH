@@ -7,6 +7,13 @@ layout(location = 0) out vec4 outColor;
 
 layout(binding = 1) uniform sampler1D colorscale;
 
+layout(binding = 2) uniform UniformBuffer {
+    uint numParticles;
+    uint backgroundField;
+    float particleRadius;
+};
+
+
 #define GRID_SIZE 128
 
 uint cellHash(uvec2 cell) {
@@ -15,8 +22,8 @@ uint cellHash(uvec2 cell) {
 
 // https://thebookofshaders.com/07/
 float circle(in vec2 dist, in float _radius){
-    return 1.0 - smoothstep(_radius - (_radius * 0.2),
-                            _radius + (_radius * 0.2),
+    return 1.0 - smoothstep(_radius - (_radius / particleRadius * 4), // these radius bounds are arbitrary
+                            _radius + (_radius / particleRadius * 4), // picked by what seems to look good
                             dot(dist, dist));
 }
 

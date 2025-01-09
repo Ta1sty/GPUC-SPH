@@ -10,6 +10,12 @@ layout(push_constant) uniform PushStruct {
     uvec2 windowSize;
 } p;
 
+layout(binding = 2) uniform UniformBuffer {
+    uint numParticles;
+    uint backgroundField;
+    float particleRadius;
+};
+
 //layout (binding = 0) readonly buffer ParticlePositions { vec2 gParticlePositions[]; }
 
 //layout (location = 0) vec3 particleColor;
@@ -24,8 +30,8 @@ layout (location = 1) out vec2 outParticleCoordinate;
 
 void main() {
     vec2 scaleFactor = vec2(
-        12.0f / float(p.windowSize.x),
-        12.0f / float(p.windowSize.y)
+        particleRadius / float(p.windowSize.x),
+        particleRadius / float(p.windowSize.y)
     );
     vec4 centerPosition = gl_in[0].gl_Position;
 

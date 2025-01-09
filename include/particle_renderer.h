@@ -27,13 +27,15 @@ private:
     struct UniformBufferStruct {
         uint32_t numParticles = 128;
         uint32_t backgroundField = 0;
+        float particleRadius = 12.0f;
 
     public:
         UniformBufferStruct() = default;
         UniformBufferStruct(const UniformBufferStruct &obj) = default;
         bool operator==(const UniformBufferStruct &obj) const {
             return numParticles == obj.numParticles
-                && backgroundField == obj.backgroundField;
+                && backgroundField == obj.backgroundField
+                && particleRadius == obj.particleRadius;
         }
     } uniformBufferContent;
 
