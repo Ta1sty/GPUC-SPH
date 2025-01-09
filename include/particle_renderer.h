@@ -9,7 +9,8 @@ public:
     ParticleRenderer(const ParticleRenderer &particleRenderer) = delete;
     explicit ParticleRenderer(const SimulationParameters &simulationParameters);
     ~ParticleRenderer();
-    vk::CommandBuffer run(const SimulationState &simulationState);
+    vk::CommandBuffer run(const SimulationState &simulationState, const RenderParameters &renderParameters);
+    void updateCmd(const SimulationState &simulationState);
     [[nodiscard]] vk::Image getImage();
 
 private:
@@ -23,12 +24,28 @@ private:
         uint32_t height = 0;
     } pushStruct;
 
+    struct UniformBufferStruct {
+        uint32_t numParticles = 128;
+        uint32_t backgroundField = 0;
+        float particleRadius = 12.0f;
+
+    public:
+        UniformBufferStruct() = default;
+        UniformBufferStruct(const UniformBufferStruct &obj) = default;
+        bool operator==(const UniformBufferStruct &obj) const {
+            return numParticles == obj.numParticles
+                && backgroundField == obj.backgroundField
+                && particleRadius == obj.particleRadius;
+        }
+    } uniformBufferContent;
+
     vk::Image colorAttachment;
     vk::ImageView colorAttachmentView;
     vk::DeviceMemory colorAttachmentMemory;
     vk::Framebuffer framebuffer;
 
     vk::Pipeline particlePipeline;
+    vk::Pipeline backgroundPipeline;
     vk::PipelineLayout particlePipelineLayout;
     vk::RenderPass renderPass;
 
@@ -42,4 +59,9 @@ private:
     vk::DescriptorSetLayout descriptorSetLayout;
     vk::DescriptorPool descriptorPool;
     vk::DescriptorSet descriptorSet;
+
+    Buffer quadVertexBuffer;
+    Buffer quadIndexBuffer;
+
+    Buffer uniformBuffer;
 };

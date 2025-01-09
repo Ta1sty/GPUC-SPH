@@ -66,7 +66,7 @@ void bindCombinedImageSampler(vk::Device &device, vk::ImageView &view, vk::Sampl
     device.updateDescriptorSets(1U, &write, 0U, nullptr);
 }
 
-void bindBuffers(vk::Device &device, const vk::Buffer &b, vk::DescriptorSet &set, uint32_t binding)
+void bindBuffers(vk::Device &device, const vk::Buffer &b, vk::DescriptorSet &set, uint32_t binding, vk::DescriptorType type)
 {
     // Buffer info and data offset info
     vk::DescriptorBufferInfo descInfo(
@@ -81,7 +81,7 @@ void bindBuffers(vk::Device &device, const vk::Buffer &b, vk::DescriptorSet &set
         binding,                                  // Binding to update (matches with binding on layout/shader)
         0U,                                       // Index in array to update
         1U,                                       // Amount to update
-        vk::DescriptorType::eStorageBuffer,       // Type of descriptor
+        type,       // Type of descriptor
         nullptr,
         &descInfo                                 // Information about buffer data to bind
     );
@@ -107,7 +107,7 @@ void createPipeline(vk::Device &device, vk::Pipeline &pipeline,
 //Number of DescriptorSets is one by default
 void createDescriptorPool(vk::Device &device, std::vector<vk::DescriptorSetLayoutBinding> &bindings, vk::DescriptorPool &descPool, uint32_t numDescriptorSets)
 {
-    uint32_t numStorage = 0, numCombinedImageSampler = 0;
+    uint32_t numStorage = 0, numCombinedImageSampler = 0, numUniform = 0;
 
     for (const auto & binding : bindings) {
         switch(binding.descriptorType) {
@@ -115,6 +115,8 @@ void createDescriptorPool(vk::Device &device, std::vector<vk::DescriptorSetLayou
                 numStorage++; break;
             case vk::DescriptorType::eCombinedImageSampler:
                 numCombinedImageSampler++; break;
+            case vk::DescriptorType::eUniformBuffer:
+                numUniform++; break;
             default:
                 break;
         }
@@ -123,11 +125,18 @@ void createDescriptorPool(vk::Device &device, std::vector<vk::DescriptorSetLayou
     // List of pool sizes
     std::vector<vk::DescriptorPoolSize> descriptorPoolSizes;
     if (numStorage > 0)
-        descriptorPoolSizes.push_back(vk::DescriptorPoolSize(
-            vk::DescriptorType::eStorageBuffer, numStorage * numDescriptorSets));
+        descriptorPoolSizes.push_back(vk::DescriptorPoolSize {
+                vk::DescriptorType::eStorageBuffer, numStorage * numDescriptorSets
+        });
     if (numCombinedImageSampler > 0)
-        descriptorPoolSizes.push_back(vk::DescriptorPoolSize(
-            vk::DescriptorType::eCombinedImageSampler, numCombinedImageSampler * numDescriptorSets));
+        descriptorPoolSizes.push_back(vk::DescriptorPoolSize {
+                vk::DescriptorType::eCombinedImageSampler, numCombinedImageSampler * numDescriptorSets
+        });
+    if (numUniform > 0)
+        descriptorPoolSizes.push_back(vk::DescriptorPoolSize {
+                vk::DescriptorType::eUniformBuffer, numUniform * numDescriptorSets
+        });
+
     // Data to create Descriptor Pool
     vk::DescriptorPoolCreateInfo descriptorPoolCI = vk::DescriptorPoolCreateInfo(
         vk::DescriptorPoolCreateFlags(), numDescriptorSets, descriptorPoolSizes);

@@ -29,7 +29,7 @@ struct ProjectData {
     SimulationParameters simulationParameters;
     RenderParameters renderParameters;
     UiBindings uiBindings;
-    inline ProjectData() : uiBindings({}, simulationParameters, renderParameters) {}
+    inline ProjectData() : uiBindings({}, simulationParameters, renderParameters, nullptr) {}
 
     struct PushConstant {
         glm::mat4 mvp;

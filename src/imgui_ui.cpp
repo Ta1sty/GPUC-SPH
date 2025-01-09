@@ -3,6 +3,7 @@
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
 #include "simulation_parameters.h"
+#include "simulation_state.h"
 
 
 ImguiUi::ImguiUi() {
@@ -149,22 +150,45 @@ vk::CommandBuffer ImguiUi::updateCommandBuffer(uint32_t index, UiBindings &bindi
     return cmd;
 }
 
+template <typename T>
+bool EnumCombo(const char *name, T *currentValue, const Mappings<T> &mappings) {
+    // static should be per type
+    static const auto comboValueArray = imguiComboArray(mappings);
+    return ImGui::Combo(name, reinterpret_cast<int*>(currentValue), comboValueArray.data(), comboValueArray.size());
+}
+
 void ImguiUi::drawUi(UiBindings &bindings) {
+    auto &updateFlags = bindings.updateFlags;
+
     if (bindings.renderParameters.showDemoWindow)
         ImGui::ShowDemoWindow();
 
     ImGui::Begin("Settings");
 
+    bool paused = !bindings.simulationState || bindings.simulationState->paused;
+    updateFlags.togglePause |= ImGui::Button(paused ? "Resume" : "Pause");
+    ImGui::SameLine();
+    if (!paused)
+        ImGui::BeginDisabled();
+    updateFlags.advanceSimulationStep |= ImGui::Button("Step");
+    if (!paused)
+        ImGui::EndDisabled();
+    ImGui::SameLine();
+    updateFlags.resetSimulation |= ImGui::Button("Reset");
+
     if (ImGui::CollapsingHeader("Render Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
         auto &render = bindings.renderParameters;
-        ImGui::Checkbox("Show demo window", &render.showDemoWindow);
-        ImGui::Checkbox("DebugPhysics", &render.debugImagePhysics);
-        ImGui::Checkbox("DebugSort", &render.debugImageSort);
-        ImGui::Checkbox("DebugRender", &render.debugImageRenderer);
+        EnumCombo("Selected Image", &render.selectedImage, selectedImageMappings);
+
+        EnumCombo("Background Field", &render.backgroundField, renderBackgroundFieldMappings);
+        ImGui::DragFloat("Particle Radius", &render.particleRadius, 0.5, 1.0, 64.0, "%.1f");
+
+        ImGui::Separator();
+        ImGui::Checkbox("ImGui demo window", &render.showDemoWindow);
     }
 
     if (ImGui::CollapsingHeader("Simulation Parameters")) {
-        bindings.updateFlags.resetSimulation |= ImGui::Button("Restart Simulation");
+        updateFlags.resetSimulation |= ImGui::Button("Restart Simulation");
 
         auto &simulation = bindings.simulationParameters;
         ImGui::DragInt("Num Particles", reinterpret_cast<int*>(&simulation.numParticles), 16, 16, 1024 * 1024 * 1024);

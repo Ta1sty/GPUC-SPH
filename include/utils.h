@@ -39,6 +39,12 @@ struct Buffer
 {
     vk::Buffer buf;
     vk::DeviceMemory mem;
+
+public:
+    void cleanup() {
+        resources.device.destroyBuffer(buf);
+        resources.device.freeMemory(mem);
+    }
 };
 
 std::vector<char> readFile(const std::string &filename);

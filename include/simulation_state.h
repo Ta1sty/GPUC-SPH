@@ -44,4 +44,5 @@ public:
 
     uint32_t coordinateBufferSize = 0;
     std::mt19937 random;
+    bool paused = false;
 };
