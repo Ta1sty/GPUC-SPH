@@ -59,7 +59,7 @@ ParticleRenderer::ParticleRenderer(const SimulationParameters &simulationParamet
             {},
             resources.surfaceFormat.format,
             vk::SampleCountFlagBits::e1,
-            vk::AttachmentLoadOp::eLoad,
+            vk::AttachmentLoadOp::eClear,
             vk::AttachmentStoreOp::eStore,
             vk::AttachmentLoadOp::eDontCare,
             vk::AttachmentStoreOp::eDontCare,
@@ -130,10 +130,6 @@ ParticleRenderer::ParticleRenderer(const SimulationParameters &simulationParamet
     createColormapTexture(colormaps::viridis);
     createPipeline();
 
-    commandBuffer = resources.device.allocateCommandBuffers(
-                { resources.graphicsCommandPool, vk::CommandBufferLevel::ePrimary, 1U }
-            )[0];
-
     // quad vertex buffer
     const std::vector<glm::vec2> quadVertices {
             {0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}
@@ -158,58 +154,8 @@ ParticleRenderer::ParticleRenderer(const SimulationParameters &simulationParamet
 }
 
 vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState) {
-    // image must be in eColorAttachmentOptimal after the command buffer executed!
-    updateDescriptorSets(simulationState);
-    pushStruct.width = resources.extent.width;
-    pushStruct.height = resources.extent.height;
-
-    // map [0, 1]^2 into viewport
-    pushStruct.mvp = {
-            2, 0, 0, -1,
-            0, 2, 0, -1,
-            0, 0, 0,  0,
-            0, 0, 0,  1
-    };
-
-    // preserve aspect ratio
-    float aspectRatio = static_cast<float>(pushStruct.width) / static_cast<float>(pushStruct.height);
-    if (aspectRatio >= 1.0f) {
-        pushStruct.mvp[0] /= aspectRatio;
-    } else {
-        pushStruct.mvp[1] *= aspectRatio;
-    }
-    pushStruct.mvp = glm::transpose(pushStruct.mvp); // why are the indices wrong??
-
-    commandBuffer.begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
-    uint64_t offsets[] = { 0UL };
-
-    vk::ClearValue clearValue;
-    clearValue.color.uint32 = {{ 0, 0, 0, 0 }};
-    commandBuffer.beginRenderPass(
-            { renderPass, framebuffer, {{ 0, 0}, resources.extent }, 1, &clearValue},
-            vk::SubpassContents::eInline);
-    /* ========== Background Subpass ========== */
-    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, backgroundPipeline);
-    commandBuffer.bindVertexBuffers(0, 1, &quadVertexBuffer.buf, offsets);
-    commandBuffer.bindIndexBuffer(quadIndexBuffer.buf, 0UL, vk::IndexType::eUint16);
-    commandBuffer.pushConstants(particlePipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
-    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, particlePipelineLayout, 0, 1, &descriptorSet,
-                                     0, nullptr);
-    commandBuffer.drawIndexed(6, 1, 0, 0, 0); // draw quad
-
-    /* ========== Particle Subpass ========== */
-    commandBuffer.nextSubpass(vk::SubpassContents::eInline);
-    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, particlePipeline);
-    commandBuffer.bindVertexBuffers(0, 1, &simulationState.particleCoordinateBuffer.buf, offsets);
-
-    commandBuffer.pushConstants(particlePipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
-    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, particlePipelineLayout, 0, 1, &descriptorSet,
-                                     0, nullptr);
-    commandBuffer.draw(simulationState.parameters.numParticles, 1, 0, 0);
-
-    /* ====================================== */
-    commandBuffer.endRenderPass();
-    commandBuffer.end();
+    if (commandBuffer == nullptr)
+        updateCmd(simulationState);
 
     return commandBuffer;
 }
@@ -478,6 +424,9 @@ void ParticleRenderer::createPipeline() {
     resources.device.destroyShaderModule(particleVertexSM);
     resources.device.destroyShaderModule(particleGeometrySM);
     resources.device.destroyShaderModule(particleFragmentSM);
+
+    resources.device.destroyShaderModule(backgroundVertexSM);
+    resources.device.destroyShaderModule(backgroundFragmentSM);
 }
 
 void ParticleRenderer::createColormapTexture(const std::vector<colormaps::RGB_F32> &colormap) {
@@ -562,4 +511,66 @@ void ParticleRenderer::createColormapTexture(const std::vector<colormaps::RGB_F3
 void ParticleRenderer::updateDescriptorSets(const SimulationState &simulationState) {
     Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 0);
     Cmn::bindCombinedImageSampler(resources.device, colormapImageView, colormapSampler, descriptorSet, 1);
+}
+
+void ParticleRenderer::updateCmd(const SimulationState &simulationState) {
+    if (commandBuffer == nullptr)
+        commandBuffer = resources.device.allocateCommandBuffers(
+                { resources.graphicsCommandPool, vk::CommandBufferLevel::ePrimary, 1U }
+        )[0];
+    else
+        commandBuffer.reset();
+
+    // image must be in eColorAttachmentOptimal after the command buffer executed!
+    updateDescriptorSets(simulationState);
+    pushStruct.width = resources.extent.width;
+    pushStruct.height = resources.extent.height;
+
+    // map [0, 1]^2 into viewport
+    pushStruct.mvp = {
+            2, 0, 0, -1,
+            0, 2, 0, -1,
+            0, 0, 0,  0,
+            0, 0, 0,  1
+    };
+
+    // preserve aspect ratio
+    float aspectRatio = static_cast<float>(pushStruct.width) / static_cast<float>(pushStruct.height);
+    if (aspectRatio >= 1.0f) {
+        pushStruct.mvp[0] /= aspectRatio;
+    } else {
+        pushStruct.mvp[1] *= aspectRatio;
+    }
+    pushStruct.mvp = glm::transpose(pushStruct.mvp); // why are the indices wrong??
+
+    commandBuffer.begin(vk::CommandBufferBeginInfo {});
+    uint64_t offsets[] = { 0UL };
+
+    vk::ClearValue clearValue;
+    clearValue.color.uint32 = {{ 0, 0, 0, 0 }};
+    commandBuffer.beginRenderPass(
+            { renderPass, framebuffer, {{ 0, 0}, resources.extent }, 1, &clearValue},
+            vk::SubpassContents::eInline);
+    /* ========== Background Subpass ========== */
+    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, backgroundPipeline);
+    commandBuffer.bindVertexBuffers(0, 1, &quadVertexBuffer.buf, offsets);
+    commandBuffer.bindIndexBuffer(quadIndexBuffer.buf, 0UL, vk::IndexType::eUint16);
+    commandBuffer.pushConstants(particlePipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
+    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, particlePipelineLayout, 0, 1, &descriptorSet,
+                                     0, nullptr);
+    commandBuffer.drawIndexed(6, 1, 0, 0, 0); // draw quad
+
+    /* ========== Particle Subpass ========== */
+    commandBuffer.nextSubpass(vk::SubpassContents::eInline);
+    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, particlePipeline);
+    commandBuffer.bindVertexBuffers(0, 1, &simulationState.particleCoordinateBuffer.buf, offsets);
+
+    commandBuffer.pushConstants(particlePipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
+    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, particlePipelineLayout, 0, 1, &descriptorSet,
+                                     0, nullptr);
+    commandBuffer.draw(simulationState.parameters.numParticles, 1, 0, 0);
+
+    /* ====================================== */
+    commandBuffer.endRenderPass();
+    commandBuffer.end();
 }

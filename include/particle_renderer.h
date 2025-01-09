@@ -10,6 +10,7 @@ public:
     explicit ParticleRenderer(const SimulationParameters &simulationParameters);
     ~ParticleRenderer();
     vk::CommandBuffer run(const SimulationState &simulationState);
+    void updateCmd(const SimulationState &simulationState);
     [[nodiscard]] vk::Image getImage();
 
 private:

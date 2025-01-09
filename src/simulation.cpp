@@ -334,5 +334,6 @@ void Render::renderSimulationFrame(Simulation &simulation) {
 
 void Simulation::updateCommandBuffers() {
     hashGrid->updateCmd(*simulationState);
+    particleRenderer->updateCmd(*simulationState);
 }
 
