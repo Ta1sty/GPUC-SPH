@@ -36,12 +36,16 @@ T parse(const YAML::Node &yaml, const std::string &key, const T defaultValue) {
     return yaml[key].as<T>();
 }
 
-std::initializer_list<std::pair<std::string, SceneType>> sceneTypeMappings = {
+const Mappings<SceneType> sceneTypeMappings {
         { "sph_box_2d", SceneType::SPH_BOX_2D }
 };
-std::initializer_list<std::pair<std::string, InitializationFunction>> initializationFunctionMappings = {
+const Mappings<InitializationFunction> initializationFunctionMappings {
         { "uniform", InitializationFunction::UNIFORM },
         { "poisson_disk", InitializationFunction::POISSON_DISK }
+};
+const Mappings<RenderBackgroundField> renderBackgroundFieldMappings {
+        { "cell_hash", RenderBackgroundField::CELL_HASH },
+        { "density", RenderBackgroundField::DENSITY }
 };
 
 SimulationParameters::SimulationParameters(const std::string &file) {

@@ -151,9 +151,27 @@ ParticleRenderer::ParticleRenderer(const SimulationParameters &simulationParamet
 
     fillDeviceWithStagingBuffer(quadVertexBuffer, quadVertices);
     fillDeviceWithStagingBuffer(quadIndexBuffer, quadIndices);
+
+    createBuffer(resources.pDevice, resources.device, sizeof(UniformBufferStruct),
+                 { vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst },
+                 { vk::MemoryPropertyFlagBits::eDeviceLocal },
+                 "render2dUniformBuffer", uniformBuffer.buf, uniformBuffer.mem);
+    const std::vector<UniformBufferStruct> uniformBufferVector { uniformBufferContent };
+    fillDeviceWithStagingBuffer(uniformBuffer, uniformBufferVector);
 }
 
-vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState) {
+vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState, const RenderParameters &renderParameters) {
+    UniformBufferStruct ub {
+        simulationState.parameters.numParticles,
+        static_cast<uint32_t>(renderParameters.backgroundField),
+    };
+
+    if (!(ub == uniformBufferContent)) {
+        uniformBufferContent = ub;
+        const std::vector<UniformBufferStruct> uniformBufferVector { uniformBufferContent };
+        fillDeviceWithStagingBuffer(uniformBuffer, uniformBufferVector);
+    }
+
     if (commandBuffer == nullptr)
         updateCmd(simulationState);
 
@@ -183,6 +201,7 @@ ParticleRenderer::~ParticleRenderer() {
 
     quadVertexBuffer.cleanup();
     quadIndexBuffer.cleanup();
+    uniformBuffer.cleanup();
 }
 
 void ParticleRenderer::createPipeline() {
@@ -199,6 +218,12 @@ void ParticleRenderer::createPipeline() {
             1U,
             vk::ShaderStageFlagBits::eFragment,
             nullptr
+    );
+    bindings.emplace_back(
+            2,
+            vk::DescriptorType::eUniformBuffer,
+            1U,
+            vk::ShaderStageFlagBits::eFragment
     );
 
     Cmn::createDescriptorSetLayout(resources.device, bindings, descriptorSetLayout);
@@ -511,6 +536,7 @@ void ParticleRenderer::createColormapTexture(const std::vector<colormaps::RGB_F3
 void ParticleRenderer::updateDescriptorSets(const SimulationState &simulationState) {
     Cmn::bindBuffers(resources.device, simulationState.particleCoordinateBuffer.buf, descriptorSet, 0);
     Cmn::bindCombinedImageSampler(resources.device, colormapImageView, colormapSampler, descriptorSet, 1);
+    Cmn::bindBuffers(resources.device, uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
 }
 
 void ParticleRenderer::updateCmd(const SimulationState &simulationState) {

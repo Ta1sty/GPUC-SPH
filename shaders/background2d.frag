@@ -6,6 +6,11 @@ layout(location = 0) out vec4 outColor;
 
 layout(binding = 0) readonly buffer particleBuffer { vec2 coordinates[]; };
 layout(binding = 1) uniform sampler1D colorscale;
+layout(binding = 2) uniform UniformBuffer {
+    uint numParticles;
+    uint backgroundField;
+};
+
 
 #define GRID_SIZE 128
 
@@ -21,7 +26,7 @@ float evaluateDensity(vec2 pos, float h) {
     float density = 0.0f;
 
     // cubic splice kernel from SPH Tutorial paper (assuming a particle mass of 1)
-    for (int i = 0; i < 1024; i++) {
+    for (int i = 0; i < numParticles; i++) {
         float distance = length(coordinates[i] - pos);
         float q = distance / h;
         if (q <= 0.5) {
@@ -37,6 +42,16 @@ float evaluateDensity(vec2 pos, float h) {
 
 void main() {
     //float value = float(getCellForCoordinate(position)) / float(GRID_SIZE);
-    float value = evaluateDensity(position, 0.05) / 4;
+    float value = 0.0f;
+    switch (backgroundField) {
+    case 0:
+        value = float(getCellForCoordinate(position)) / float(GRID_SIZE);
+        break;
+    case 1:
+        value = evaluateDensity(position, 0.05) / 4;
+        break;
+    default:
+        break;
+    }
     outColor = vec4(texture(colorscale, value).rgb, 1.0);
 }

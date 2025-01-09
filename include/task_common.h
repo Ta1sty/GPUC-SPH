@@ -19,7 +19,7 @@ void allocateDescriptorSet(vk::Device &device, vk::DescriptorSet &descSet, vk::D
             vk::DescriptorSetLayout &descLayout);
 
 void bindCombinedImageSampler(vk::Device &device, vk::ImageView &view, vk::Sampler &sampler, vk::DescriptorSet &set, uint32_t binding);
-void bindBuffers(vk::Device &device, const vk::Buffer &b, vk::DescriptorSet &set, uint32_t binding);
+void bindBuffers(vk::Device &device, const vk::Buffer &b, vk::DescriptorSet &set, uint32_t binding, vk::DescriptorType type = vk::DescriptorType::eStorageBuffer);
 
 void createDescriptorPool(vk::Device &device, std::vector<vk::DescriptorSetLayoutBinding> &bindings, vk::DescriptorPool &descPool, uint32_t numDescriptorSets = 1);
 void createPipeline(vk::Device &device, vk::Pipeline &pipeline,
