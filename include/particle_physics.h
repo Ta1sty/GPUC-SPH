@@ -1,16 +1,28 @@
 #pragma once
 
 #include "initialization.h"
+#include "task_common.h"
+#include "simulation_state.h"
+
 
 class ParticleSimulation
 {
-    vk::Pipeline simulationPipeline;
-    vk::PipelineLayout simulationPipelineLayout;
-
 public:
     ParticleSimulation() = delete;
     ParticleSimulation(const ParticleSimulation &particleSimulation) = delete;
-    explicit ParticleSimulation(const SimulationParameters &simulationParameters);
+    explicit ParticleSimulation(const SimulationParameters &parameters);
     ~ParticleSimulation();
     vk::CommandBuffer run(const SimulationState &simulationState);
+private:
+    const uint32_t workgroupSizeX = 128;
+    const uint32_t workgroupSizeY = 1;
+    TaskResources classResources;
+    SimulationParameters simulationParameters;
+    vk::CommandBuffer cmd;
+    struct PushStruct {
+        float gravity;
+        float deltaTime;
+        uint32_t numParticles;
+    } pushStruct;
+    void updateCmd(const SimulationState &state);
 };

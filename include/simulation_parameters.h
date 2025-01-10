@@ -25,6 +25,7 @@ public:
     uint32_t numParticles = 128;
     uint32_t randomSeed = 0; // initialized with TRNG if omitted
     float gravity = -9.81f;  // Default Earth gravity
+    float deltaTime = 1.0f/ 60.0f; // Default 60 FPS
 
 public:
     SimulationParameters() = default;
