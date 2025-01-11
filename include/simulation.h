@@ -22,6 +22,8 @@ public:
     void run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::Semaphore signalRenderFinished, vk::Fence signalSubmitFinished);
 
 private:
+    double prevTime;
+
     void processUpdateFlags(const UiBindings::UpdateFlags &updateFlags);
     void updateCommandBuffers();
 

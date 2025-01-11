@@ -21,7 +21,7 @@ struct UiBindings{
     struct UpdateFlags {
         bool resetSimulation = false;
         bool togglePause = false;
-        bool advanceSimulationStep = false;
+        bool stepSimulation = false;
     } updateFlags;
 
     /**

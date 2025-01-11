@@ -54,6 +54,8 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     if (nullptr != timelineSemaphore) {
         vk::SemaphoreWaitInfo waitInfo({}, timelineSemaphore, cmd_count);
         vk::detail::resultCheck(resources.device.waitSemaphores(waitInfo, -1), "Failed wait");
+    } else {
+        prevTime = glfwGetTime();
     }
 
     processUpdateFlags(lastUpdate);
@@ -65,20 +67,27 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     auto imguiCommandBuffer = imguiUi->updateCommandBuffer(imageIndex, uiBindings);
     lastUpdate = uiBindings.updateFlags;
-    if (lastUpdate.advanceSimulationStep && simulationState->paused)
-        simulationState->paused = false;
+
+    double currentTime = glfwGetTime();
+    double delta = (simulationState->paused ? 0 : currentTime - prevTime) * 1000;
+    prevTime = currentTime;
+
+    if (simulationState->step){
+        simulationState->step = false;
+        delta = simulationState->time.tickRate;
+    }
+
+    bool doTick = simulationState->time.advance(delta);
+    if (doTick) {
+        std::cout<<"tick"<<std::endl;
+    }
 
     buffers[0] = { resources.transferQueue, cmdReset };
-    buffers[1] = { resources.computeQueue, particlePhysics->run() };
-    buffers[2] = { resources.computeQueue,  hashGrid->run(*simulationState) };
+    buffers[1] = { resources.computeQueue, doTick ? particlePhysics->run() : nullptr };
+    buffers[2] = { resources.computeQueue,  doTick ? hashGrid->run(*simulationState) : nullptr };
     buffers[3] = { resources.graphicsQueue,particleRenderer->run(*simulationState, renderParameters) };
     buffers[4] = { resources.graphicsQueue, copy(imageIndex) };
     buffers[5] = { resources.graphicsQueue, imguiCommandBuffer };
-
-    if (uiBindings.updateFlags.resetSimulation) {
-        // TODO needs to be done after fence (destroys buffers in use) or keep old instance as weak reference somewhere
-        // simulationState = std::make_unique<SimulationState>(simulationParameters);
-    }
 
     for (uint64_t wait = 0,signal = 1; wait < buffers.size(); ++wait,++signal) {
         auto queue = std::get<0>(buffers[wait]);
@@ -301,8 +310,12 @@ void Simulation::processUpdateFlags(const UiBindings::UpdateFlags &updateFlags) 
         simulationState->paused = !simulationState->paused;
 
     // advance sets paused to true for only one step (see run()), needs to be reset here
-    if (updateFlags.advanceSimulationStep && !simulationState->paused)
+    if (updateFlags.stepSimulation){
         simulationState->paused = true;
+        simulationState->step = true;
+    }
+
+
 
     // moved here to update every frame, since MVP matrix is a push-constant
     updateCommandBuffers();

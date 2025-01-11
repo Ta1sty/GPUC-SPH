@@ -15,6 +15,14 @@ struct SpatialLookupEntry {
     uint32_t particleIndex;
 };
 
+struct SimulationTime {
+    double time;
+    long ticks = 0;
+    int tickRate = 25;
+    double lastUpdate;
+    bool advance(double add);
+};
+
 /**
  * Physical state of the simulation (particle positions, forces, rng state, etc.).
  */
@@ -29,6 +37,7 @@ public:
     [[nodiscard]] uint32_t getCoordinateBufferSize() const { return coordinateBufferSize; }
     [[nodiscard]] const vk::Buffer& getParticleCoordinateBuffer() const { return particleCoordinateBuffer.buf; }
 
+    SimulationTime time;
     Buffer particleCoordinateBuffer;
 
     const SimulationParameters parameters;
@@ -45,4 +54,5 @@ public:
     uint32_t coordinateBufferSize = 0;
     std::mt19937 random;
     bool paused = false;
+    bool step = false;
 };

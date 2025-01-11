@@ -166,15 +166,14 @@ void ImguiUi::drawUi(UiBindings &bindings) {
     ImGui::Begin("Settings");
 
     bool paused = !bindings.simulationState || bindings.simulationState->paused;
-    updateFlags.togglePause |= ImGui::Button(paused ? "Resume" : "Pause");
+    updateFlags.togglePause = ImGui::Button(paused ? "Resume" : "Pause ");
     ImGui::SameLine();
-    if (!paused)
-        ImGui::BeginDisabled();
-    updateFlags.advanceSimulationStep |= ImGui::Button("Step");
-    if (!paused)
-        ImGui::EndDisabled();
+    updateFlags.stepSimulation = ImGui::Button("Step");
     ImGui::SameLine();
-    updateFlags.resetSimulation |= ImGui::Button("Reset");
+    updateFlags.resetSimulation = ImGui::Button("Reset");
+
+    ImGui::Text("Ticks: %d", bindings.simulationState->time.ticks);
+    ImGui::DragInt("Tick rate:", &bindings.simulationState->time.tickRate, 5, 5, 5000);
 
     if (ImGui::CollapsingHeader("Render Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
         auto &render = bindings.renderParameters;
