@@ -4,7 +4,7 @@
 #include "simulation_state.h"
 
 class SpatialLookup {
-    const uint32_t workgroupSizeX = 128;
+    uint32_t workgroupSizeX = 128;
 
     std::vector<vk::DescriptorSetLayoutBinding> descriptorBindings;
     vk::DescriptorSetLayout descriptorLayout;
