@@ -6,16 +6,31 @@ layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 #include "spatial_lookup.glsl"
 
 void main(){
-    uint index = gl_GlobalInvocationID.x;
+    uint index = gl_WorkGroupID.x * gl_WorkGroupSize.x * 2 + gl_LocalInvocationID.x;
 
-    if (index >= constants.size) return;
+    {
+        if (index >= constants.size) return;
 
-    uint currentKey = spatial_lookup[index].cellKey;
+        uint currentKey = spatial_lookup[index].cellKey;
 
-    uint previousKey = uint(-1);
-    if (index > 0) previousKey = spatial_lookup[index - 1].cellKey;
+        uint previousKey = uint(-1);
+        if (index > 0) previousKey = spatial_lookup[index - 1].cellKey;
 
-    if (currentKey != previousKey) {
-        spatial_indices[currentKey] = index;
+        if (currentKey != previousKey) {
+            spatial_indices[currentKey] = index;
+        }
+    }
+
+    index += gl_WorkGroupSize.x;
+
+    {
+        if (index >= constants.size) return;
+
+        uint currentKey = spatial_lookup[index].cellKey;
+        uint previousKey = spatial_lookup[index - 1].cellKey;
+
+        if (currentKey != previousKey) {
+            spatial_indices[currentKey] = index;
+        }
     }
 }
