@@ -554,21 +554,7 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState) {
     pushStruct.height = resources.extent.height;
 
     // map [0, 1]^2 into viewport
-    pushStruct.mvp = {
-            2, 0, 0, -1,
-            0, 2, 0, -1,
-            0, 0, 0,  0,
-            0, 0, 0,  1
-    };
-
-    // preserve aspect ratio
-    float aspectRatio = static_cast<float>(pushStruct.width) / static_cast<float>(pushStruct.height);
-    if (aspectRatio >= 1.0f) {
-        pushStruct.mvp[0] /= aspectRatio;
-    } else {
-        pushStruct.mvp[1] *= aspectRatio;
-    }
-    pushStruct.mvp = glm::transpose(pushStruct.mvp); // why are the indices wrong??
+    pushStruct.mvp = simulationState.camera->viewProjectionMatrix();
 
     commandBuffer.begin(vk::CommandBufferBeginInfo {});
     uint64_t offsets[] = { 0UL };

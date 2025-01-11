@@ -22,7 +22,7 @@ struct SimulationState {
 public:
     SimulationState() = delete;
     SimulationState(const SimulationState &other) = delete; // don't accidentally copy
-    explicit SimulationState(const SimulationParameters &parameters);
+    explicit SimulationState(const SimulationParameters &parameters, std::shared_ptr<Camera> camera);
     ~SimulationState();
 
     [[nodiscard]] SimulationParameters getParameters() const { return parameters; }
@@ -32,12 +32,12 @@ public:
     Buffer particleCoordinateBuffer;
 
     const SimulationParameters parameters;
+    std::shared_ptr<Camera> camera;
 
     std::unique_ptr<DebugImage> debugImagePhysics;
     std::unique_ptr<DebugImage> debugImageSort;
     std::unique_ptr<DebugImage> debugImageRenderer;
 
-    std::unique_ptr<Camera> camera;
 
     Buffer spatialLookup;
     Buffer spatialIndices;

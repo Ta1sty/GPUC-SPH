@@ -80,6 +80,8 @@ set(SOURCES
         src/parameters.cpp
         src/simulation_state.cpp
         src/colormaps.cpp
+        src/render.cpp
+        src/camera.cpp
 )
 
 add_compile_definitions(WORKING_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

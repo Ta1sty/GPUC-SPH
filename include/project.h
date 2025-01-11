@@ -294,7 +294,7 @@ public:
             [&](vk::CommandBuffer& cb) {
                 cb.bindPipeline(vk::PipelineBindPoint::eGraphics, opaquePipeline);
                 ProjectData::PushConstant pC = {
-                    render.camera.viewProjectionMatrix(), glm::vec4(render.camera.position, 0.f)
+                    render.camera->viewProjectionMatrix(), glm::vec4(render.camera->position, 0.f)
                 };
                 cb.pushConstants(data.layout, vk::ShaderStageFlagBits::eAll, 0, sizeof(pC), &pC);
                 cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, data.layout, 0, 1, &data.descriptorSet, 0,
@@ -305,7 +305,7 @@ public:
                 {
                     cb.bindPipeline(vk::PipelineBindPoint::eGraphics, transparentPipeline);
                     ProjectData::PushConstant pC = {
-                        render.camera.viewProjectionMatrix(), glm::vec4(render.camera.position, 0.f)
+                        render.camera->viewProjectionMatrix(), glm::vec4(render.camera->position, 0.f)
                     };
                     cb.pushConstants(data.layout, vk::ShaderStageFlagBits::eAll, 0, sizeof(pC), &pC);
                     cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, data.layout, 0, 1, &data.descriptorSet, 0,
@@ -315,7 +315,7 @@ public:
                 if (renderForceLines) {
                     cb.bindPipeline(vk::PipelineBindPoint::eGraphics, linesPipeline);
                     ProjectData::PushConstant pC = {
-                        render.camera.viewProjectionMatrix(), glm::vec4(render.camera.position, 0.f)
+                        render.camera->viewProjectionMatrix(), glm::vec4(render.camera->position, 0.f)
                     };
                     cb.pushConstants(data.layout, vk::ShaderStageFlagBits::eAll, 0, sizeof(pC), &pC);
                     cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, data.layout, 0, 1, &data.descriptorSet, 0,
