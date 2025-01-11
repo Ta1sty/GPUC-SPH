@@ -29,10 +29,10 @@ struct UiBindings {
      */
     inline UiBindings(uint32_t frameIndex, SimulationParameters &simulationParameters,
                       RenderParameters &renderParameters, SimulationState *simulationState) : frameIndex(frameIndex),
-                                                            simulationParameters(simulationParameters),
-                                                            renderParameters(renderParameters),
-                                                            simulationState(simulationState),
-                                                            updateFlags() {}
+                                                                                              simulationParameters(simulationParameters),
+                                                                                              renderParameters(renderParameters),
+                                                                                              simulationState(simulationState),
+                                                                                              updateFlags() {}
 };
 
 class ImguiUi {

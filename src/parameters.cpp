@@ -36,31 +36,19 @@ T parse(const YAML::Node &yaml, const std::string &key, const T defaultValue) {
     return yaml[key].as<T>();
 }
 
-<<<<<<< HEAD
-std::initializer_list<std::pair<std::string, SceneType>> sceneTypeMappings = {
+const Mappings<SceneType> sceneTypeMappings {
         {"sph_box_2d", SceneType::SPH_BOX_2D}};
-std::initializer_list<std::pair<std::string, InitializationFunction>> initializationFunctionMappings = {
+const Mappings<InitializationFunction> initializationFunctionMappings {
         {"uniform", InitializationFunction::UNIFORM},
         {"poisson_disk", InitializationFunction::POISSON_DISK}};
-=======
-const Mappings<SceneType> sceneTypeMappings {
-        { "sph_box_2d", SceneType::SPH_BOX_2D }
-};
-const Mappings<InitializationFunction> initializationFunctionMappings {
-        { "uniform", InitializationFunction::UNIFORM },
-        { "poisson_disk", InitializationFunction::POISSON_DISK }
-};
 const Mappings<SelectedImage> selectedImageMappings {
-        { "render", SelectedImage::RENDER },
-        { "debug_physics", SelectedImage::DEBUG_PHYSICS },
-        { "debug_sort", SelectedImage::DEBUG_SORT },
-        { "debug_renderer", SelectedImage::DEBUG_RENDERER }
-};
+        {"render", SelectedImage::RENDER},
+        {"debug_physics", SelectedImage::DEBUG_PHYSICS},
+        {"debug_sort", SelectedImage::DEBUG_SORT},
+        {"debug_renderer", SelectedImage::DEBUG_RENDERER}};
 const Mappings<RenderBackgroundField> renderBackgroundFieldMappings {
-        { "cell_hash", RenderBackgroundField::CELL_HASH },
-        { "density", RenderBackgroundField::DENSITY }
-};
->>>>>>> main
+        {"cell_hash", RenderBackgroundField::CELL_HASH},
+        {"density", RenderBackgroundField::DENSITY}};
 
 SimulationParameters::SimulationParameters(const std::string &file) {
     YAML::Node yaml = YAML::LoadFile(file);

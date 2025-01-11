@@ -1,30 +1,13 @@
-<<<<<<< HEAD
-#include "helper.h"
-#include <cstdlib>
-#include <iostream>
-#include <stb_image.h>
-#include <stb_image_write.h>
-
-#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
-#include "initialization.h"
-#include "utils.h"
-#include <GLFW/glfw3.h>
-#include <chrono>
-#include <fstream>
-=======
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_FORCE_RADIANS
 #define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 
-#include <iostream>
 #include <cstdlib>
+#include <iostream>
 
-#include <vulkan/vulkan.hpp>
-#include <vector>
 #include "initialization.h"
 #include "utils.h"
 #include <GLFW/glfw3.h>
->>>>>>> main
 #include <thread>
 #include <vector>
 #include <vulkan/vulkan.hpp>
@@ -38,10 +21,6 @@
 int width = 1200;
 int height = 1000;
 
-<<<<<<< HEAD
-
-=======
->>>>>>> main
 void render() {
     AppResources app;
 
@@ -52,52 +31,28 @@ void render() {
     renderdoc::startCapture();
 
     Render render(app, 2);
-<<<<<<< HEAD
-    render.camera.position = glm::vec3(0.5, 2, 0.9);
-    render.camera.phi = glm::pi<float>();
-    render.camera.theta = 0.4 * glm::pi<float>();
-    render.camera.aspect = (float) width / (float) height;
+
     //    Project project(app, render, 400000, workingDir + "Assets/cubeMonkey.obj");
     //    ProjectSolution solution(app, project.data, 192, 192);
 
     SimulationParameters parameters {"../scenes/default.yaml"};
-    Simulation simulation(parameters);
-=======
-
-//    Project project(app, render, 400000, workingDir + "Assets/cubeMonkey.obj");
-//    ProjectSolution solution(app, project.data, 192, 192);
-
-    SimulationParameters parameters { "../scenes/default.yaml" };
 
     Simulation simulation(parameters, render.camera);
->>>>>>> main
 
     renderdoc::endCapture();
 
     // Loop until the user closes the window
     while (true) {
-<<<<<<< HEAD
-        //        double time = glfwGetTime();
-        //        render.timedelta = time - render.prevtime;
-        //        render.prevtime = time;
-        //
-        //        render.preInput();
-=======
         double time = glfwGetTime();
         render.timedelta = time - render.prevtime;
         render.prevtime = time;
 
         render.preInput();
->>>>>>> main
 
         // Poll for and process events
         glfwPollEvents();
 
-<<<<<<< HEAD
-        //        render.input();
-=======
         render.input();
->>>>>>> main
 
         if (glfwGetKey(app.window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(app.window, 1);
@@ -106,23 +61,11 @@ void render() {
             break;
 
         render.renderSimulationFrame(simulation);
-<<<<<<< HEAD
-
-        //        project.loop(solution);
-=======
->>>>>>> main
     }
 
     app.device.waitIdle();
 
-<<<<<<< HEAD
-    //    solution.cleanup();
-    //    project.cleanup();
-
-    //    render.cleanup();
-=======
     render.cleanup();
->>>>>>> main
 
     app.destroy();
 }

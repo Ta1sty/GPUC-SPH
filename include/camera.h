@@ -9,7 +9,7 @@ public:
     float fovy = 0.9, aspect = 1280.f / 720.f, near = 0.1, far = 100;
 
     Camera(Camera &other) = delete;
-    Camera(){
+    Camera() {
         reset();
     }
 

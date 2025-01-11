@@ -82,7 +82,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     }
 
     buffers[0] = {resources.transferQueue, cmdReset};
-    buffers[1] = {resources.computeQueue, doTick ? particlePhysics->run() : nullptr};
+    buffers[1] = {resources.computeQueue, doTick ? particlePhysics->run(*simulationState) : nullptr};
     buffers[2] = {resources.computeQueue, doTick ? hashGrid->run(*simulationState) : nullptr};
     buffers[3] = {resources.graphicsQueue, particleRenderer->run(*simulationState, renderParameters)};
     buffers[4] = {resources.graphicsQueue, copy(imageIndex)};

@@ -1,15 +1,11 @@
-<<<<<<< HEAD
 #include "simulation_state.h"
 #include "debug_image.h"
 #include "render.h"
-=======
-#include <utility>
-#include <vector>
->>>>>>> main
 #include <cstdint>
 #include <memory>
 #include <random>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 std::vector<float> initUniform(SceneType sceneType, uint32_t numParticles, std::mt19937 &random) {
@@ -83,7 +79,7 @@ bool SimulationTime::advance(double add) {
     time += add;
 
     // it's time for a tick
-    if (time > lastUpdate + tickRate){
+    if (time > lastUpdate + tickRate) {
         lastUpdate += tickRate;
         ticks++;
         return true;

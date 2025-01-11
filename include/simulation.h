@@ -52,12 +52,9 @@ private:
     vk::Semaphore initSemaphore();
     vk::CommandBuffer copy(uint32_t imageIndex);
 
-<<<<<<< HEAD
-=======
     UiBindings::UpdateFlags lastUpdate;
 
-    friend void Render::renderSimulationFrame(Simulation &simulation); // access stuff, kind of ugly to do it this way
->>>>>>> main
+    friend void Render::renderSimulationFrame(Simulation &simulation);// access stuff, kind of ugly to do it this way
 public:
     std::unique_ptr<ParticleSimulation> particleSimulation;
 };

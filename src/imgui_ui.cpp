@@ -143,11 +143,11 @@ vk::CommandBuffer ImguiUi::updateCommandBuffer(uint32_t index, UiBindings &bindi
     return cmd;
 }
 
-template <typename T>
+template<typename T>
 bool EnumCombo(const char *name, T *currentValue, const Mappings<T> &mappings) {
     // static should be per type
     static const auto comboValueArray = imguiComboArray(mappings);
-    return ImGui::Combo(name, reinterpret_cast<int*>(currentValue), comboValueArray.data(), comboValueArray.size());
+    return ImGui::Combo(name, reinterpret_cast<int *>(currentValue), comboValueArray.data(), comboValueArray.size());
 }
 
 void ImguiUi::drawUi(UiBindings &bindings) {

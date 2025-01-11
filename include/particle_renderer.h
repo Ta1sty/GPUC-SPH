@@ -33,9 +33,7 @@ private:
         UniformBufferStruct() = default;
         UniformBufferStruct(const UniformBufferStruct &obj) = default;
         bool operator==(const UniformBufferStruct &obj) const {
-            return numParticles == obj.numParticles
-                && backgroundField == obj.backgroundField
-                && particleRadius == obj.particleRadius;
+            return numParticles == obj.numParticles && backgroundField == obj.backgroundField && particleRadius == obj.particleRadius;
         }
     } uniformBufferContent;
 

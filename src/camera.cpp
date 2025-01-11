@@ -5,23 +5,21 @@ void Camera::reset() {
     position = glm::vec3(0.5, 2, 0.9);
     phi = glm::pi<float>();
     theta = 0.4 * glm::pi<float>();
-    aspect = (float)resources.extent.width/(float)resources.extent.height;
+    aspect = (float) resources.extent.width / (float) resources.extent.height;
 }
 
 glm::vec3 Camera::forwardDir() const {
     return {
             std::sin(phi) * std::sin(theta),
             std::cos(phi) * std::sin(theta),
-            -std::cos(theta)
-    };
+            -std::cos(theta)};
 }
 
 glm::vec3 Camera::tangentDir() const {
     return {
             std::cos(phi),
             -std::sin(phi),
-            0.f
-    };
+            0.f};
 }
 
 void Camera::rotateTheta(float radians) {
@@ -57,4 +55,3 @@ glm::mat4 Camera::projectionMatrix() const {
 glm::mat4 Camera::viewProjectionMatrix() const {
     return projectionMatrix() * viewMatrix();
 }
-

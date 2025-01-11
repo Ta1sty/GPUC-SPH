@@ -30,13 +30,8 @@ struct SimulationTime {
 struct SimulationState {
 public:
     SimulationState() = delete;
-<<<<<<< HEAD
     SimulationState(const SimulationState &other) = delete;// don't accidentally copy
-    explicit SimulationState(const SimulationParameters &parameters);
-=======
-    SimulationState(const SimulationState &other) = delete; // don't accidentally copy
     explicit SimulationState(const SimulationParameters &parameters, std::shared_ptr<Camera> camera);
->>>>>>> main
     ~SimulationState();
 
     [[nodiscard]] SimulationParameters getParameters() const { return parameters; }
