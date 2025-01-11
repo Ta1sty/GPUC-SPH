@@ -61,7 +61,7 @@ void Render::mouseCallback(GLFWwindow *window, double xpos, double ypos) {
     }
 }
 
-void Render::cleanup() {
+Render::~Render() {
     app.device.destroyPipelineLayout(layout);
     app.device.destroyRenderPass(renderPass);
     app.device.destroyPipeline(opaquePipeline);
@@ -209,4 +209,5 @@ Render::Render(AppResources &app, int framesinlight) : app(app), framesinlight(f
                                                                    })[0]);
     }
 }
+
 

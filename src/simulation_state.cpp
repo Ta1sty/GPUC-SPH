@@ -43,6 +43,7 @@ SimulationState::SimulationState(const SimulationParameters &_parameters, std::s
     debugImageSort = std::make_unique<DebugImage>("debug-image-sort");
     debugImageRenderer = std::make_unique<DebugImage>("debug-image-render");
 
+    vk::DeviceSize coordinateBufferSize;
     switch (parameters.type) {
         case SceneType::SPH_BOX_2D:
             coordinateBufferSize = sizeof(Particle) * parameters.numParticles;
@@ -67,8 +68,7 @@ SimulationState::SimulationState(const SimulationParameters &_parameters, std::s
 }
 
 SimulationState::~SimulationState() {
-    resources.device.destroyBuffer(particleCoordinateBuffer.buf);
-    resources.device.freeMemory(particleCoordinateBuffer.mem);
+    // cleaning up all by itself via destructor magic ~ v ~
 }
 
 bool SimulationTime::advance(double add) {

@@ -139,23 +139,24 @@ ParticleRenderer::ParticleRenderer(const SimulationParameters &simulationParamet
         0, 1, 2, 2, 3, 0
     };
 
-    createBuffer(resources.pDevice, resources.device, quadVertices.size() * sizeof(glm::vec2),
+    quadVertexBuffer = createBuffer(resources.pDevice, resources.device, quadVertices.size() * sizeof(glm::vec2),
                  { vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst },
                  { vk::MemoryPropertyFlagBits::eDeviceLocal },
-                 "quadVertexBuffer", quadVertexBuffer.buf, quadVertexBuffer.mem);
+                 "quadVertexBuffer");
 
-    createBuffer(resources.pDevice, resources.device, quadIndices.size() * sizeof(uint16_t),
+    quadIndexBuffer = createBuffer(resources.pDevice, resources.device, quadIndices.size() * sizeof(uint16_t),
                  { vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst },
                  { vk::MemoryPropertyFlagBits::eDeviceLocal },
-                 "quadIndexBuffer", quadIndexBuffer.buf, quadIndexBuffer.mem);
+                 "quadIndexBuffer");
 
     fillDeviceWithStagingBuffer(quadVertexBuffer, quadVertices);
     fillDeviceWithStagingBuffer(quadIndexBuffer, quadIndices);
 
-    createBuffer(resources.pDevice, resources.device, sizeof(UniformBufferStruct),
+    uniformBuffer = createBuffer(resources.pDevice, resources.device, sizeof(UniformBufferStruct),
                  { vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst },
                  { vk::MemoryPropertyFlagBits::eDeviceLocal },
-                 "render2dUniformBuffer", uniformBuffer.buf, uniformBuffer.mem);
+                 "render2dUniformBuffer");
+
     const std::vector<UniformBufferStruct> uniformBufferVector { uniformBufferContent };
     fillDeviceWithStagingBuffer(uniformBuffer, uniformBufferVector);
 }
@@ -196,13 +197,8 @@ ParticleRenderer::~ParticleRenderer() {
     resources.device.destroyImage(colormapImage);
     resources.device.freeMemory(colormapImageMemory);
 
-    resources.device.freeDescriptorSets(descriptorPool, { descriptorSet });
     resources.device.destroyDescriptorPool(descriptorPool);
     resources.device.destroyDescriptorSetLayout(descriptorSetLayout);
-
-    quadVertexBuffer.cleanup();
-    quadIndexBuffer.cleanup();
-    uniformBuffer.cleanup();
 }
 
 void ParticleRenderer::createPipeline() {

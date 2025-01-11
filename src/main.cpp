@@ -22,21 +22,11 @@ int width = 1200;
 int height = 1000;
 
 void render() {
-    AppResources app;
-
-    initApp(app, true, "Project", width, height);
-
     // Since our application is now frame-based, renderdoc can find frame delimiters on its own
-    renderdoc::initialize();
     renderdoc::startCapture();
 
-    Render render(app, 2);
-
-//    Project project(app, render, 400000, workingDir + "Assets/cubeMonkey.obj");
-//    ProjectSolution solution(app, project.data, 192, 192);
-
+    Render render(resources, 2);
     SimulationParameters parameters { "../scenes/default.yaml" };
-
     Simulation simulation(parameters, render.camera);
 
     renderdoc::endCapture();
@@ -54,24 +44,24 @@ void render() {
 
         render.input();
 
-        if (glfwGetKey(app.window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-            glfwSetWindowShouldClose(app.window, 1);
+        if (glfwGetKey(resources.window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+            glfwSetWindowShouldClose(resources.window, 1);
 
-        if (glfwWindowShouldClose(app.window))
+        if (glfwWindowShouldClose(resources.window))
             break;
 
         render.renderSimulationFrame(simulation);
     }
-
-    app.device.waitIdle();
-
-    render.cleanup();
-
-    app.destroy();
+    resources.device.waitIdle();
 }
 
 int main() {
     try {
+        AppResources app;
+
+        initApp(app, true, "Project", width, height);
+        renderdoc::initialize();
+
         render();
     }
     catch (vk::SystemError& err) {
