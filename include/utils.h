@@ -1,8 +1,19 @@
 #pragma once
 
 #include <cstring>
+<<<<<<< HEAD
 #include <vector>
 
+=======
+#include <cmath>
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/constants.hpp>
+
+#include <vulkan/vulkan.hpp>
+
+>>>>>>> main
 #include "GLFW/glfw3.h"
 #include "helper.h"
 #include <vulkan/vulkan.hpp>
@@ -37,6 +48,12 @@ extern AppResources &resources;
 struct Buffer {
     vk::Buffer buf;
     vk::DeviceMemory mem;
+
+public:
+    void cleanup() {
+        resources.device.destroyBuffer(buf);
+        resources.device.freeMemory(mem);
+    }
 };
 
 std::vector<char> readFile(const std::string &filename);

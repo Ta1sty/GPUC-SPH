@@ -80,6 +80,8 @@ set(SOURCES
         src/parameters.cpp
         src/simulation_state.cpp
         src/colormaps.cpp
+        src/render.cpp
+        src/camera.cpp
 )
 
 add_compile_definitions(WORKING_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
@@ -97,6 +99,8 @@ add_shader(${PROJECT_NAME} shaders/particle.vert)
 add_shader(${PROJECT_NAME} shaders/particle2d.geom)
 add_shader(${PROJECT_NAME} shaders/particle2d.vert)
 add_shader(${PROJECT_NAME} shaders/particle2d.frag)
+add_shader(${PROJECT_NAME} shaders/background2d.vert)
+add_shader(${PROJECT_NAME} shaders/background2d.frag)
 
 add_shader(${PROJECT_NAME} shaders/spatial_lookup.write.comp)
 add_shader(${PROJECT_NAME} shaders/spatial_lookup.sort.comp)

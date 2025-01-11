@@ -5,6 +5,7 @@ struct PushConstants {
 };
 
 SpatialLookup::SpatialLookup(const SimulationParameters &parameters) {
+    workgroupSizeX = (parameters.numParticles + 1) / 2;
 
     descriptorBindings.clear();
 

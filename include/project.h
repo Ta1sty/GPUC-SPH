@@ -29,7 +29,7 @@ struct ProjectData {
     SimulationParameters simulationParameters;
     RenderParameters renderParameters;
     UiBindings uiBindings;
-    inline ProjectData() : uiBindings({}, simulationParameters, renderParameters) {}
+    inline ProjectData() : uiBindings({}, simulationParameters, renderParameters, nullptr) {}
 
     struct PushConstant {
         glm::mat4 mvp;
@@ -295,6 +295,7 @@ public:
             fPress = false;
 
         render.renderFrame(
+<<<<<<< HEAD
                 [&](vk::CommandBuffer &cb) {
                     cb.bindPipeline(vk::PipelineBindPoint::eGraphics, opaquePipeline);
                     ProjectData::PushConstant pC = {
@@ -327,6 +328,44 @@ public:
                 [&](uint32_t index) {
                     return imguiUi->updateCommandBuffer(index, data.uiBindings);
                 });
+=======
+            [&](vk::CommandBuffer& cb) {
+                cb.bindPipeline(vk::PipelineBindPoint::eGraphics, opaquePipeline);
+                ProjectData::PushConstant pC = {
+                    render.camera->viewProjectionMatrix(), glm::vec4(render.camera->position, 0.f)
+                };
+                cb.pushConstants(data.layout, vk::ShaderStageFlagBits::eAll, 0, sizeof(pC), &pC);
+                cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, data.layout, 0, 1, &data.descriptorSet, 0,
+                                      nullptr);
+                cb.draw(3 * data.triangleCount, 1, 0, 0);
+            },
+            [&](vk::CommandBuffer& cb) {
+                {
+                    cb.bindPipeline(vk::PipelineBindPoint::eGraphics, transparentPipeline);
+                    ProjectData::PushConstant pC = {
+                        render.camera->viewProjectionMatrix(), glm::vec4(render.camera->position, 0.f)
+                    };
+                    cb.pushConstants(data.layout, vk::ShaderStageFlagBits::eAll, 0, sizeof(pC), &pC);
+                    cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, data.layout, 0, 1, &data.descriptorSet, 0,
+                                          nullptr);
+                    cb.draw(data.particleCount, 1, 0, 0);
+                }
+                if (renderForceLines) {
+                    cb.bindPipeline(vk::PipelineBindPoint::eGraphics, linesPipeline);
+                    ProjectData::PushConstant pC = {
+                        render.camera->viewProjectionMatrix(), glm::vec4(render.camera->position, 0.f)
+                    };
+                    cb.pushConstants(data.layout, vk::ShaderStageFlagBits::eAll, 0, sizeof(pC), &pC);
+                    cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, data.layout, 0, 1, &data.descriptorSet, 0,
+                                          nullptr);
+                    cb.draw(3 * 10 * 10 * 10, 1, 0, 0);
+                }
+            },
+            [&](uint32_t index){
+                return imguiUi->updateCommandBuffer(index, data.uiBindings);
+            }
+        );
+>>>>>>> main
     }
 };
 
