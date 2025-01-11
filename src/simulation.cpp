@@ -78,9 +78,6 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     }
 
     bool doTick = simulationState->time.advance(delta);
-    if (doTick) {
-        std::cout<<"tick"<<std::endl;
-    }
 
     buffers[0] = { resources.transferQueue, cmdReset };
     buffers[1] = { resources.computeQueue, doTick ? particlePhysics->run() : nullptr };
