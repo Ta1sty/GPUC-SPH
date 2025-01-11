@@ -23,6 +23,7 @@ class SpatialLookup {
     vk::Pipeline indexPipeline;
 
     vk::CommandBuffer cmd;
+
 public:
     explicit SpatialLookup(const SimulationParameters &parameters);
     void updateCmd(const SimulationState &state);

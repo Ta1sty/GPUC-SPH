@@ -1,10 +1,10 @@
 #include "simulation.h"
 
-#include "particle_renderer.h"
-#include "particle_physics.h"
-#include "spatial_lookup.h"
-#include "render.h"
 #include "debug_image.h"
+#include "particle_physics.h"
+#include "particle_renderer.h"
+#include "render.h"
+#include "spatial_lookup.h"
 
 Simulation::Simulation(const SimulationParameters &parameters) : simulationParameters(parameters),
                                                                  simulationState(std::make_unique<SimulationState>(parameters)) {
@@ -23,9 +23,9 @@ Simulation::Simulation(const SimulationParameters &parameters) : simulationParam
 
     cmdReset = allocated[1];
     cmdReset.begin(vk::CommandBufferBeginInfo());
-    simulationState->debugImagePhysics->clear(cmdReset, { 1, 0, 0, 1 });
-    simulationState->debugImageSort->clear(cmdReset, { 0, 1, 0, 1 });
-    simulationState->debugImageRenderer->clear(cmdReset, { 0, 0, 1, 1 });
+    simulationState->debugImagePhysics->clear(cmdReset, {1, 0, 0, 1});
+    simulationState->debugImageSort->clear(cmdReset, {0, 1, 0, 1});
+    simulationState->debugImageRenderer->clear(cmdReset, {0, 0, 1, 1});
     cmdReset.end();
 
     cmdEmpty = allocated[2];
@@ -34,7 +34,7 @@ Simulation::Simulation(const SimulationParameters &parameters) : simulationParam
 }
 
 SimulationState::~SimulationState() {
-    auto Bclean = [&](Buffer& b) {
+    auto Bclean = [&](Buffer &b) {
         resources.device.destroyBuffer(b.buf);
         resources.device.freeMemory(b.mem);
     };
@@ -66,18 +66,18 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     timelineSemaphore = initSemaphore();
 
     // TODO @markus stimmt imageIndex hier?
-    UiBindings uiBindings { imageIndex, simulationParameters, renderParameters };
-    std::array<std::tuple<vk::Queue,vk::CommandBuffer>,count> buffers;
+    UiBindings uiBindings {imageIndex, simulationParameters, renderParameters};
+    std::array<std::tuple<vk::Queue, vk::CommandBuffer>, count> buffers;
 
     // TODO temporarily changed to transfer queue because
     //  vulkan doesn't like stuff being allocated from the transfer
     //  queue being run elsewhere
-    buffers[0] = { resources.transferQueue, cmdReset };
-    buffers[1] = { resources.computeQueue, particlePhysics->run(*simulationState) };
-    buffers[2] = { resources.computeQueue,  hashGrid->run(*simulationState) };
-    buffers[3] = { resources.graphicsQueue, particleRenderer->run(*simulationState)};
-    buffers[4] = { resources.graphicsQueue, copy(imageIndex) };
-    buffers[5] = { resources.graphicsQueue, imguiUi->updateCommandBuffer(imageIndex, uiBindings) };
+    buffers[0] = {resources.transferQueue, cmdReset};
+    buffers[1] = {resources.computeQueue, particlePhysics->run(*simulationState)};
+    buffers[2] = {resources.computeQueue, hashGrid->run(*simulationState)};
+    buffers[3] = {resources.graphicsQueue, particleRenderer->run(*simulationState)};
+    buffers[4] = {resources.graphicsQueue, copy(imageIndex)};
+    buffers[5] = {resources.graphicsQueue, imguiUi->updateCommandBuffer(imageIndex, uiBindings)};
 
     auto flags = uiBindings.updateFlags;
     if (flags.resetSimulation) {
@@ -85,7 +85,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
         // simulationState = std::make_unique<SimulationState>(simulationParameters);
     }
 
-    for (uint64_t wait = 0,signal = 1; wait < buffers.size(); ++wait,++signal) {
+    for (uint64_t wait = 0, signal = 1; wait < buffers.size(); ++wait, ++signal) {
         auto queue = std::get<0>(buffers[wait]);
         auto cmd = std::get<1>(buffers[wait]);
         queue = nullptr == cmd ? resources.transferQueue : queue;
@@ -93,36 +93,34 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
         vk::TimelineSemaphoreSubmitInfo timeline(
                 wait,
-                signal
-        );
+                signal);
 
-        std::array<vk::PipelineStageFlags,1> flags{ vk::PipelineStageFlagBits::eAllCommands };
+        std::array<vk::PipelineStageFlags, 1> flags {vk::PipelineStageFlagBits::eAllCommands};
         vk::SubmitInfo submit(
                 timelineSemaphore,
                 flags,
                 cmd,
                 timelineSemaphore,
-                &timeline
-        );
+                &timeline);
 
-        if (wait == 0) { // first submit has no dependencies
+        if (wait == 0) {// first submit has no dependencies
             submit.waitSemaphoreCount = 0;
             timeline.waitSemaphoreValueCount = 0;
         }
 
-        if (cmd == cmdCopy) { // copy needs to wait for the swapchain image
-            auto waitSemaphores = std::array<vk::Semaphore,2> {timelineSemaphore, waitImageAvailable};
-            auto waitSemaphoreValues = std::array<uint64_t ,2> {wait, 0};
-            auto waitStageFlags = std::array<vk::PipelineStageFlags, 2> {vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eTransfer };
+        if (cmd == cmdCopy) {// copy needs to wait for the swapchain image
+            auto waitSemaphores = std::array<vk::Semaphore, 2> {timelineSemaphore, waitImageAvailable};
+            auto waitSemaphoreValues = std::array<uint64_t, 2> {wait, 0};
+            auto waitStageFlags = std::array<vk::PipelineStageFlags, 2> {vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eTransfer};
 
             submit.setWaitSemaphores(waitSemaphores);
             timeline.setWaitSemaphoreValues(waitSemaphoreValues);
             submit.setWaitDstStageMask(waitStageFlags);
         }
 
-        if (wait == buffers.size() - 1){ // last submit signals render-finished and the submit-finished
-            auto signalSemaphores = std::array<vk::Semaphore,2> {timelineSemaphore, signalRenderFinished};
-            auto signalSemaphoreValues = std::array<uint64_t ,2> {signal, 0};
+        if (wait == buffers.size() - 1) {// last submit signals render-finished and the submit-finished
+            auto signalSemaphores = std::array<vk::Semaphore, 2> {timelineSemaphore, signalRenderFinished};
+            auto signalSemaphoreValues = std::array<uint64_t, 2> {signal, 0};
 
             submit.setSignalSemaphores(signalSemaphores);
             timeline.setSignalSemaphoreValues(signalSemaphoreValues);
@@ -153,10 +151,9 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     std::vector<SpatialLookupEntry> spatial_lookup_sorted(spatial_lookup.begin(), spatial_lookup.end());
     std::sort(spatial_lookup_sorted.begin(), spatial_lookup_sorted.end(),
-              [](SpatialLookupEntry left,SpatialLookupEntry right)-> bool { return left.cellKey < right.cellKey;}
-    );
+              [](SpatialLookupEntry left, SpatialLookupEntry right) -> bool { return left.cellKey < right.cellKey; });
 
-    for (uint32_t i = 0;i<simulationParameters.numParticles;i++) {
+    for (uint32_t i = 0; i < simulationParameters.numParticles; i++) {
         if (spatial_lookup[i].cellKey != spatial_lookup_sorted[i].cellKey) {
             throw std::runtime_error("spatial lookup not sorted");
         }
@@ -184,12 +181,12 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
     }
 
     auto barrier = [&](vk::Image image,
-                                        vk::AccessFlags srcAccessMask,
-                                        vk::AccessFlags dstAccessMask,
-                                        vk::ImageLayout oldLayout,
-                                        vk::ImageLayout newLayout,
-                                        vk::PipelineStageFlags srcStageMask,
-                                        vk::PipelineStageFlags dstStageMask) {
+                       vk::AccessFlags srcAccessMask,
+                       vk::AccessFlags dstAccessMask,
+                       vk::ImageLayout oldLayout,
+                       vk::ImageLayout newLayout,
+                       vk::PipelineStageFlags srcStageMask,
+                       vk::PipelineStageFlags dstStageMask) {
         vk::ImageMemoryBarrier barrier(
                 srcAccessMask,
                 dstAccessMask,
@@ -198,16 +195,14 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
                 VK_QUEUE_FAMILY_IGNORED,
                 VK_QUEUE_FAMILY_IGNORED,
                 image,
-                {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
-        );
+                {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
         cmdCopy.pipelineBarrier(
                 srcStageMask,
                 dstStageMask,
                 {},
                 nullptr,
                 nullptr,
-                barrier
-        );
+                barrier);
     };
 
     cmdCopy.reset();
@@ -222,8 +217,7 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
             vk::ImageLayout::eUndefined,
             vk::ImageLayout::eTransferDstOptimal,
             vk::PipelineStageFlagBits::eTopOfPipe,
-            vk::PipelineStageFlagBits::eTransfer
-    );
+            vk::PipelineStageFlagBits::eTransfer);
 
     // transition source image to transfer source
     barrier(
@@ -232,25 +226,22 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
             vk::AccessFlagBits::eTransferRead,
             srcImageLayout,
             vk::ImageLayout::eTransferSrcOptimal,
-             vk::PipelineStageFlagBits::eTopOfPipe,
-            vk::PipelineStageFlagBits::eTransfer
-    );
+            vk::PipelineStageFlagBits::eTopOfPipe,
+            vk::PipelineStageFlagBits::eTransfer);
 
     vk::ImageCopy copy(
-            { {vk::ImageAspectFlagBits::eColor}, 0,0,1},
+            {{vk::ImageAspectFlagBits::eColor}, 0, 0, 1},
             {},
-            { {vk::ImageAspectFlagBits::eColor}, 0,0,1},
+            {{vk::ImageAspectFlagBits::eColor}, 0, 0, 1},
             {},
-            {resources.extent.width, resources.extent.height, 1}
-    );
+            {resources.extent.width, resources.extent.height, 1});
 
     cmdCopy.copyImage(
             srcImage,
             vk::ImageLayout::eTransferSrcOptimal,
             resources.swapchainImages[imageIndex],
             vk::ImageLayout::eTransferDstOptimal,
-            copy
-    );
+            copy);
 
     // transition swapchain image to present
     barrier(
@@ -260,8 +251,7 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
             vk::ImageLayout::eTransferDstOptimal,
             vk::ImageLayout::ePresentSrcKHR,
             vk::PipelineStageFlagBits::eTransfer,
-            vk::PipelineStageFlagBits::eBottomOfPipe
-    );
+            vk::PipelineStageFlagBits::eBottomOfPipe);
 
     // transition source image back to original layout
     barrier(
@@ -271,8 +261,7 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
             vk::ImageLayout::eTransferSrcOptimal,
             srcImageLayout,
             vk::PipelineStageFlagBits::eTransfer,
-            vk::PipelineStageFlagBits::eBottomOfPipe
-    );
+            vk::PipelineStageFlagBits::eBottomOfPipe);
 
     cmdCopy.end();
 
@@ -301,4 +290,3 @@ void Render::renderSimulationFrame(Simulation &simulation) {
 
     currentFrameIdx = (currentFrameIdx + 1) % framesinlight;
 }
-

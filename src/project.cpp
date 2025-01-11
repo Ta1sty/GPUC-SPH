@@ -1,19 +1,19 @@
 #include "project.h"
 
-#include <iostream>
 #include <cstdlib>
+#include <iostream>
 #define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 
-#include <vulkan/vulkan.hpp>
+#include "host_timer.h"
+#include "initialization.h"
+#include "stb_image_write.h"
+#include "task_common.h"
+#include "utils.h"
 #include <fstream>
 #include <vector>
-#include "initialization.h"
-#include "utils.h"
-#include "task_common.h"
-#include "host_timer.h"
-#include "stb_image_write.h"
+#include <vulkan/vulkan.hpp>
 
-Project::Project(AppResources& app, Render& render, const uint32_t particleCount,
+Project::Project(AppResources &app, Render &render, const uint32_t particleCount,
                  std::string objName) : app(app), render(app, render) {
     data.NUM_FORCE_LINES = 100;
     data.particleCount = particleCount;
@@ -28,13 +28,13 @@ Project::Project(AppResources& app, Render& render, const uint32_t particleCount
 
     data.triangleCount = tSoup.size() / 3;
 
-    Cmn::addStorage(data.bindings, 0); // gAlive
-    Cmn::addStorage(data.bindings, 1); // gPosLife
-    Cmn::addStorage(data.bindings, 2); // gVelMass
-    Cmn::addStorage(data.bindings, 3); // gTriangleSoup
-    Cmn::addCombinedImageSampler(data.bindings, 4); // texture sampler
-    Cmn::addStorage(data.bindings, 5); // gNormals
-    Cmn::addStorage(data.bindings, 6); // gForceLines
+    Cmn::addStorage(data.bindings, 0);             // gAlive
+    Cmn::addStorage(data.bindings, 1);             // gPosLife
+    Cmn::addStorage(data.bindings, 2);             // gVelMass
+    Cmn::addStorage(data.bindings, 3);             // gTriangleSoup
+    Cmn::addCombinedImageSampler(data.bindings, 4);// texture sampler
+    Cmn::addStorage(data.bindings, 5);             // gNormals
+    Cmn::addStorage(data.bindings, 6);             // gForceLines
 
     Cmn::createDescriptorSetLayout(app.device, data.bindings, data.descriptorSetLayout);
 
@@ -59,7 +59,7 @@ Project::Project(AppResources& app, Render& render, const uint32_t particleCount
     data.gForceLines = makeDLocalBuffer(BFlag::eTransferDst | BFlag::eStorageBuffer,
                                         pForce.size() * sizeof(float) * 4, "gForceLines");
 
-    initParticles(); // fills gAlive, gPosLife and gVelMass
+    initParticles();// fills gAlive, gPosLife and gVelMass
     fillDeviceWithStagingBuffer(app.pDevice, app.device, app.transferCommandPool, app.transferQueue,
                                 data.gTriangleSoup, tSoup);
     fillDeviceWithStagingBuffer(app.pDevice, app.device, app.transferCommandPool, app.transferQueue, data.gNormals,
@@ -88,7 +88,7 @@ Project::Project(AppResources& app, Render& render, const uint32_t particleCount
 }
 
 
-void Project::loop(ProjectSolution& solution) {
+void Project::loop(ProjectSolution &solution) {
     solution.compute();
     render.renderFrame(data);
 }
@@ -105,7 +105,7 @@ void Project::cleanup() {
     app.device.destroyDescriptorSetLayout(data.descriptorSetLayout);
     data.bindings.clear();
 
-    auto Bclean = [&](Buffer& b) {
+    auto Bclean = [&](Buffer &b) {
         app.device.destroyBuffer(b.buf);
         app.device.freeMemory(b.mem);
     };

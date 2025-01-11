@@ -8,7 +8,7 @@ struct RenderParameters;
 /**
  * Wrap Parameters and update flags in convenience struct.
  */
-struct UiBindings{
+struct UiBindings {
     uint32_t frameIndex;
     SimulationParameters &simulationParameters;
     RenderParameters &renderParameters;
@@ -49,6 +49,3 @@ public:
 
     void drawUi(UiBindings &bindings);
 };
-
-
-

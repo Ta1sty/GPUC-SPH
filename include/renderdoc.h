@@ -1,7 +1,7 @@
 #pragma once
 
 namespace renderdoc {
-    void initialize();
-    void startCapture();
-    void endCapture();
-}
+void initialize();
+void startCapture();
+void endCapture();
+}// namespace renderdoc

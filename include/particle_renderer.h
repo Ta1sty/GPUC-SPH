@@ -1,7 +1,7 @@
 #pragma once
 
-#include "simulation_state.h"
 #include "colormaps.h"
+#include "simulation_state.h"
 
 class ParticleRenderer {
 public:

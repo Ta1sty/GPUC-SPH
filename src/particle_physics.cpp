@@ -1,8 +1,7 @@
 #include "particle_physics.h"
 
 
-ParticleSimulation::ParticleSimulation(const SimulationParameters &parameters) : simulationParameters(parameters)
-{
+ParticleSimulation::ParticleSimulation(const SimulationParameters &parameters) : simulationParameters(parameters) {
     // 0 for coordinates, 1 for velocities
     Cmn::addStorage(classResources.bindings, 0);
     Cmn::addStorage(classResources.bindings, 1);
@@ -11,7 +10,7 @@ ParticleSimulation::ParticleSimulation(const SimulationParameters &parameters) :
     Cmn::createDescriptorPool(resources.device, classResources.bindings, classResources.descriptorPool);
     Cmn::allocateDescriptorSet(resources.device, classResources.descriptorSet, classResources.descriptorPool, classResources.descriptorSetLayout);
 
-    vk::PushConstantRange pcr({vk::ShaderStageFlagBits::eCompute}, 0, sizeof (PushStruct));
+    vk::PushConstantRange pcr({vk::ShaderStageFlagBits::eCompute}, 0, sizeof(PushStruct));
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, classResources.descriptorSetLayout, pcr);
 
     classResources.pipelineLayout = resources.device.createPipelineLayout(pipelineLayoutInfo);
@@ -19,11 +18,10 @@ ParticleSimulation::ParticleSimulation(const SimulationParameters &parameters) :
     vk::ShaderModule particleComputeSM;
     Cmn::createShader(resources.device, particleComputeSM, shaderPath("particle_simulation.comp"));
 
-    std::array<vk::SpecializationMapEntry, 2> specEntries = std::array<vk::SpecializationMapEntry, 2>{ 
-        vk::SpecializationMapEntry{0U, 0U, sizeof(workgroupSizeX)}, 
-        vk::SpecializationMapEntry{1U, sizeof(workgroupSizeX), sizeof(workgroupSizeY)}
-    };
-    std::array<const uint32_t, 2> specValues = { workgroupSizeX, workgroupSizeY };
+    std::array<vk::SpecializationMapEntry, 2> specEntries = std::array<vk::SpecializationMapEntry, 2> {
+            vk::SpecializationMapEntry {0U, 0U, sizeof(workgroupSizeX)},
+            vk::SpecializationMapEntry {1U, sizeof(workgroupSizeX), sizeof(workgroupSizeY)}};
+    std::array<const uint32_t, 2> specValues = {workgroupSizeX, workgroupSizeY};
     vk::SpecializationInfo specInfo(specEntries, vk::ArrayProxyNoTemporaries<const uint32_t>(specValues));
 
     Cmn::createPipeline(resources.device, classResources.pipeline, classResources.pipelineLayout, specInfo, particleComputeSM);
@@ -31,9 +29,8 @@ ParticleSimulation::ParticleSimulation(const SimulationParameters &parameters) :
     resources.device.destroyShaderModule(particleComputeSM);
 }
 
-void ParticleSimulation::updateCmd(const SimulationState &simulationState)
-{
-    if (cmd == nullptr){
+void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
+    if (cmd == nullptr) {
         vk::CommandBufferAllocateInfo cmdInfo(resources.computeCommandPool, vk::CommandBufferLevel::ePrimary, 1);
         cmd = resources.device.allocateCommandBuffers(cmdInfo)[0];
     } else {
@@ -43,7 +40,7 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState)
     Cmn::bindBuffers(resources.device, simulationState.particleCoordinateBuffer.buf, classResources.descriptorSet, 0);
     Cmn::bindBuffers(resources.device, simulationState.particleVelocityBuffer.buf, classResources.descriptorSet, 1);
     uint32_t dx = (simulationState.parameters.numParticles + workgroupSizeX - 1) / workgroupSizeX;
-    uint32_t dy = 1; // TODO : make this dynamic
+    uint32_t dy = 1;// TODO : make this dynamic
 
     pushStruct.gravity = simulationState.parameters.gravity;
     pushStruct.deltaTime = simulationState.parameters.deltaTime;
@@ -60,8 +57,7 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState)
     cmd.end();
 }
 
-vk::CommandBuffer ParticleSimulation::run(const SimulationState &simulationState)
-{
+vk::CommandBuffer ParticleSimulation::run(const SimulationState &simulationState) {
     if (nullptr == cmd) {
         updateCmd(simulationState);
     }

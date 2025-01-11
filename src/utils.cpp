@@ -1,8 +1,8 @@
-#include <vector>
-#include <iostream>
-#include <fstream>
 #include <cstring>
+#include <fstream>
+#include <iostream>
 #include <sstream>
+#include <vector>
 #define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 #include <vulkan/vulkan.hpp>
 
@@ -13,16 +13,14 @@ AppResources dontUse = AppResources();
 
 AppResources &resources = dontUse;
 
-std::vector<char> readFile(const std::string &filename)
-{
+std::vector<char> readFile(const std::string &filename) {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
-    if (!file.is_open())
-    {
+    if (!file.is_open()) {
         std::string error = "failed to open file: " + filename;
         throw std::runtime_error(error);
     }
-    size_t fileSize = (size_t)file.tellg();
+    size_t fileSize = (size_t) file.tellg();
 
     std::vector<char> buffer(fileSize);
     file.seekg(0);
@@ -32,40 +30,29 @@ std::vector<char> readFile(const std::string &filename)
     return buffer;
 }
 
-std::string formatSize(uint64_t size)
-{
+std::string formatSize(uint64_t size) {
     std::ostringstream oss;
-    if (size < 1024)
-    {
+    if (size < 1024) {
         oss << size << " B";
-    }
-    else if (size < 1024 * 1024)
-    {
+    } else if (size < 1024 * 1024) {
         oss << size / 1024.f << " KB";
-    }
-    else if (size < 1024 * 1024 * 1024)
-    {
+    } else if (size < 1024 * 1024 * 1024) {
         oss << size / (1024.0f * 1024.0f) << " MB";
-    }
-    else
-    {
+    } else {
         oss << size / (1024.0f * 1024.0f * 1024.0f) << " GB";
     }
     return oss.str();
 }
 
-void writeFloatJpg(const std::string name, const std::vector<float> &inData, const int w, const int h)
-{
+void writeFloatJpg(const std::string name, const std::vector<float> &inData, const int w, const int h) {
     std::vector<uint8_t> refINT(inData.size());
     for (int i = 0; i < inData.size(); i++)
         refINT[i] = static_cast<uint8_t>(inData[i] * 255);
     stbi_write_jpg(name.c_str(), w, h, 1, refINT.data(), 100);
 }
-uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties, vk::PhysicalDevice &pdevice)
-{
+uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties, vk::PhysicalDevice &pdevice) {
     vk::PhysicalDeviceMemoryProperties memProperties = pdevice.getMemoryProperties();
-    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
-    {
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
         if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
             return i;
     }
@@ -76,8 +63,7 @@ uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties,
 
 void createBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
                   const vk::DeviceSize &size, vk::BufferUsageFlags usage,
-                  vk::MemoryPropertyFlags properties, std::string name, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory)
-{
+                  vk::MemoryPropertyFlags properties, std::string name, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory) {
     vk::BufferCreateInfo inBufferInfo({}, size, usage);
     buffer = device.createBuffer(inBufferInfo);
     setObjectName(device, buffer, name);
@@ -91,8 +77,7 @@ void createBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
 }
 
 void copyBuffer(vk::Device &device, vk::Queue &q, vk::CommandPool &commandPool,
-                const vk::Buffer &srcBuffer, vk::Buffer &dstBuffer, vk::DeviceSize byteSize)
-{
+                const vk::Buffer &srcBuffer, vk::Buffer &dstBuffer, vk::DeviceSize byteSize) {
     vk::CommandBuffer commandBuffer = beginSingleTimeCommands(device, commandPool);
 
     vk::BufferCopy copyRegion(0ULL, 0ULL, byteSize);
@@ -101,9 +86,8 @@ void copyBuffer(vk::Device &device, vk::Queue &q, vk::CommandPool &commandPool,
     endSingleTimeCommands(device, q, commandPool, commandBuffer);
 }
 
-void createImage(vk::PhysicalDevice &pDevice, vk::Device &device, vk::ImageCreateInfo createInfo,vk::MemoryPropertyFlags properties,
-                    std::string name, vk::Image &image, vk::DeviceMemory &imageMemory)
-{
+void createImage(vk::PhysicalDevice &pDevice, vk::Device &device, vk::ImageCreateInfo createInfo, vk::MemoryPropertyFlags properties,
+                 std::string name, vk::Image &image, vk::DeviceMemory &imageMemory) {
     image = device.createImage(createInfo);
     setObjectName(device, image, name);
     auto memReq = device.getImageMemoryRequirements(image);
@@ -113,8 +97,7 @@ void createImage(vk::PhysicalDevice &pDevice, vk::Device &device, vk::ImageCreat
 }
 
 
-vk::CommandBuffer beginSingleTimeCommands(vk::Device &device, vk::CommandPool &commandPool)
-{
+vk::CommandBuffer beginSingleTimeCommands(vk::Device &device, vk::CommandPool &commandPool) {
     vk::CommandBufferAllocateInfo allocInfo(commandPool, vk::CommandBufferLevel::ePrimary, 1);
 
     vk::CommandBuffer commandBuffer = device.allocateCommandBuffers(allocInfo)[0];
@@ -126,8 +109,7 @@ vk::CommandBuffer beginSingleTimeCommands(vk::Device &device, vk::CommandPool &c
 }
 
 void endSingleTimeCommands(vk::Device &device, vk::Queue &q,
-                           vk::CommandPool &commandPool, vk::CommandBuffer &commandBuffer)
-{
+                           vk::CommandPool &commandPool, vk::CommandBuffer &commandBuffer) {
     commandBuffer.end();
     vk::SubmitInfo submitInfo(0U, nullptr, nullptr, 1U, &commandBuffer);
     q.submit({submitInfo}, nullptr);
@@ -140,23 +122,23 @@ void ownershipTransfer(vk::Device &device, vk::CommandPool &srcCommandPool, vk::
         vk::CommandBuffer commandBuffer = beginSingleTimeCommands(device, srcCommandPool);
 
         vk::ImageMemoryBarrier barrier(
-            vk::AccessFlagBits::eNoneKHR, vk::AccessFlagBits::eNoneKHR,
-            oldLayout, newLayout,
-            srcQueueFamilyIndex, dstQueueFamilyIndex,
-            image,
-            vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor,0,1,0,1));
+                vk::AccessFlagBits::eNoneKHR, vk::AccessFlagBits::eNoneKHR,
+                oldLayout, newLayout,
+                srcQueueFamilyIndex, dstQueueFamilyIndex,
+                image,
+                vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
 
         vk::PipelineStageFlags sourceStage;
         vk::PipelineStageFlags destinationStage;
-        
+
         using psf = vk::PipelineStageFlagBits;
-        if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal ) {
+        if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal) {
             barrier.setDstAccessMask(vk::AccessFlagBits::eTransferWrite);
 
             sourceStage = psf::eTopOfPipe;
             destinationStage = psf::eBottomOfPipe;
-        } else if ( oldLayout == vk::ImageLayout::eTransferDstOptimal && 
-                    newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
+        } else if (oldLayout == vk::ImageLayout::eTransferDstOptimal &&
+                   newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
             barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
             barrier.dstAccessMask = {};
 
@@ -164,15 +146,14 @@ void ownershipTransfer(vk::Device &device, vk::CommandPool &srcCommandPool, vk::
             destinationStage = psf::eBottomOfPipe;
         } else {
             throw std::invalid_argument("unsupported layout transition!");
-        } 
-        
+        }
+
         commandBuffer.pipelineBarrier(
-            sourceStage, destinationStage,
-            vk::DependencyFlagBits::eByRegion,
-            0,nullptr,
-            0,nullptr,
-            1,&barrier
-        );
+                sourceStage, destinationStage,
+                vk::DependencyFlagBits::eByRegion,
+                0, nullptr,
+                0, nullptr,
+                1, &barrier);
 
         endSingleTimeCommands(device, srcQueue, srcCommandPool, commandBuffer);
     }
@@ -181,23 +162,23 @@ void ownershipTransfer(vk::Device &device, vk::CommandPool &srcCommandPool, vk::
         vk::CommandBuffer commandBuffer = beginSingleTimeCommands(device, dstCommandPool);
 
         vk::ImageMemoryBarrier barrier(
-            vk::AccessFlagBits::eNoneKHR, vk::AccessFlagBits::eNoneKHR,
-            oldLayout, newLayout,
-            srcQueueFamilyIndex, dstQueueFamilyIndex,
-            image,
-            vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor,0,1,0,1));
+                vk::AccessFlagBits::eNoneKHR, vk::AccessFlagBits::eNoneKHR,
+                oldLayout, newLayout,
+                srcQueueFamilyIndex, dstQueueFamilyIndex,
+                image,
+                vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
 
         vk::PipelineStageFlags sourceStage;
         vk::PipelineStageFlags destinationStage;
-        
+
         using psf = vk::PipelineStageFlagBits;
-        if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal ) {
+        if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal) {
             barrier.setDstAccessMask(vk::AccessFlagBits::eTransferWrite);
 
             sourceStage = psf::eTopOfPipe;
             destinationStage = psf::eTransfer;
-        } else if ( oldLayout == vk::ImageLayout::eTransferDstOptimal && 
-                    newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
+        } else if (oldLayout == vk::ImageLayout::eTransferDstOptimal &&
+                   newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
             barrier.srcAccessMask = {};
             barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
 
@@ -205,15 +186,14 @@ void ownershipTransfer(vk::Device &device, vk::CommandPool &srcCommandPool, vk::
             destinationStage = psf::eComputeShader;
         } else {
             throw std::invalid_argument("unsupported layout transition!");
-        } 
-        
+        }
+
         commandBuffer.pipelineBarrier(
-            sourceStage, destinationStage,
-            vk::DependencyFlagBits::eByRegion,
-            0,nullptr,
-            0,nullptr,
-            1,&barrier
-        );
+                sourceStage, destinationStage,
+                vk::DependencyFlagBits::eByRegion,
+                0, nullptr,
+                0, nullptr,
+                1, &barrier);
 
         endSingleTimeCommands(device, dstQueue, dstCommandPool, commandBuffer);
     }
@@ -223,17 +203,17 @@ void transitionImageLayout(vk::Device &device, vk::CommandPool &pool, vk::Queue 
     vk::CommandBuffer commandBuffer = beginSingleTimeCommands(device, pool);
 
     vk::ImageMemoryBarrier barrier(
-        vk::AccessFlagBits::eNoneKHR, vk::AccessFlagBits::eNoneKHR,
-        oldLayout, newLayout,
-        VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-        image,
-        vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor,0,1,0,1));
+            vk::AccessFlagBits::eNoneKHR, vk::AccessFlagBits::eNoneKHR,
+            oldLayout, newLayout,
+            VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
+            image,
+            vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
 
     vk::PipelineStageFlags sourceStage;
     vk::PipelineStageFlags destinationStage;
-    
+
     using psf = vk::PipelineStageFlagBits;
-    if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal ) {
+    if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal) {
         barrier.setDstAccessMask(vk::AccessFlagBits::eTransferWrite);
 
         sourceStage = psf::eTopOfPipe;
@@ -243,13 +223,13 @@ void transitionImageLayout(vk::Device &device, vk::CommandPool &pool, vk::Queue 
 
         sourceStage = psf::eTopOfPipe;
         destinationStage = psf::eTransfer;
-    }else if (oldLayout == vk::ImageLayout::eTransferDstOptimal &&newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
+    } else if (oldLayout == vk::ImageLayout::eTransferDstOptimal && newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
         barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
         barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
 
         sourceStage = psf::eTransfer;
         destinationStage = psf::eComputeShader;
-    } else if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eGeneral){
+    } else if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eGeneral) {
         barrier.setDstAccessMask(vk::AccessFlagBits::eTransferWrite);
 
         sourceStage = psf::eTopOfPipe;
@@ -266,15 +246,14 @@ void transitionImageLayout(vk::Device &device, vk::CommandPool &pool, vk::Queue 
         destinationStage = psf::eColorAttachmentOutput;
     } else {
         throw std::invalid_argument("unsupported layout transition!");
-    } 
+    }
 
     commandBuffer.pipelineBarrier(
-        sourceStage, destinationStage,
-        vk::DependencyFlagBits::eByRegion,
-        0,nullptr,
-        0,nullptr,
-        1,&barrier
-    );
+            sourceStage, destinationStage,
+            vk::DependencyFlagBits::eByRegion,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier);
 
     endSingleTimeCommands(device, queue, pool, commandBuffer);
 }
@@ -282,11 +261,11 @@ void transitionImageLayout(vk::Device &device, vk::CommandPool &pool, vk::Queue 
 void copyBufferToImage(vk::Device &device, vk::CommandPool &pool, vk::Queue &queue, vk::Buffer &buffer, vk::Image &image, uint32_t width, uint32_t height, uint32_t depth) {
     vk::CommandBuffer commandBuffer = beginSingleTimeCommands(device, pool);
 
-    vk::BufferImageCopy region( 0,0,0,
-                                vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor,0,0,1),
-                                vk::Offset3D(0,0,0), vk::Extent3D(width,height,depth));
-    commandBuffer.copyBufferToImage(buffer,image, vk::ImageLayout::eTransferDstOptimal, 1, &region);
-    
+    vk::BufferImageCopy region(0, 0, 0,
+                               vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1),
+                               vk::Offset3D(0, 0, 0), vk::Extent3D(width, height, depth));
+    commandBuffer.copyBufferToImage(buffer, image, vk::ImageLayout::eTransferDstOptimal, 1, &region);
+
     endSingleTimeCommands(device, queue, pool, commandBuffer);
 }
 
@@ -300,8 +279,7 @@ Buffer createDeviceLocalBuffer(const std::string &name, vk::DeviceSize size, vk:
             {vk::MemoryPropertyFlagBits::eDeviceLocal},
             name,
             buffer.buf,
-            buffer.mem
-    );
+            buffer.mem);
     return buffer;
 }
 
@@ -312,6 +290,5 @@ void computeBarrier(vk::CommandBuffer &cmd) {
             {},
             {vk::MemoryBarrier(vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead)},
             {},
-            {}
-    );
+            {});
 }

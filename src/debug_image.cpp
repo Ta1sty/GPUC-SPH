@@ -15,8 +15,7 @@ DebugImage::DebugImage(std::string name) {
             vk::SharingMode::eExclusive,
             1,
             &resources.gQ,
-            vk::ImageLayout::eUndefined
-    );
+            vk::ImageLayout::eUndefined);
 
     createImage(resources.pDevice, resources.device, imageInfo, {vk::MemoryPropertyFlagBits::eDeviceLocal}, std::move(name), image, imageMemory);
 
@@ -27,8 +26,10 @@ DebugImage::DebugImage(std::string name) {
             vk::Format::eR8G8B8A8Unorm,
             {},
             {{vk::ImageAspectFlagBits::eColor},
-             0, 1, 0, 1}
-    );
+             0,
+             1,
+             0,
+             1});
     view = resources.device.createImageView(viewInfo);
 
     descriptorInfo = vk::DescriptorImageInfo(nullptr, view, vk::ImageLayout::eColorAttachmentOptimal);
@@ -40,8 +41,7 @@ DebugImage::DebugImage(std::string name) {
             image,
             resources.surfaceFormat.format,
             vk::ImageLayout::eUndefined,
-            vk::ImageLayout::eGeneral
-    );
+            vk::ImageLayout::eGeneral);
 }
 
 DebugImage::~DebugImage() {
@@ -50,8 +50,8 @@ DebugImage::~DebugImage() {
     resources.device.freeMemory(imageMemory);
 }
 
-void DebugImage::clear(vk::CommandBuffer cmd, std::array<float,4> color) {
-    vk::ImageSubresourceRange resource(vk::ImageAspectFlagBits::eColor, 0, 1,0,1);
+void DebugImage::clear(vk::CommandBuffer cmd, std::array<float, 4> color) {
+    vk::ImageSubresourceRange resource(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
     cmd.clearColorImage(image, vk::ImageLayout::eGeneral, color, resource);
 }
 
@@ -60,7 +60,5 @@ vk::DescriptorSetLayoutBinding DebugImage::getLayout(uint32_t binding) {
 }
 
 vk::WriteDescriptorSet DebugImage::getWrite(vk::DescriptorSet set, uint32_t binding) {
-    return {set, binding, 0,vk::DescriptorType::eStorageImage, descriptorInfo };
+    return {set, binding, 0, vk::DescriptorType::eStorageImage, descriptorInfo};
 }
-
-

@@ -21,7 +21,7 @@ Renderer2D::Renderer2D() {
             shaderStageCI,
     };
 
-    auto pipelines = resources.device.createGraphicsPipelines(VK_NULL_HANDLE, { particlePipelineCI});
+    auto pipelines = resources.device.createGraphicsPipelines(VK_NULL_HANDLE, {particlePipelineCI});
     if (pipelines.result != vk::Result::eSuccess)
         throw std::runtime_error("Pipeline creation failed");
 
@@ -29,7 +29,6 @@ Renderer2D::Renderer2D() {
 }
 
 Renderer2D::~Renderer2D() {
-
 }
 
 vk::CommandBuffer Renderer2D::run(const SimulationState &state) {
@@ -37,11 +36,9 @@ vk::CommandBuffer Renderer2D::run(const SimulationState &state) {
 }
 
 Renderer::Renderer() : renderer2D() {
-
 }
 
 Renderer::~Renderer() {
-
 }
 
 vk::CommandBuffer Renderer::run(const SimulationState &state) {

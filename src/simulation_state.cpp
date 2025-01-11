@@ -1,11 +1,11 @@
-#include <vector>
+#include "simulation_state.h"
+#include "debug_image.h"
+#include "render.h"
 #include <cstdint>
+#include <memory>
 #include <random>
 #include <stdexcept>
-#include <memory>
-#include "simulation_state.h"
-#include "render.h"
-#include "debug_image.h"
+#include <vector>
 
 std::vector<float> initUniform(SceneType sceneType, uint32_t numParticles, std::mt19937 &random) {
     std::vector<float> values;
@@ -14,7 +14,7 @@ std::vector<float> initUniform(SceneType sceneType, uint32_t numParticles, std::
         case SceneType::SPH_BOX_2D:
             values.resize(2 * numParticles);
             std::uniform_real_distribution<float> distribution(0.0f, 1.0f);
-            for (auto &v : values) {
+            for (auto &v: values) {
                 v = distribution(random);
             }
     }
@@ -47,9 +47,9 @@ SimulationState::SimulationState(const SimulationParameters &_parameters) : para
     }
     // Particles
     particleCoordinateBuffer = createDeviceLocalBuffer("buffer-particles", coordinateBufferSize, vk::BufferUsageFlagBits::eVertexBuffer);
-    particleVelocityBuffer = createDeviceLocalBuffer("buffer-velocities", velocityBufferSize); //just a storage buffer
+    particleVelocityBuffer = createDeviceLocalBuffer("buffer-velocities", velocityBufferSize);//just a storage buffer
     std::vector<float> coordinateValues;
-    std::vector<float> velocityValues(2 * parameters.numParticles, 0.0f); // initialize velocities to 0
+    std::vector<float> velocityValues(2 * parameters.numParticles, 0.0f);// initialize velocities to 0
 
     switch (parameters.initializationFunction) {
         case InitializationFunction::UNIFORM:
@@ -62,6 +62,6 @@ SimulationState::SimulationState(const SimulationParameters &_parameters) : para
     fillDeviceWithStagingBuffer(particleCoordinateBuffer, coordinateValues);
 
     // Spatial Lookup
-    spatialLookup = createDeviceLocalBuffer("spatialLookup", parameters.numParticles * sizeof (SpatialLookupEntry));
+    spatialLookup = createDeviceLocalBuffer("spatialLookup", parameters.numParticles * sizeof(SpatialLookupEntry));
     spatialIndices = createDeviceLocalBuffer("startIndices", parameters.numParticles * sizeof(uint32_t));
 }

@@ -1,16 +1,16 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
 #include <memory>
+#include <vulkan/vulkan.hpp>
 
-#include "simulation_state.h"
 #include "initialization.h"
+#include "simulation_state.h"
 
-#include "imgui_ui.h"
 #include "debug_image.h"
+#include "imgui_ui.h"
 #include "particle_physics.h"
-#include "spatial_lookup.h"
 #include "particle_renderer.h"
+#include "spatial_lookup.h"
 
 // handles interop of the 3 parts, also copies rendered image to swapchain image
 class Simulation {
@@ -45,6 +45,7 @@ private:
 
     vk::Semaphore initSemaphore();
     vk::CommandBuffer copy(uint32_t imageIndex);
+
 public:
     std::unique_ptr<ParticleSimulation> particleSimulation;
 };

@@ -1,7 +1,7 @@
-#include <iostream>
-#include <fstream>
 #include <cstring>
+#include <fstream>
 #include <functional>
+#include <iostream>
 #include <optional>
 
 #define VK_ENABLE_BETA_EXTENSIONS
@@ -28,18 +28,18 @@ const bool enableValidationLayers = false;
 const bool enableValidationLayers = true;
 #endif
 
-const std::vector<const char*> validationLayers = {
+const std::vector<const char *> validationLayers = {
 #ifndef NDEBUG
-    "VK_LAYER_KHRONOS_validation"
+        "VK_LAYER_KHRONOS_validation"
 #endif
 };
-const std::vector<const char*> staticInstanceExtensions = {
+const std::vector<const char *> staticInstanceExtensions = {
 #ifndef NDEBUG
-    VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
+        VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
 #endif
 };
 
-const std::vector<const char*> staticExtensionNames = {
+const std::vector<const char *> staticExtensionNames = {
 #ifndef NDEBUG
 
 #endif
@@ -53,7 +53,7 @@ void AppResources::destroy() {
     //this->device.destroyCommandPool(this->transferCommandPool);
     this->device.destroyCommandPool(this->graphicsCommandPool);
 
-    for (auto imageView : this->swapchainImageViews) {
+    for (auto imageView: this->swapchainImageViews) {
         this->device.destroyImageView(imageView);
     }
     this->swapchainImageViews.resize(0);
@@ -75,14 +75,14 @@ void AppResources::destroy() {
     glfwDestroyWindow(this->window);
 }
 
-void initApp(AppResources& app, bool withWindow, const std::string& name, int width, int height) {
+void initApp(AppResources &app, bool withWindow, const std::string &name, int width, int height) {
     app.window = nullptr;
     if (withWindow) {
         if (!glfwInit())
             throw std::runtime_error("GLFW initialization failed!");
         if (!glfwVulkanSupported())
             throw std::runtime_error(
-                "GLFW reports to have no Vulkan support! Maybe it couldn't find the Vulkan loader!");
+                    "GLFW reports to have no Vulkan support! Maybe it couldn't find the Vulkan loader!");
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
         app.window = glfwCreateWindow(width, height, name.c_str(), nullptr, nullptr);
@@ -111,8 +111,7 @@ void initApp(AppResources& app, bool withWindow, const std::string& name, int wi
     if (app.cQ != -1) {
         app.device.getQueue(app.cQ, 0U, &app.computeQueue);
         createCommandPool(app.device, app.computeCommandPool, app.cQ);
-    }
-    else {
+    } else {
         app.computeQueue = app.graphicsQueue;
         app.computeCommandPool = app.graphicsCommandPool;
     }
@@ -120,8 +119,7 @@ void initApp(AppResources& app, bool withWindow, const std::string& name, int wi
     if (app.tQ != -1) {
         app.device.getQueue(app.tQ, 0U, &app.transferQueue);
         createCommandPool(app.device, app.transferCommandPool, app.tQ);
-    }
-    else {
+    } else {
         app.transferQueue = app.graphicsQueue;
         app.transferCommandPool = app.graphicsCommandPool;
     }
@@ -141,8 +139,8 @@ void initApp(AppResources& app, bool withWindow, const std::string& name, int wi
 VKAPI_ATTR VkBool32 VKAPI_CALL
 debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                             VkDebugUtilsMessageTypeFlagsEXT messageTypes,
-                            VkDebugUtilsMessengerCallbackDataEXT const* pCallbackData,
-                            void* /*pUserData*/) {
+                            VkDebugUtilsMessengerCallbackDataEXT const *pCallbackData,
+                            void * /*pUserData*/) {
     if (enableValidationLayers) {
         if (pCallbackData->messageIdNumber == 648835635) {
             // UNASSIGNED-khronos-Validation-debug-build-warning-message
@@ -155,47 +153,47 @@ debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeveri
     }
 
     std::cerr << vk::to_string(static_cast<vk::DebugUtilsMessageSeverityFlagBitsEXT>(messageSeverity)) << ": "
-        << vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(messageTypes)) << ":\n";
+              << vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(messageTypes)) << ":\n";
     std::cerr << "\t"
-        << "messageIDName   = <" << pCallbackData->pMessageIdName << ">\n";
+              << "messageIDName   = <" << pCallbackData->pMessageIdName << ">\n";
     std::cerr << "\t"
-        << "messageIdNumber = " << pCallbackData->messageIdNumber << "\n";
+              << "messageIdNumber = " << pCallbackData->messageIdNumber << "\n";
     std::cerr << "\t"
-        << "message         = <" << pCallbackData->pMessage << ">\n";
+              << "message         = <" << pCallbackData->pMessage << ">\n";
     if (0 < pCallbackData->queueLabelCount) {
         std::cerr << "\t"
-            << "Queue Labels:\n";
+                  << "Queue Labels:\n";
         for (uint8_t i = 0; i < pCallbackData->queueLabelCount; i++) {
             std::cerr << "\t\t"
-                << "labelName = <" << pCallbackData->pQueueLabels[i].pLabelName << ">\n";
+                      << "labelName = <" << pCallbackData->pQueueLabels[i].pLabelName << ">\n";
         }
     }
     if (0 < pCallbackData->cmdBufLabelCount) {
         std::cerr << "\t"
-            << "CommandBuffer Labels:\n";
+                  << "CommandBuffer Labels:\n";
         for (uint8_t i = 0; i < pCallbackData->cmdBufLabelCount; i++) {
             std::cerr << "\t\t"
-                << "labelName = <" << pCallbackData->pCmdBufLabels[i].pLabelName << ">\n";
+                      << "labelName = <" << pCallbackData->pCmdBufLabels[i].pLabelName << ">\n";
         }
     }
     if (0 < pCallbackData->objectCount) {
         std::cerr << "\t"
-            << "Objects:\n";
+                  << "Objects:\n";
         for (uint8_t i = 0; i < pCallbackData->objectCount; i++) {
             std::cerr << "\t\t"
-                << "Object " << i << "\n";
+                      << "Object " << i << "\n";
             std::cerr << "\t\t\t"
-                << "objectType   = "
-                << vk::to_string(static_cast<vk::ObjectType>(pCallbackData->pObjects[i].objectType)) << "\n";
+                      << "objectType   = "
+                      << vk::to_string(static_cast<vk::ObjectType>(pCallbackData->pObjects[i].objectType)) << "\n";
             std::cerr << "\t\t\t"
-                << "objectHandle = " << pCallbackData->pObjects[i].objectHandle << "\n";
+                      << "objectHandle = " << pCallbackData->pObjects[i].objectHandle << "\n";
             if (pCallbackData->pObjects[i].pObjectName) {
                 std::cerr << "\t\t\t"
-                    << "objectName   = <" << pCallbackData->pObjects[i].pObjectName << ">\n";
+                          << "objectName   = <" << pCallbackData->pObjects[i].pObjectName << ">\n";
             }
         }
     }
-    std::cout<<std::endl;
+    std::cout << std::endl;
     return VK_TRUE;
 }
 
@@ -204,14 +202,13 @@ debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeveri
     which error messages should go through
 */
 vk::DebugUtilsMessengerCreateInfoEXT makeDebugUtilsMessengerCreateInfoEXT() {
-    using SEVERITY = vk::DebugUtilsMessageSeverityFlagBitsEXT; // for readability
+    using SEVERITY = vk::DebugUtilsMessageSeverityFlagBitsEXT;// for readability
     using MESSAGE = vk::DebugUtilsMessageTypeFlagBitsEXT;
     return {
-        {},
-        SEVERITY::eWarning | SEVERITY::eError,
-        MESSAGE::eGeneral | MESSAGE::ePerformance | MESSAGE::eValidation,
-        &debugUtilsMessengerCallback
-    };
+            {},
+            SEVERITY::eWarning | SEVERITY::eError,
+            MESSAGE::eGeneral | MESSAGE::ePerformance | MESSAGE::eValidation,
+            &debugUtilsMessengerCallback};
 }
 
 /*
@@ -221,28 +218,28 @@ vk::DebugUtilsMessengerCreateInfoEXT makeDebugUtilsMessengerCreateInfoEXT() {
 void initDynamicLoader() {
     static vk::DynamicLoader dl;
     static PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr = dl.getProcAddress<PFN_vkGetInstanceProcAddr>(
-        "vkGetInstanceProcAddr");
+            "vkGetInstanceProcAddr");
     VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
 }
 
-void createInstance(vk::Instance& instance, vk::DebugUtilsMessengerEXT& debugUtilsMessenger,
+void createInstance(vk::Instance &instance, vk::DebugUtilsMessengerEXT &debugUtilsMessenger,
                     std::string appName, std::string engineName, bool withWindow) {
     initDynamicLoader();
     vk::ApplicationInfo applicationInfo(appName.c_str(), 1, engineName.c_str(), 1, VK_API_VERSION_1_2);
 
-    std::vector<const char*> instanceExtensions(staticInstanceExtensions);
+    std::vector<const char *> instanceExtensions(staticInstanceExtensions);
     if (withWindow) {
         // GLFW gives us the platform specific extensions for surface handling
         uint32_t count;
-        const char** extensions = glfwGetRequiredInstanceExtensions(&count);
+        const char **extensions = glfwGetRequiredInstanceExtensions(&count);
         instanceExtensions.insert(instanceExtensions.end(), extensions, extensions + count);
     }
 
     // ### initialize the InstanceCreateInfo ###
-    vk::InstanceCreateInfo instanceCreateInfo( //flags, pAppInfo, layerCount, layerNames, extcount, extNames
-        {}, &applicationInfo,
-        static_cast<uint32_t>(validationLayers.size()), validationLayers.data(),
-        static_cast<uint32_t>(instanceExtensions.size()), instanceExtensions.data());
+    vk::InstanceCreateInfo instanceCreateInfo(//flags, pAppInfo, layerCount, layerNames, extcount, extNames
+            {}, &applicationInfo,
+            static_cast<uint32_t>(validationLayers.size()), validationLayers.data(),
+            static_cast<uint32_t>(instanceExtensions.size()), instanceExtensions.data());
 
     // ### DebugInfo: use of StructureChain instead of pNext ###
     // DebugUtils is used to catch errors from the instance
@@ -250,9 +247,9 @@ void createInstance(vk::Instance& instance, vk::DebugUtilsMessengerEXT& debugUti
     // the StructureChain fills the pNext member of the struct in a typesafe way
     // this is only possible with vulkan-hpp, in plain vulkan there is no typechecking
     vk::StructureChain<vk::InstanceCreateInfo, vk::DebugUtilsMessengerCreateInfoEXT> chain =
-        {instanceCreateInfo, debugCreateInfo};
+            {instanceCreateInfo, debugCreateInfo};
 
-    if (!enableValidationLayers) // for Release mode
+    if (!enableValidationLayers)// for Release mode
         chain.unlink<vk::DebugUtilsMessengerCreateInfoEXT>();
 
     // create an Instance
@@ -266,7 +263,7 @@ void createInstance(vk::Instance& instance, vk::DebugUtilsMessengerEXT& debugUti
 }
 
 
-std::tuple<uint32_t, uint32_t, uint32_t> getGCTQueues(vk::PhysicalDevice& pDevice) {
+std::tuple<uint32_t, uint32_t, uint32_t> getGCTQueues(vk::PhysicalDevice &pDevice) {
     uint32_t gq = -1;
     uint32_t cq = -1;
     uint32_t ocq = -1;
@@ -275,11 +272,11 @@ std::tuple<uint32_t, uint32_t, uint32_t> getGCTQueues(vk::PhysicalDevice& pDevic
     using Chain = vk::StructureChain<vk::QueueFamilyProperties2, vk::QueueFamilyCheckpointPropertiesNV>;
     using QFB = vk::QueueFlagBits;
     auto queueFamilyProperties2 = pDevice.getQueueFamilyProperties2<
-        Chain, std::allocator<Chain>, vk::DispatchLoaderDynamic>();
+            Chain, std::allocator<Chain>, vk::DispatchLoaderDynamic>();
 
     for (uint32_t j = 0; j < queueFamilyProperties2.size(); j++) {
-        vk::QueueFamilyProperties const& properties =
-            queueFamilyProperties2[static_cast<size_t>(j)].get<vk::QueueFamilyProperties2>().queueFamilyProperties;
+        vk::QueueFamilyProperties const &properties =
+                queueFamilyProperties2[static_cast<size_t>(j)].get<vk::QueueFamilyProperties2>().queueFamilyProperties;
 
         if (properties.queueFlags & QFB::eGraphics)
             if (gq == -1) gq = j;
@@ -291,7 +288,7 @@ std::tuple<uint32_t, uint32_t, uint32_t> getGCTQueues(vk::PhysicalDevice& pDevic
 
         if (properties.queueFlags & QFB::eTransfer)
             if (otq == -1 && !(properties.queueFlags & QFB::eCompute || properties.queueFlags & QFB::eGraphics)) otq =
-                j;
+                                                                                                                         j;
     }
 
     if (ocq == -1) ocq = cq;
@@ -299,22 +296,22 @@ std::tuple<uint32_t, uint32_t, uint32_t> getGCTQueues(vk::PhysicalDevice& pDevic
     return std::tuple<uint32_t, uint32_t, uint32_t>(gq, ocq, otq);
 }
 
-void selectPhysicalDevice(vk::Instance& instance, vk::PhysicalDevice& pDevice) {
+void selectPhysicalDevice(vk::Instance &instance, vk::PhysicalDevice &pDevice) {
     // takes the first one
     // Get list of Physical Devices
     // Enumerate Physical devices the vkInstance can access
     std::vector<vk::PhysicalDevice> physDs = instance.enumeratePhysicalDevices();
 
-    const static char* cache_name = "device_selection_cache";
-    const static char* recreation_message =
-        "To select a new device, delete the file \"device_selection_cache\" in your working directory before executing the framework.";
+    const static char *cache_name = "device_selection_cache";
+    const static char *recreation_message =
+            "To select a new device, delete the file \"device_selection_cache\" in your working directory before executing the framework.";
 
     std::ifstream ifile(cache_name, std::ios::binary);
     if (ifile.is_open()) {
         DeviceSelectionCache cache;
-        ifile.read(reinterpret_cast<char*>(&cache), sizeof(cache));
+        ifile.read(reinterpret_cast<char *>(&cache), sizeof(cache));
         ifile.close();
-        for (auto physD : physDs) {
+        for (auto physD: physDs) {
             auto props = physD.getProperties2().properties;
             if (props.vendorID == cache.vendorID && props.deviceID == cache.deviceID) {
                 std::cout << "Selecting previously selected device: \"" << props.deviceName << "\"" << std::endl;
@@ -324,8 +321,7 @@ void selectPhysicalDevice(vk::Instance& instance, vk::PhysicalDevice& pDevice) {
             }
         }
         std::cout << "Previously selected device was not found." << std::endl;
-    }
-    else {
+    } else {
         std::cout << "No previous device selection found." << std::endl;
     }
 
@@ -349,16 +345,16 @@ void selectPhysicalDevice(vk::Instance& instance, vk::PhysicalDevice& pDevice) {
     cache.deviceID = props.deviceID;
 
     std::ofstream ofile(cache_name, std::ios::out | std::ios::binary);
-    ofile.write(reinterpret_cast<const char*>(&cache), sizeof(cache));
+    ofile.write(reinterpret_cast<const char *>(&cache), sizeof(cache));
     ofile.close();
     std::cout << "Selected device: \"" << props.deviceName.data() << "\"" << std::endl
-        << "This device will be automatically selected in the future." << std::endl
-        << recreation_message << std::endl;
+              << "This device will be automatically selected in the future." << std::endl
+              << recreation_message << std::endl;
 
     pDevice = physDs[i];
 }
 
-static std::vector<const char*> requiredDeviceExtensionNames(bool withWindow) {
+static std::vector<const char *> requiredDeviceExtensionNames(bool withWindow) {
     std::vector extensionNames(staticExtensionNames);
 
     // Add VK_KHR_SWAPCHAIN extension if we want to create a window
@@ -372,7 +368,7 @@ static std::vector<const char*> requiredDeviceExtensionNames(bool withWindow) {
 /*
     The logical device holds the queues and will be used in almost every call from now on
 */
-void createLogicalDevice(vk::Instance& instance, vk::PhysicalDevice& pDevice, vk::Device& device, bool withWindow) {
+void createLogicalDevice(vk::Instance &instance, vk::PhysicalDevice &pDevice, vk::Device &device, bool withWindow) {
     //first get the queues
     uint32_t gQ, ocQ, otQ;
     std::tie(gQ, ocQ, otQ) = getGCTQueues(pDevice);
@@ -397,7 +393,7 @@ void createLogicalDevice(vk::Instance& instance, vk::PhysicalDevice& pDevice, vk
 
     // Add VK_KHR_PORTABILITY_SUBSET extension if the device supports it
     auto deviceExtensionProperties = pDevice.enumerateDeviceExtensionProperties();
-    for (auto ext : deviceExtensionProperties) {
+    for (auto ext: deviceExtensionProperties) {
         if (strcmp(ext.extensionName.data(), VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME) == 0) {
             extensionNames.push_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
             break;
@@ -419,8 +415,7 @@ void createLogicalDevice(vk::Instance& instance, vk::PhysicalDevice& pDevice, vk
             validationLayers,
             extensionNames,
             &deviceFeatures,
-            &timelineFeatures
-    );
+            &timelineFeatures);
 
     device = pDevice.createDevice(dci);
     VULKAN_HPP_DEFAULT_DISPATCHER.init(device);
@@ -428,76 +423,76 @@ void createLogicalDevice(vk::Instance& instance, vk::PhysicalDevice& pDevice, vk
     setObjectName(device, device, "This is my lovely device !");
 }
 
-void createCommandPool(vk::Device& device, vk::CommandPool& commandPool, uint32_t queueIndex) {
+void createCommandPool(vk::Device &device, vk::CommandPool &commandPool, uint32_t queueIndex) {
     vk::CommandPoolCreateInfo cpi({vk::CommandPoolCreateFlagBits::eResetCommandBuffer}, queueIndex);
     commandPool = device.createCommandPool(cpi);
 }
 
-void destroyInstance(vk::Instance& instance, vk::DebugUtilsMessengerEXT& debugUtilsMessenger) {
+void destroyInstance(vk::Instance &instance, vk::DebugUtilsMessengerEXT &debugUtilsMessenger) {
 #ifndef NDEBUG
     instance.destroyDebugUtilsMessengerEXT(debugUtilsMessenger);
 #endif
     instance.destroy();
 }
 
-void destroyLogicalDevice(vk::Device& device) {
+void destroyLogicalDevice(vk::Device &device) {
     device.destroy();
 }
 
-void destroyCommandPool(vk::Device& device, vk::CommandPool& commandPool) {
+void destroyCommandPool(vk::Device &device, vk::CommandPool &commandPool) {
     device.destroyCommandPool(commandPool);
     commandPool = vk::CommandPool();
 }
 
-void showAvailableQueues(vk::PhysicalDevice& pDevice, bool diagExt) {
+void showAvailableQueues(vk::PhysicalDevice &pDevice, bool diagExt) {
     using Chain = vk::StructureChain<vk::QueueFamilyProperties2, vk::QueueFamilyCheckpointPropertiesNV>;
     auto queueFamilyProperties2 = pDevice.getQueueFamilyProperties2<
-        Chain, std::allocator<Chain>, vk::DispatchLoaderDynamic>();
+            Chain, std::allocator<Chain>, vk::DispatchLoaderDynamic>();
 
     for (size_t j = 0; j < queueFamilyProperties2.size(); j++) {
         std::cout << "\t"
-            << "QueueFamily " << j << "\n";
-        vk::QueueFamilyProperties const& properties =
-            queueFamilyProperties2[j].get<vk::QueueFamilyProperties2>().queueFamilyProperties;
+                  << "QueueFamily " << j << "\n";
+        vk::QueueFamilyProperties const &properties =
+                queueFamilyProperties2[j].get<vk::QueueFamilyProperties2>().queueFamilyProperties;
         std::cout << "\t\t"
-            << "QueueFamilyProperties:\n";
+                  << "QueueFamilyProperties:\n";
         std::cout << "\t\t\t"
-            << "queueFlags                  = " << vk::to_string(properties.queueFlags) << "\n";
+                  << "queueFlags                  = " << vk::to_string(properties.queueFlags) << "\n";
         std::cout << "\t\t\t"
-            << "queueCount                  = " << properties.queueCount << "\n";
+                  << "queueCount                  = " << properties.queueCount << "\n";
         std::cout << "\t\t\t"
-            << "timestampValidBits          = " << properties.timestampValidBits << "\n";
+                  << "timestampValidBits          = " << properties.timestampValidBits << "\n";
         std::cout << "\t\t\t"
-            << "minImageTransferGranularity = " << properties.minImageTransferGranularity.width << " x "
-            << properties.minImageTransferGranularity.height << " x "
-            << properties.minImageTransferGranularity.depth << "\n";
+                  << "minImageTransferGranularity = " << properties.minImageTransferGranularity.width << " x "
+                  << properties.minImageTransferGranularity.height << " x "
+                  << properties.minImageTransferGranularity.depth << "\n";
         std::cout << "\n";
 
         if (diagExt) {
-            vk::QueueFamilyCheckpointPropertiesNV const& checkpointProperties =
-                queueFamilyProperties2[j].get<vk::QueueFamilyCheckpointPropertiesNV>();
+            vk::QueueFamilyCheckpointPropertiesNV const &checkpointProperties =
+                    queueFamilyProperties2[j].get<vk::QueueFamilyCheckpointPropertiesNV>();
             std::cout << "\t\t"
-                << "CheckPointPropertiesNV:\n";
+                      << "CheckPointPropertiesNV:\n";
             std::cout << "\t\t\t"
-                << "checkpointExecutionStageMask  = "
-                << vk::to_string(checkpointProperties.checkpointExecutionStageMask) << "\n";
+                      << "checkpointExecutionStageMask  = "
+                      << vk::to_string(checkpointProperties.checkpointExecutionStageMask) << "\n";
             std::cout << "\n";
         }
     }
 }
 
-void createTimestampQueryPool(vk::Device& device, vk::QueryPool& queryPool, uint32_t queryCount) {
+void createTimestampQueryPool(vk::Device &device, vk::QueryPool &queryPool, uint32_t queryCount) {
     vk::QueryPoolCreateInfo createInfo({}, vk::QueryType::eTimestamp, queryCount);
     queryPool = device.createQueryPool(createInfo);
 }
 
-void destroyQueryPool(vk::Device& device, vk::QueryPool& queryPool) {
+void destroyQueryPool(vk::Device &device, vk::QueryPool &queryPool) {
     device.destroyQueryPool(queryPool);
     queryPool = vk::QueryPool();
 }
 
 
-void createSwapchain(AppResources& app) {
+void createSwapchain(AppResources &app) {
     // -- CAPABILITIES --
     // Get the surface capabilities for the given surface on the given physical device
     auto capabilities = app.pDevice.getSurfaceCapabilitiesKHR(app.surface);
@@ -512,9 +507,9 @@ void createSwapchain(AppResources& app) {
         throw std::runtime_error("Surface doesn't support any present modes!");
 
     vk::SurfaceFormatKHR selectedSurfaceFormat = surfaceFormats[0];
-    for (const auto& surfaceFormat : surfaceFormats) {
+    for (const auto &surfaceFormat: surfaceFormats) {
         if (surfaceFormat.format == vk::Format::eR8G8B8A8Srgb && surfaceFormat.colorSpace ==
-            vk::ColorSpaceKHR::eSrgbNonlinear) {
+                                                                         vk::ColorSpaceKHR::eSrgbNonlinear) {
             selectedSurfaceFormat = surfaceFormat;
             break;
         }
@@ -526,7 +521,7 @@ void createSwapchain(AppResources& app) {
 
     vk::PresentModeKHR selectedPresentMode = presentModes[0];
     // Look for Immediate presentation mode
-    for (const auto& presentMode : presentModes) {
+    for (const auto &presentMode: presentModes) {
         if (presentMode == vk::PresentModeKHR::eImmediate) {
             selectedPresentMode = presentMode;
             break;
@@ -538,8 +533,7 @@ void createSwapchain(AppResources& app) {
     if (capabilities.currentExtent.width != UINT32_MAX) {
         selectedExtent.width = capabilities.currentExtent.width;
         selectedExtent.height = capabilities.currentExtent.height;
-    }
-    else {
+    } else {
         // If value can vary, need to set manually
 
         // Get window size
@@ -547,7 +541,7 @@ void createSwapchain(AppResources& app) {
         glfwGetFramebufferSize(app.window, &width, &height);
 
         // Create new extent using window size
-        selectedExtent = {(uint32_t)width, (uint32_t)height};
+        selectedExtent = {(uint32_t) width, (uint32_t) height};
 
         // Surface also defines max and min, so make sure within boundaries by clamping value
         selectedExtent.width = std::clamp(selectedExtent.width, capabilities.minImageExtent.width,
@@ -565,53 +559,47 @@ void createSwapchain(AppResources& app) {
 
     // Creation information for swap chain
     vk::SwapchainCreateInfoKHR createInfo(
-        vk::SwapchainCreateFlagBitsKHR(),
-        app.surface, // Swapchain surface
-        selectedImageCount, // Minimum images in swapchain
-        selectedSurfaceFormat.format, // Swapchain format
-        selectedSurfaceFormat.colorSpace, // Swapchain colour space
-        selectedExtent, // Swapchain image extents
-        1, // Number of layers for each image in chain
-        vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst, // What attachment images will be used as
-        vk::SharingMode::eExclusive,
-        0,
-        nullptr,
-        vk::SurfaceTransformFlagBitsKHR::eIdentity, // Transform to perform on swap chain images
-        vk::CompositeAlphaFlagBitsKHR::eOpaque,
-        // How to handle blending images with external graphics (e.g. other windows)
-        selectedPresentMode, // Swapchain presentation mode
-        false,
-        VK_NULL_HANDLE
-    );
+            vk::SwapchainCreateFlagBitsKHR(),
+            app.surface,                                                                    // Swapchain surface
+            selectedImageCount,                                                             // Minimum images in swapchain
+            selectedSurfaceFormat.format,                                                   // Swapchain format
+            selectedSurfaceFormat.colorSpace,                                               // Swapchain colour space
+            selectedExtent,                                                                 // Swapchain image extents
+            1,                                                                              // Number of layers for each image in chain
+            vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst,// What attachment images will be used as
+            vk::SharingMode::eExclusive,
+            0,
+            nullptr,
+            vk::SurfaceTransformFlagBitsKHR::eIdentity,// Transform to perform on swap chain images
+            vk::CompositeAlphaFlagBitsKHR::eOpaque,
+            // How to handle blending images with external graphics (e.g. other windows)
+            selectedPresentMode,// Swapchain presentation mode
+            false,
+            VK_NULL_HANDLE);
 
     app.swapchain = app.device.createSwapchainKHR(createInfo, nullptr);
     // Get swap chain images (first count, then values)
     app.swapchainImages = app.device.getSwapchainImagesKHR(app.swapchain);
 
     app.swapchainImageViews.resize(0);
-    for (auto image : app.swapchainImages) {
+    for (auto image: app.swapchainImages) {
         vk::ImageViewCreateInfo createInfo(
-            vk::ImageViewCreateFlagBits(),
-            image,
-            vk::ImageViewType::e2D,
-            selectedSurfaceFormat.format,
-            {
-                vk::ComponentSwizzle::eIdentity,
-                vk::ComponentSwizzle::eIdentity,
-                vk::ComponentSwizzle::eIdentity,
-                vk::ComponentSwizzle::eIdentity
-            },
-            {
-                vk::ImageAspectFlagBits::eColor,
-                0, 1, 0, 1
-            }
-        );
+                vk::ImageViewCreateFlagBits(),
+                image,
+                vk::ImageViewType::e2D,
+                selectedSurfaceFormat.format,
+                {vk::ComponentSwizzle::eIdentity,
+                 vk::ComponentSwizzle::eIdentity,
+                 vk::ComponentSwizzle::eIdentity,
+                 vk::ComponentSwizzle::eIdentity},
+                {vk::ImageAspectFlagBits::eColor,
+                 0, 1, 0, 1});
 
         app.swapchainImageViews.push_back(app.device.createImageView(createInfo));
     }
 }
 
-void printDeviceCapabilities(vk::PhysicalDevice& pDevice) {
+void printDeviceCapabilities(vk::PhysicalDevice &pDevice) {
     //vk::PhysicalDeviceFeatures features = physicalDevice.getFeatures();
     std::vector<vk::ExtensionProperties> ext = pDevice.enumerateDeviceExtensionProperties();
     std::vector<vk::LayerProperties> layers = pDevice.enumerateDeviceLayerProperties();
@@ -620,18 +608,18 @@ void printDeviceCapabilities(vk::PhysicalDevice& pDevice) {
     vk::PhysicalDeviceType dt = properties.deviceType;
 
     std::cout << "====================" << std::endl
-        << "Device Name: " << properties.deviceName << std::endl
-        << "Device ID: " << properties.deviceID << std::endl
-        << "Device Type: " << vk::to_string(properties.deviceType) << std::endl
-        << "Driver Version: " << properties.driverVersion << std::endl
-        << "API Version: " << properties.apiVersion << std::endl
-        << "====================" << std::endl
-        << std::endl;
+              << "Device Name: " << properties.deviceName << std::endl
+              << "Device ID: " << properties.deviceID << std::endl
+              << "Device Type: " << vk::to_string(properties.deviceType) << std::endl
+              << "Driver Version: " << properties.driverVersion << std::endl
+              << "API Version: " << properties.apiVersion << std::endl
+              << "====================" << std::endl
+              << std::endl;
 
     bool budgetExt = false;
     bool diagExt = false;
     std::cout << "This device supports the following extensions (" << ext.size() << "): " << std::endl;
-    for (vk::ExtensionProperties e : ext) {
+    for (vk::ExtensionProperties e: ext) {
         std::cout << std::string(e.extensionName.data()) << std::endl;
         if (std::string(e.extensionName.data()) == VK_EXT_MEMORY_BUDGET_EXTENSION_NAME)
             budgetExt = true;
@@ -639,10 +627,9 @@ void printDeviceCapabilities(vk::PhysicalDevice& pDevice) {
             diagExt = true;
     }
 
-    std::cout << "This device supports the following memory types (" << memoryProperties.memoryTypeCount << "): " <<
-        std::endl;
+    std::cout << "This device supports the following memory types (" << memoryProperties.memoryTypeCount << "): " << std::endl;
     uint32_t c = 0U;
-    for (vk::MemoryType e : memoryProperties.memoryTypes) {
+    for (vk::MemoryType e: memoryProperties.memoryTypes) {
         if (c > memoryProperties.memoryTypeCount)
             break;
 
@@ -651,12 +638,12 @@ void printDeviceCapabilities(vk::PhysicalDevice& pDevice) {
         c++;
     }
     std::cout << "====================" << std::endl
-        << std::endl;
+              << std::endl;
 
     if (budgetExt) {
         std::cout << "This device has the following heaps (" << memoryProperties.memoryHeapCount << "): " << std::endl;
         c = 0U;
-        for (vk::MemoryHeap e : memoryProperties.memoryHeaps) {
+        for (vk::MemoryHeap e: memoryProperties.memoryHeaps) {
             if (c > memoryProperties.memoryHeapCount)
                 break;
 
@@ -667,12 +654,12 @@ void printDeviceCapabilities(vk::PhysicalDevice& pDevice) {
     }
 
     std::cout << "====================" << std::endl
-        << std::endl
-        << "This device has the following layers (" << layers.size() << "): " << std::endl;
-    for (vk::LayerProperties l : layers)
+              << std::endl
+              << "This device has the following layers (" << layers.size() << "): " << std::endl;
+    for (vk::LayerProperties l: layers)
         std::cout << std::string(l.layerName.data()) << "\t : " << std::string(l.description.data()) << std::endl;
     std::cout << "====================" << std::endl
-        << std::endl;
+              << std::endl;
 
     showAvailableQueues(pDevice, diagExt);
 }

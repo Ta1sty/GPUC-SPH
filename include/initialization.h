@@ -1,12 +1,12 @@
 #pragma once
 
-#include "utils.h"
-#include <vulkan/vulkan.hpp>
-#include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
-#include <cstring>
-#include <memory>
 #include "task_common.h"
+#include "utils.h"
+#include <GLFW/glfw3.h>
+#include <cstring>
+#include <glm/glm.hpp>
+#include <memory>
+#include <vulkan/vulkan.hpp>
 
 VKAPI_ATTR VkBool32 VKAPI_CALL
 debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -32,4 +32,4 @@ void createSwapchain(AppResources &app);
 
 void printDeviceCapabilities(vk::PhysicalDevice &pDevice);
 
-void initApp(AppResources &app, bool withWindow = false, const std::string& name = "GPGPU/GPU-C", int width = 800, int height = 600);
+void initApp(AppResources &app, bool withWindow = false, const std::string &name = "GPGPU/GPU-C", int width = 800, int height = 600);

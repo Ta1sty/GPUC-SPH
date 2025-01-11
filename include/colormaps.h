@@ -10,4 +10,4 @@ struct RGB_F32 {
 
 extern std::vector<RGB_F32> viridis;
 
-} // namespace colormaps
+}// namespace colormaps
