@@ -34,10 +34,6 @@ public:
     explicit SimulationState(const SimulationParameters &parameters, std::shared_ptr<Camera> camera);
     ~SimulationState();
 
-    [[nodiscard]] SimulationParameters getParameters() const { return parameters; }
-    [[nodiscard]] uint32_t getCoordinateBufferSize() const { return coordinateBufferSize; }
-    [[nodiscard]] const vk::Buffer &getParticleCoordinateBuffer() const { return particleCoordinateBuffer.buf; }
-
     SimulationTime time;
     Buffer particleCoordinateBuffer;
     Buffer particleVelocityBuffer;
@@ -53,8 +49,6 @@ public:
     Buffer spatialLookup;
     Buffer spatialIndices;
 
-    uint32_t coordinateBufferSize = 0;
-    uint32_t velocityBufferSize = 0;
     std::mt19937 random;
     bool paused = false;
     bool step = false;

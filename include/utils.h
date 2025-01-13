@@ -40,14 +40,47 @@ struct AppResources;
 extern AppResources &resources;
 
 #define CAST(a) static_cast<uint32_t>(a.size())
+
 struct Buffer {
+    Buffer(Buffer &other) = delete;            // copy disabled
+    Buffer &operator=(const Buffer &) = delete;// Copy assignment disabled
+
+    Buffer() : buf(nullptr), mem(nullptr) {}
+    Buffer(vk::Buffer buf, vk::DeviceMemory mem) : buf(buf), mem(mem) {}
+
+    Buffer(Buffer &&other) noexcept : buf(other.buf), mem(other.mem) {
+        other.buf = nullptr;
+        other.mem = nullptr;
+    }
+
+    Buffer &operator=(Buffer &&other) noexcept// move is allowed
+    {
+        if (this != &other) {
+            // Clean up existing resources
+            if (buf != nullptr) {
+                resources.device.destroyBuffer(buf);
+            }
+            if (mem != nullptr) {
+                resources.device.freeMemory(mem);
+            }
+            buf = other.buf;
+            mem = other.mem;
+            other.buf = nullptr;
+            other.mem = nullptr;
+        }
+        return *this;
+    }
+
     vk::Buffer buf;
     vk::DeviceMemory mem;
 
-public:
-    void cleanup() {
-        resources.device.destroyBuffer(buf);
-        resources.device.freeMemory(mem);
+    ~Buffer() {
+        if (nullptr != buf) {
+            resources.device.destroyBuffer(buf);
+        }
+        if (nullptr != mem) {
+            resources.device.freeMemory(mem);
+        }
     }
 };
 
@@ -60,13 +93,14 @@ void copyBufferToImage(vk::Device &device, vk::CommandPool &pool, vk::Queue &que
 
 Buffer createDeviceLocalBuffer(const std::string &name, vk::DeviceSize size, vk::BufferUsageFlags additionalUsageBits = {});
 
-void createBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
-                  const vk::DeviceSize &size, vk::BufferUsageFlags usage,
-                  vk::MemoryPropertyFlags properties, std::string name, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory);
+Buffer createBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
+                    const vk::DeviceSize &size, vk::BufferUsageFlags usage,
+                    vk::MemoryPropertyFlags properties, std::string name);
+
 void createImage(vk::PhysicalDevice &pDevice, vk::Device &device, vk::ImageCreateInfo createInfo, vk::MemoryPropertyFlags properties,
                  std::string name, vk::Image &image, vk::DeviceMemory &imageMemory);
 void copyBuffer(vk::Device &device, vk::Queue &q, vk::CommandPool &commandPool,
-                const vk::Buffer &srcBuffer, vk::Buffer &dstBuffer, vk::DeviceSize byteSize);
+                const vk::Buffer &srcBuffer, const vk::Buffer &dstBuffer, vk::DeviceSize byteSize);
 
 vk::CommandBuffer beginSingleTimeCommands(vk::Device &device, vk::CommandPool &commandPool);
 void endSingleTimeCommands(vk::Device &device, vk::Queue &q,
@@ -97,17 +131,14 @@ void fillImageWithStagingBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
                                 vk::CommandPool &commandPool, vk::Queue &q,
                                 vk::Image &image, vk::ImageLayout targetLayout, const vk::Extent3D &extent,
                                 const std::vector<T> &data) {
-    vk::Buffer staging;
-    vk::DeviceMemory mem;
     vk::DeviceSize byteSize = data.size() * sizeof(T);
 
     vk::ImageSubresourceRange subresourceRange {{vk::ImageAspectFlagBits::eColor}, 0, 1, 0, 1};
 
-    createBuffer(pDevice, device, byteSize, vk::BufferUsageFlagBits::eTransferSrc,
-                 vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible, "staging",
-                 staging, mem);
+    auto staging = createBuffer(pDevice, device, byteSize, vk::BufferUsageFlagBits::eTransferSrc,
+                                vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible, "staging");
     // V host -> staging V
-    fillDeviceBuffer<T>(device, mem, data);
+    fillDeviceBuffer<T>(device, staging.mem, data);
     auto cb = beginSingleTimeCommands(device, commandPool);
 
     vk::ImageMemoryBarrier toTransferLayout {
@@ -129,7 +160,7 @@ void fillImageWithStagingBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
             {{vk::ImageAspectFlagBits::eColor}, 0, 0, 1},
             {0, 0, 0},
             extent};
-    cb.copyBufferToImage(staging, image, vk::ImageLayout::eTransferDstOptimal, 1, &bufferImageCopy);
+    cb.copyBufferToImage(staging.buf, image, vk::ImageLayout::eTransferDstOptimal, 1, &bufferImageCopy);
 
     vk::ImageMemoryBarrier toTargetLayout {
             {},
@@ -144,9 +175,6 @@ void fillImageWithStagingBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
                        nullptr, 1, &toTargetLayout);
 
     endSingleTimeCommands(device, q, commandPool, cb);
-
-    device.destroyBuffer(staging);
-    device.freeMemory(mem);
 }
 
 template<typename T>
@@ -166,19 +194,15 @@ void fillDeviceWithStagingBuffer(vk::PhysicalDevice &pDevice, vk::Device &device
                                  Buffer &b, const std::vector<T> &data) {
     // Buffer b requires the eTransferSrc bit
     // data (host) -> staging (device) -> Buffer b (device)
-    vk::Buffer staging;
-    vk::DeviceMemory mem;
+
     vk::DeviceSize byteSize = data.size() * sizeof(T);
 
-    createBuffer(pDevice, device, byteSize, vk::BufferUsageFlagBits::eTransferSrc,
-                 vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible, "staging",
-                 staging, mem);
+    auto staging = createBuffer(pDevice, device, byteSize, vk::BufferUsageFlagBits::eTransferSrc,
+                                vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible, "staging");
     // V host -> staging V
-    fillDeviceBuffer<T>(device, mem, data);
+    fillDeviceBuffer<T>(device, staging.mem, data);
     // V staging -> buffer V
-    copyBuffer(device, q, commandPool, staging, b.buf, byteSize);
-    device.destroyBuffer(staging);
-    device.freeMemory(mem);
+    copyBuffer(device, q, commandPool, staging.buf, b.buf, byteSize);
 }
 template<typename T>
 void fillDeviceWithStagingBuffer(Buffer &b, const std::vector<T> &data) {
@@ -191,20 +215,14 @@ void fillHostWithStagingBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
                                const Buffer &b, std::vector<T> &data) {
     // Buffer b requires the eTransferDst bit
     // Buffer b (device) -> staging (device) -> data (host)
-    vk::Buffer staging;
-    vk::DeviceMemory mem;
     vk::DeviceSize byteSize = data.size() * sizeof(T);
 
-    createBuffer(pDevice, device, byteSize, vk::BufferUsageFlagBits::eTransferDst,
-                 vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible, "staging",
-                 staging, mem);
+    auto staging = createBuffer(pDevice, device, byteSize, vk::BufferUsageFlagBits::eTransferDst,
+                                vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible, "staging");
     // V buffer -> staging V
-    copyBuffer(device, q, commandPool, b.buf, staging, byteSize);
+    copyBuffer(device, q, commandPool, b.buf, staging.buf, byteSize);
     // V staging -> host V
-    fillHostBuffer<T>(device, mem, data);
-
-    device.destroyBuffer(staging);
-    device.freeMemory(mem);
+    fillHostBuffer<T>(device, staging.mem, data);
 }
 
 template<typename T>

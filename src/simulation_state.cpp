@@ -43,15 +43,15 @@ SimulationState::SimulationState(const SimulationParameters &_parameters, std::s
     debugImageSort = std::make_unique<DebugImage>("debug-image-sort");
     debugImageRenderer = std::make_unique<DebugImage>("debug-image-render");
 
+    vk::DeviceSize coordinateBufferSize;
     switch (parameters.type) {
         case SceneType::SPH_BOX_2D:
             coordinateBufferSize = sizeof(glm::vec2) * parameters.numParticles;
-            velocityBufferSize = sizeof(glm::vec2) * parameters.numParticles;
             break;
     }
     // Particles
     particleCoordinateBuffer = createDeviceLocalBuffer("buffer-particles", coordinateBufferSize, vk::BufferUsageFlagBits::eVertexBuffer);
-    particleVelocityBuffer = createDeviceLocalBuffer("buffer-velocities", velocityBufferSize);//just a storage buffer
+    particleVelocityBuffer = createDeviceLocalBuffer("buffer-velocities", coordinateBufferSize);//just a storage buffer
     std::vector<float> coordinateValues;
     std::vector<float> velocityValues(2 * parameters.numParticles, 0.0f);// initialize velocities to 0
 
@@ -71,8 +71,7 @@ SimulationState::SimulationState(const SimulationParameters &_parameters, std::s
 }
 
 SimulationState::~SimulationState() {
-    resources.device.destroyBuffer(particleCoordinateBuffer.buf);
-    resources.device.freeMemory(particleCoordinateBuffer.mem);
+    // cleaning up all by itself via destructor magic ~ v ~
 }
 
 bool SimulationTime::advance(double add) {

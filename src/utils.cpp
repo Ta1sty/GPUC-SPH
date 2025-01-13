@@ -61,23 +61,25 @@ uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties,
 }
 
 
-void createBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
-                  const vk::DeviceSize &size, vk::BufferUsageFlags usage,
-                  vk::MemoryPropertyFlags properties, std::string name, vk::Buffer &buffer, vk::DeviceMemory &bufferMemory) {
+Buffer createBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
+                    const vk::DeviceSize &size, vk::BufferUsageFlags usage,
+                    vk::MemoryPropertyFlags properties, std::string name) {
     vk::BufferCreateInfo inBufferInfo({}, size, usage);
-    buffer = device.createBuffer(inBufferInfo);
+    vk::Buffer buffer = device.createBuffer(inBufferInfo);
     setObjectName(device, buffer, name);
 
     vk::MemoryRequirements memReq = device.getBufferMemoryRequirements(buffer);
     vk::MemoryAllocateInfo allocInfo(memReq.size,
                                      findMemoryType(memReq.memoryTypeBits, properties, pDevice));
 
-    bufferMemory = device.allocateMemory(allocInfo);
+    vk::DeviceMemory bufferMemory = device.allocateMemory(allocInfo);
     device.bindBufferMemory(buffer, bufferMemory, 0U);
+
+    return {buffer, bufferMemory};
 }
 
 void copyBuffer(vk::Device &device, vk::Queue &q, vk::CommandPool &commandPool,
-                const vk::Buffer &srcBuffer, vk::Buffer &dstBuffer, vk::DeviceSize byteSize) {
+                const vk::Buffer &srcBuffer, const vk::Buffer &dstBuffer, vk::DeviceSize byteSize) {
     vk::CommandBuffer commandBuffer = beginSingleTimeCommands(device, commandPool);
 
     vk::BufferCopy copyRegion(0ULL, 0ULL, byteSize);
@@ -270,17 +272,13 @@ void copyBufferToImage(vk::Device &device, vk::CommandPool &pool, vk::Queue &que
 }
 
 Buffer createDeviceLocalBuffer(const std::string &name, vk::DeviceSize size, vk::BufferUsageFlags additionalUsageBits) {
-    Buffer buffer;
-    createBuffer(
+    return createBuffer(
             resources.pDevice,
             resources.device,
             size,
             {additionalUsageBits | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst},
             {vk::MemoryPropertyFlagBits::eDeviceLocal},
-            name,
-            buffer.buf,
-            buffer.mem);
-    return buffer;
+            name);
 }
 
 void computeBarrier(vk::CommandBuffer &cmd) {

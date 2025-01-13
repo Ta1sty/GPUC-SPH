@@ -394,10 +394,10 @@ private:
                 }
             }
             fclose(fin);
-            createBuffer(app.pDevice, app.device, tex_size * sizeof(std::array<float, 4>),
+            staging = createBuffer(app.pDevice, app.device, tex_size * sizeof(std::array<float, 4>),
                          vk::BufferUsageFlagBits::eTransferSrc,
                          vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible,
-                         "staging_tex", staging.buf, staging.mem);
+                         "staging_tex");
 
             fillDeviceBuffer(app.device, staging.mem, pVolume);
         }

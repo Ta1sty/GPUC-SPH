@@ -42,8 +42,7 @@ public:
     std::vector<vk::CommandBuffer> commandBuffers;
 
     Render(AppResources &app, int framesinlight);
-
-    void cleanup();
+    ~Render();
 
     static void mouseCallback(GLFWwindow *window, double xpos, double ypos);
 
