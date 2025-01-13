@@ -31,9 +31,11 @@ ParticleSimulation::ParticleSimulation(const SimulationParameters &parameters) :
 
 void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
     if (cmd == nullptr) {
+        std::cout << "Command buffer is null, allocating new one" << std::endl;
         vk::CommandBufferAllocateInfo cmdInfo(resources.computeCommandPool, vk::CommandBufferLevel::ePrimary, 1);
         cmd = resources.device.allocateCommandBuffers(cmdInfo)[0];
     } else {
+        std::cout << "Resetting command buffer" << std::endl;
         cmd.reset();
     }
 
@@ -45,6 +47,7 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
     pushStruct.gravity = simulationState.parameters.gravity;
     pushStruct.deltaTime = simulationState.parameters.deltaTime;
     pushStruct.numParticles = simulationState.parameters.numParticles;
+    pushStruct.collisionDamping = simulationState.parameters.collisionDampingFactor;
 
     cmd.begin(vk::CommandBufferBeginInfo());
 
@@ -59,15 +62,16 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
 
 vk::CommandBuffer ParticleSimulation::run(const SimulationState &simulationState) {
     if (nullptr == cmd) {
+        std::cout << "ParticleSimulation::run called when cmd==NULL, updating the command buffer" << std::endl;
         updateCmd(simulationState);
     }
 
     return cmd;
-    std::cout << "Command buffer returned" << std::endl;
 }
 
 
 ParticleSimulation::~ParticleSimulation() {
+    resources.device.freeCommandBuffers(resources.computeCommandPool, cmd);
     classResources.destroy(resources.device);
     // Also destroy descriptor set layout if you stored it
 }

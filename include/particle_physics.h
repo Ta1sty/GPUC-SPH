@@ -12,6 +12,7 @@ public:
     explicit ParticleSimulation(const SimulationParameters &parameters);
     ~ParticleSimulation();
     vk::CommandBuffer run(const SimulationState &simulationState);
+    void updateCmd(const SimulationState &state);
 
 private:
     const uint32_t workgroupSizeX = 128;
@@ -23,6 +24,6 @@ private:
         float gravity;
         float deltaTime;
         uint32_t numParticles;
+        float collisionDamping;
     } pushStruct;
-    void updateCmd(const SimulationState &state);
 };

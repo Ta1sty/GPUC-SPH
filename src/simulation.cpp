@@ -308,4 +308,5 @@ void Simulation::processUpdateFlags(const UiBindings::UpdateFlags &updateFlags) 
 void Simulation::updateCommandBuffers() {
     hashGrid->updateCmd(*simulationState);
     particleRenderer->updateCmd(*simulationState);
+    particlePhysics->updateCmd(*simulationState);
 }

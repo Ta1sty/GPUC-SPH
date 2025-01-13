@@ -395,9 +395,9 @@ private:
             }
             fclose(fin);
             staging = createBuffer(app.pDevice, app.device, tex_size * sizeof(std::array<float, 4>),
-                         vk::BufferUsageFlagBits::eTransferSrc,
-                         vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible,
-                         "staging_tex");
+                                   vk::BufferUsageFlagBits::eTransferSrc,
+                                   vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible,
+                                   "staging_tex");
 
             fillDeviceBuffer(app.device, staging.mem, pVolume);
         }
