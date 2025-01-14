@@ -125,7 +125,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     // FOR DEBUGGING
 
-    //    return;
+    return;
 
     resources.device.waitIdle();
 
