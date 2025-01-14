@@ -1,29 +1,26 @@
-#include "project.h"
 #include "host_timer.h"
+#include "project.h"
 
-ProjectSolution::ProjectSolution(AppResources& app, ProjectData& datad, uint32_t workGroupSize_x,
-                                 uint32_t triangleCacheSize) :
-    app(app), data(datad), workGroupSize_x(workGroupSize_x), triangleCacheSize(triangleCacheSize) {
+ProjectSolution::ProjectSolution(AppResources &app, ProjectData &datad, uint32_t workGroupSize_x,
+                                 uint32_t triangleCacheSize) : app(app), data(datad), workGroupSize_x(workGroupSize_x), triangleCacheSize(triangleCacheSize) {
     if (triangleCacheSize % 3 != 0)
         throw std::runtime_error("error: trangleCacheSize must be divisible by 3 or 0");
 
-    // ########## Setup Integrate ############ 
+    // ########## Setup Integrate ############
     app.device.destroyShaderModule(particleShader);
     std::string compute = workingDir + "build/shaders/particles.comp.spv";
 
     Cmn::createShader(app.device, particleShader, compute);
 
     // ### Create Pipeline ###
-    std::array<vk::SpecializationMapEntry, 3> specEntries = std::array<vk::SpecializationMapEntry, 3>{
-        vk::SpecializationMapEntry{0U, 0U, sizeof(int)},
-        vk::SpecializationMapEntry{1U, sizeof(int), sizeof(int)},
-        vk::SpecializationMapEntry{2U, 2 * sizeof(int), sizeof(int)}
-    };
+    std::array<vk::SpecializationMapEntry, 3> specEntries = std::array<vk::SpecializationMapEntry, 3> {
+            vk::SpecializationMapEntry {0U, 0U, sizeof(int)},
+            vk::SpecializationMapEntry {1U, sizeof(int), sizeof(int)},
+            vk::SpecializationMapEntry {2U, 2 * sizeof(int), sizeof(int)}};
     std::array<int, 3> specValues = {
-        int(workGroupSize_x),
-        int(data.particleCount),
-        int(data.triangleCount)
-    }; //for workgroup sizes
+            int(workGroupSize_x),
+            int(data.particleCount),
+            int(data.triangleCount)};//for workgroup sizes
 
     vk::SpecializationInfo specInfo = vk::SpecializationInfo(CAST(specEntries), specEntries.data(),
                                                              CAST(specValues) * sizeof(int), specValues.data());
@@ -37,7 +34,7 @@ ProjectSolution::ProjectSolution(AppResources& app, ProjectData& datad, uint32_t
     particlePipeline = app.device.createComputePipeline(nullptr, computeInfo, nullptr).value;
 
     vk::CommandBufferAllocateInfo allocInfo(
-        app.computeCommandPool, vk::CommandBufferLevel::ePrimary, 1U);
+            app.computeCommandPool, vk::CommandBufferLevel::ePrimary, 1U);
     cb = app.device.allocateCommandBuffers(allocInfo)[0];
     setObjectName(app.device, cb, "particleComputeCommandBuffer");
 }
@@ -65,14 +62,14 @@ void ProjectSolution::compute() {
     cb.end();
 
     // submit the command buffer to the queue and set up a fence.
-    vk::SubmitInfo submitInfo = vk::SubmitInfo(0, nullptr, nullptr, 1, &cb); // submit a single command buffer
+    vk::SubmitInfo submitInfo = vk::SubmitInfo(0, nullptr, nullptr, 1, &cb);// submit a single command buffer
     vk::Fence fence = app.device.createFence(vk::FenceCreateInfo());
     // fence makes sure the control is not returned to CPU till command buffer is depleted
 
     app.computeQueue.submit({submitInfo}, fence);
 
     HostTimer timer;
-    vk::Result haveIWaited = app.device.waitForFences({fence}, true, uint64_t(-1)); // wait for the fence indefinitely
+    vk::Result haveIWaited = app.device.waitForFences({fence}, true, uint64_t(-1));// wait for the fence indefinitely
     app.device.destroyFence(fence);
 
     mstime = timer.elapsed() * 1000;

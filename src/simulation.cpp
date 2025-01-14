@@ -1,15 +1,15 @@
 #include "simulation.h"
 
-#include "particle_renderer.h"
-#include "particle_physics.h"
-#include "spatial_lookup.h"
-#include "render.h"
 #include "debug_image.h"
+#include "particle_physics.h"
+#include "particle_renderer.h"
+#include "render.h"
+#include "spatial_lookup.h"
 
 Simulation::Simulation(const SimulationParameters &parameters, std::shared_ptr<Camera> camera)
-: simulationParameters(parameters), simulationState(std::make_unique<SimulationState>(parameters, std::move(camera))) {
+    : simulationParameters(parameters), simulationState(std::make_unique<SimulationState>(parameters, std::move(camera))) {
 
-    particlePhysics = std::make_unique<ParticleSimulation>();
+    particlePhysics = std::make_unique<ParticleSimulation>(simulationParameters);
     hashGrid = std::make_unique<SpatialLookup>(simulationParameters);
     imguiUi = std::make_unique<ImguiUi>();
     particleRenderer = std::make_unique<ParticleRenderer>(simulationParameters);
@@ -21,16 +21,15 @@ Simulation::Simulation(const SimulationParameters &parameters, std::shared_ptr<C
 
     cmdReset = allocated[1];
     cmdReset.begin(vk::CommandBufferBeginInfo());
-    simulationState->debugImagePhysics->clear(cmdReset, { 1, 0, 0, 1 });
-    simulationState->debugImageSort->clear(cmdReset, { 0, 1, 0, 1 });
-    simulationState->debugImageRenderer->clear(cmdReset, { 0, 0, 1, 1 });
+    simulationState->debugImagePhysics->clear(cmdReset, {1, 0, 0, 1});
+    simulationState->debugImageSort->clear(cmdReset, {0, 1, 0, 1});
+    simulationState->debugImageRenderer->clear(cmdReset, {0, 0, 1, 1});
     cmdReset.end();
 
     cmdEmpty = allocated[2];
     cmdEmpty.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eSimultaneousUse));
     cmdEmpty.end();
 }
-
 
 
 vk::Semaphore Simulation::initSemaphore() {
@@ -59,8 +58,8 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     timelineSemaphore = initSemaphore();
 
-    UiBindings uiBindings { imageIndex, simulationParameters, renderParameters, simulationState.get() };
-    std::array<std::tuple<vk::Queue,vk::CommandBuffer>,cmd_count> buffers;
+    UiBindings uiBindings {imageIndex, simulationParameters, renderParameters, simulationState.get()};
+    std::array<std::tuple<vk::Queue, vk::CommandBuffer>, cmd_count> buffers;
 
     auto imguiCommandBuffer = imguiUi->updateCommandBuffer(imageIndex, uiBindings);
     lastUpdate = uiBindings.updateFlags;
@@ -76,14 +75,14 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     bool doTick = simulationState->time.advance(delta);
 
-    buffers[0] = { resources.transferQueue, cmdReset };
-    buffers[1] = { resources.computeQueue, doTick ? particlePhysics->run() : nullptr };
-    buffers[2] = { resources.computeQueue,  doTick ? hashGrid->run(*simulationState) : nullptr };
-    buffers[3] = { resources.graphicsQueue,particleRenderer->run(*simulationState, renderParameters) };
-    buffers[4] = { resources.graphicsQueue, copy(imageIndex) };
-    buffers[5] = { resources.graphicsQueue, imguiCommandBuffer };
+    buffers[0] = {resources.transferQueue, cmdReset};
+    buffers[1] = {resources.computeQueue, doTick ? particlePhysics->run(*simulationState) : nullptr};
+    buffers[2] = {resources.computeQueue, doTick ? hashGrid->run(*simulationState) : nullptr};
+    buffers[3] = {resources.graphicsQueue, particleRenderer->run(*simulationState, renderParameters)};
+    buffers[4] = {resources.graphicsQueue, copy(imageIndex)};
+    buffers[5] = {resources.graphicsQueue, imguiCommandBuffer};
 
-    for (uint64_t wait = 0,signal = 1; wait < buffers.size(); ++wait,++signal) {
+    for (uint64_t wait = 0, signal = 1; wait < buffers.size(); ++wait, ++signal) {
         auto queue = std::get<0>(buffers[wait]);
         auto cmd = std::get<1>(buffers[wait]);
         queue = nullptr == cmd ? resources.transferQueue : queue;
@@ -91,36 +90,34 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
         vk::TimelineSemaphoreSubmitInfo timeline(
                 wait,
-                signal
-        );
+                signal);
 
-        std::array<vk::PipelineStageFlags,1> flags{ vk::PipelineStageFlagBits::eAllCommands };
+        std::array<vk::PipelineStageFlags, 1> flags {vk::PipelineStageFlagBits::eAllCommands};
         vk::SubmitInfo submit(
                 timelineSemaphore,
                 flags,
                 cmd,
                 timelineSemaphore,
-                &timeline
-        );
+                &timeline);
 
-        if (wait == 0) { // first submit has no dependencies
+        if (wait == 0) {// first submit has no dependencies
             submit.waitSemaphoreCount = 0;
             timeline.waitSemaphoreValueCount = 0;
         }
 
-        if (cmd == cmdCopy) { // copy needs to wait for the swapchain image
-            auto waitSemaphores = std::array<vk::Semaphore,2> {timelineSemaphore, waitImageAvailable};
-            auto waitSemaphoreValues = std::array<uint64_t ,2> {wait, 0};
-            auto waitStageFlags = std::array<vk::PipelineStageFlags, 2> {vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eTransfer };
+        if (cmd == cmdCopy) {// copy needs to wait for the swapchain image
+            auto waitSemaphores = std::array<vk::Semaphore, 2> {timelineSemaphore, waitImageAvailable};
+            auto waitSemaphoreValues = std::array<uint64_t, 2> {wait, 0};
+            auto waitStageFlags = std::array<vk::PipelineStageFlags, 2> {vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eTransfer};
 
             submit.setWaitSemaphores(waitSemaphores);
             timeline.setWaitSemaphoreValues(waitSemaphoreValues);
             submit.setWaitDstStageMask(waitStageFlags);
         }
 
-        if (wait == buffers.size() - 1){ // last submit signals submit-finished
-            auto signalSemaphores = std::array<vk::Semaphore,2> {timelineSemaphore, signalRenderFinished};
-            auto signalSemaphoreValues = std::array<uint64_t ,2> {signal, 0};
+        if (wait == buffers.size() - 1) {// last submit signals submit-finished
+            auto signalSemaphores = std::array<vk::Semaphore, 2> {timelineSemaphore, signalRenderFinished};
+            auto signalSemaphoreValues = std::array<uint64_t, 2> {signal, 0};
 
             submit.setSignalSemaphores(signalSemaphores);
             timeline.setSignalSemaphoreValues(signalSemaphoreValues);
@@ -151,10 +148,9 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     std::vector<SpatialLookupEntry> spatial_lookup_sorted(spatial_lookup.begin(), spatial_lookup.end());
     std::sort(spatial_lookup_sorted.begin(), spatial_lookup_sorted.end(),
-              [](SpatialLookupEntry left,SpatialLookupEntry right)-> bool { return left.cellKey < right.cellKey;}
-    );
+              [](SpatialLookupEntry left, SpatialLookupEntry right) -> bool { return left.cellKey < right.cellKey; });
 
-    for (uint32_t i = 0;i<simulationParameters.numParticles;i++) {
+    for (uint32_t i = 0; i < simulationParameters.numParticles; i++) {
         if (spatial_lookup[i].cellKey != spatial_lookup_sorted[i].cellKey) {
             throw std::runtime_error("spatial lookup not sorted");
         }
@@ -186,12 +182,12 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
     }
 
     auto barrier = [&](vk::Image image,
-                                        vk::AccessFlags srcAccessMask,
-                                        vk::AccessFlags dstAccessMask,
-                                        vk::ImageLayout oldLayout,
-                                        vk::ImageLayout newLayout,
-                                        vk::PipelineStageFlags srcStageMask,
-                                        vk::PipelineStageFlags dstStageMask) {
+                       vk::AccessFlags srcAccessMask,
+                       vk::AccessFlags dstAccessMask,
+                       vk::ImageLayout oldLayout,
+                       vk::ImageLayout newLayout,
+                       vk::PipelineStageFlags srcStageMask,
+                       vk::PipelineStageFlags dstStageMask) {
         vk::ImageMemoryBarrier barrier(
                 srcAccessMask,
                 dstAccessMask,
@@ -200,16 +196,14 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
                 VK_QUEUE_FAMILY_IGNORED,
                 VK_QUEUE_FAMILY_IGNORED,
                 image,
-                {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
-        );
+                {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
         cmdCopy.pipelineBarrier(
                 srcStageMask,
                 dstStageMask,
                 {},
                 nullptr,
                 nullptr,
-                barrier
-        );
+                barrier);
     };
 
     cmdCopy.reset();
@@ -224,8 +218,7 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
             vk::ImageLayout::eUndefined,
             vk::ImageLayout::eTransferDstOptimal,
             vk::PipelineStageFlagBits::eTopOfPipe,
-            vk::PipelineStageFlagBits::eTransfer
-    );
+            vk::PipelineStageFlagBits::eTransfer);
 
     // transition source image to transfer source
     barrier(
@@ -234,25 +227,22 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
             vk::AccessFlagBits::eTransferRead,
             srcImageLayout,
             vk::ImageLayout::eTransferSrcOptimal,
-             vk::PipelineStageFlagBits::eTopOfPipe,
-            vk::PipelineStageFlagBits::eTransfer
-    );
+            vk::PipelineStageFlagBits::eTopOfPipe,
+            vk::PipelineStageFlagBits::eTransfer);
 
     vk::ImageCopy copy(
-            { {vk::ImageAspectFlagBits::eColor}, 0,0,1},
+            {{vk::ImageAspectFlagBits::eColor}, 0, 0, 1},
             {},
-            { {vk::ImageAspectFlagBits::eColor}, 0,0,1},
+            {{vk::ImageAspectFlagBits::eColor}, 0, 0, 1},
             {},
-            {resources.extent.width, resources.extent.height, 1}
-    );
+            {resources.extent.width, resources.extent.height, 1});
 
     cmdCopy.copyImage(
             srcImage,
             vk::ImageLayout::eTransferSrcOptimal,
             resources.swapchainImages[imageIndex],
             vk::ImageLayout::eTransferDstOptimal,
-            copy
-    );
+            copy);
 
     // transition swapchain image to present
     barrier(
@@ -262,8 +252,7 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
             vk::ImageLayout::eTransferDstOptimal,
             vk::ImageLayout::ePresentSrcKHR,
             vk::PipelineStageFlagBits::eTransfer,
-            vk::PipelineStageFlagBits::eBottomOfPipe
-    );
+            vk::PipelineStageFlagBits::eBottomOfPipe);
 
     // transition source image back to original layout
     barrier(
@@ -273,8 +262,7 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
             vk::ImageLayout::eTransferSrcOptimal,
             srcImageLayout,
             vk::PipelineStageFlagBits::eTransfer,
-            vk::PipelineStageFlagBits::eBottomOfPipe
-    );
+            vk::PipelineStageFlagBits::eBottomOfPipe);
 
     cmdCopy.end();
 
@@ -291,9 +279,9 @@ void Simulation::processUpdateFlags(const UiBindings::UpdateFlags &updateFlags) 
         // debug images are part of the simulation state and used in the cmdReset command buffer
         // this needs to be rebuilt somewhere before the old state gets deleted, might as well be here
         cmdReset.begin(vk::CommandBufferBeginInfo());
-        newState->debugImagePhysics->clear(cmdReset, { 1, 0, 0, 1 });
-        newState->debugImageSort->clear(cmdReset, { 0, 1, 0, 1 });
-        newState->debugImageRenderer->clear(cmdReset, { 0, 0, 1, 1 });
+        newState->debugImagePhysics->clear(cmdReset, {1, 0, 0, 1});
+        newState->debugImageSort->clear(cmdReset, {0, 1, 0, 1});
+        newState->debugImageRenderer->clear(cmdReset, {0, 0, 1, 1});
         cmdReset.end();
 
         simulationState = std::move(newState);
@@ -304,11 +292,10 @@ void Simulation::processUpdateFlags(const UiBindings::UpdateFlags &updateFlags) 
         simulationState->paused = !simulationState->paused;
 
     // advance sets paused to true for only one step (see run()), needs to be reset here
-    if (updateFlags.stepSimulation){
+    if (updateFlags.stepSimulation) {
         simulationState->paused = true;
         simulationState->step = true;
     }
-
 
 
     // moved here to update every frame, since MVP matrix is a push-constant
@@ -318,5 +305,5 @@ void Simulation::processUpdateFlags(const UiBindings::UpdateFlags &updateFlags) 
 void Simulation::updateCommandBuffers() {
     hashGrid->updateCmd(*simulationState);
     particleRenderer->updateCmd(*simulationState);
+    particlePhysics->updateCmd(*simulationState);
 }
-

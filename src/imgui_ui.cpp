@@ -1,15 +1,14 @@
 #include "imgui_ui.h"
 #include "imgui.h"
-#include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
 #include "simulation_parameters.h"
 #include "simulation_state.h"
-
 
 ImguiUi::ImguiUi() {
     const vk::DescriptorPoolSize pool_sizes[] =
             {
-                    {vk::DescriptorType::eSampler,       10},
+                    {vk::DescriptorType::eSampler, 10},
                     {vk::DescriptorType::eUniformBuffer, 10},
                     {vk::DescriptorType::eStorageBuffer, 10},
             };
@@ -33,8 +32,7 @@ ImguiUi::ImguiUi() {
             vk::AttachmentLoadOp::eDontCare,
             vk::AttachmentStoreOp::eDontCare,
             vk::ImageLayout::ePresentSrcKHR,
-            vk::ImageLayout::ePresentSrcKHR
-    );
+            vk::ImageLayout::ePresentSrcKHR);
 
     vk::AttachmentReference color_attachment(0, vk::ImageLayout::eColorAttachmentOptimal);
 
@@ -45,8 +43,7 @@ ImguiUi::ImguiUi() {
             color_attachment,
             {},
             nullptr,
-            {}
-    );
+            {});
 
     vk::SubpassDependency externalDependency(
             VK_SUBPASS_EXTERNAL,
@@ -54,8 +51,7 @@ ImguiUi::ImguiUi() {
             {vk::PipelineStageFlagBits::eColorAttachmentOutput},
             {vk::PipelineStageFlagBits::eColorAttachmentOutput},
             {vk::AccessFlagBits::eColorAttachmentWrite},
-            {vk::AccessFlagBits::eColorAttachmentWrite}
-    );
+            {vk::AccessFlagBits::eColorAttachmentWrite});
 
     vk::RenderPassCreateInfo info({}, attachment, ui_subpass, externalDependency);
     renderPass = resources.device.createRenderPass(info);
@@ -78,8 +74,7 @@ ImguiUi::ImguiUi() {
             {},
             nullptr,
             nullptr,
-            0
-    };
+            0};
 
     ImGui_ImplVulkan_Init(&init_info, renderPass);
     ImGui::StyleColorsDark();
@@ -106,8 +101,7 @@ void ImguiUi::initCommandBuffers() {
                 resources.swapchainImageViews[i],
                 resources.extent.width,
                 resources.extent.height,
-                1
-        );
+                1);
         frameBuffers.push_back(resources.device.createFramebuffer(info));
     }
 }
@@ -121,7 +115,6 @@ vk::CommandBuffer ImguiUi::updateCommandBuffer(uint32_t index, UiBindings &bindi
 
     cmd.reset();
 
-
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
@@ -134,7 +127,7 @@ vk::CommandBuffer ImguiUi::updateCommandBuffer(uint32_t index, UiBindings &bindi
 
     cmd.begin(cmdBeginInfo);
 
-    vk::ClearValue color(std::array<float, 4>{0, 0, 0, 0});
+    vk::ClearValue color(std::array<float, 4> {0, 0, 0, 0});
 
     vk::Rect2D area({0, 0}, resources.extent);
 
@@ -150,11 +143,11 @@ vk::CommandBuffer ImguiUi::updateCommandBuffer(uint32_t index, UiBindings &bindi
     return cmd;
 }
 
-template <typename T>
+template<typename T>
 bool EnumCombo(const char *name, T *currentValue, const Mappings<T> &mappings) {
     // static should be per type
     static const auto comboValueArray = imguiComboArray(mappings);
-    return ImGui::Combo(name, reinterpret_cast<int*>(currentValue), comboValueArray.data(), comboValueArray.size());
+    return ImGui::Combo(name, reinterpret_cast<int *>(currentValue), comboValueArray.data(), comboValueArray.size());
 }
 
 void ImguiUi::drawUi(UiBindings &bindings) {
@@ -190,7 +183,10 @@ void ImguiUi::drawUi(UiBindings &bindings) {
         updateFlags.resetSimulation |= ImGui::Button("Restart Simulation");
 
         auto &simulation = bindings.simulationParameters;
-        ImGui::DragInt("Num Particles", reinterpret_cast<int*>(&simulation.numParticles), 16, 16, 1024 * 1024 * 1024);
+        ImGui::DragInt("Num Particles", reinterpret_cast<int *>(&simulation.numParticles), 16, 16, 1024 * 1024 * 1024);
+        ImGui::DragFloat("Gravity", &simulation.gravity, 0.1f);
+        ImGui::DragFloat("Delta Time", &simulation.deltaTime, 0.001f);
+        ImGui::DragFloat("Collision Damping", &simulation.collisionDampingFactor, 0.01f);
     }
 
     ImGui::End();
@@ -203,7 +199,8 @@ void ImguiUi::destroyCommandBuffers() {
         commandPool = nullptr;
     }
     if (!frameBuffers.empty()) {
-        for (auto framebuffer: frameBuffers) resources.device.destroyFramebuffer(framebuffer);
+        for (auto framebuffer: frameBuffers)
+            resources.device.destroyFramebuffer(framebuffer);
         frameBuffers.clear();
     }
 }

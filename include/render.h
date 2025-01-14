@@ -2,9 +2,9 @@
 
 #include <cmath>
 
-#include "task_common.h"
+#include "camera.h"
 #include "imgui_ui.h"
-#include "Camera.h"
+#include "task_common.h"
 
 class Simulation;
 
@@ -91,7 +91,5 @@ void Render::renderFrame(O opaque, T transparent, U ui) {
     };
     app.graphicsQueue.submit(submitInfos, fences[idx]);
 
-    vk::Result vr = app.graphicsQueue.presentKHR({
-                                                         1, &completionSemaphores[idx], 1, &app.swapchain, &swapchainIndex
-                                                 });
+    vk::Result vr = app.graphicsQueue.presentKHR({1, &completionSemaphores[idx], 1, &app.swapchain, &swapchainIndex});
 }

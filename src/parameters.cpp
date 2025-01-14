@@ -1,15 +1,15 @@
 #include "simulation_parameters.h"
 
-#include <yaml-cpp/yaml.h>
-#include <stdexcept>
 #include <random>
+#include <stdexcept>
+#include <yaml-cpp/yaml.h>
 
-template <typename T>
+template<typename T>
 T parseEnum(const YAML::Node &yaml, const std::string &key, std::initializer_list<std::pair<std::string, T>> mappings) {
     if (!yaml[key])
         return mappings.begin()->second;
 
-    for (const auto& [k, v] : mappings) {
+    for (const auto &[k, v]: mappings) {
         if (k == yaml[key].as<std::string>())
             return v;
     }
@@ -19,16 +19,16 @@ T parseEnum(const YAML::Node &yaml, const std::string &key, std::initializer_lis
     throw std::invalid_argument(oss.str());
 }
 
-template <typename T>
+template<typename T>
 std::string dumpEnum(const T &value, std::initializer_list<std::pair<std::string, T>> mappings) {
-    for (const auto& [k, v] : mappings)
+    for (const auto &[k, v]: mappings)
         if (value == v)
             return k;
 
     throw std::invalid_argument("No mapping for enum value");
 }
 
-template <typename T>
+template<typename T>
 T parse(const YAML::Node &yaml, const std::string &key, const T defaultValue) {
     if (!yaml[key])
         return defaultValue;
@@ -37,22 +37,18 @@ T parse(const YAML::Node &yaml, const std::string &key, const T defaultValue) {
 }
 
 const Mappings<SceneType> sceneTypeMappings {
-        { "sph_box_2d", SceneType::SPH_BOX_2D }
-};
+        {"sph_box_2d", SceneType::SPH_BOX_2D}};
 const Mappings<InitializationFunction> initializationFunctionMappings {
-        { "uniform", InitializationFunction::UNIFORM },
-        { "poisson_disk", InitializationFunction::POISSON_DISK }
-};
+        {"uniform", InitializationFunction::UNIFORM},
+        {"poisson_disk", InitializationFunction::POISSON_DISK}};
 const Mappings<SelectedImage> selectedImageMappings {
-        { "render", SelectedImage::RENDER },
-        { "debug_physics", SelectedImage::DEBUG_PHYSICS },
-        { "debug_sort", SelectedImage::DEBUG_SORT },
-        { "debug_renderer", SelectedImage::DEBUG_RENDERER }
-};
+        {"render", SelectedImage::RENDER},
+        {"debug_physics", SelectedImage::DEBUG_PHYSICS},
+        {"debug_sort", SelectedImage::DEBUG_SORT},
+        {"debug_renderer", SelectedImage::DEBUG_RENDERER}};
 const Mappings<RenderBackgroundField> renderBackgroundFieldMappings {
-        { "cell_hash", RenderBackgroundField::CELL_HASH },
-        { "density", RenderBackgroundField::DENSITY }
-};
+        {"cell_hash", RenderBackgroundField::CELL_HASH},
+        {"density", RenderBackgroundField::DENSITY}};
 
 SimulationParameters::SimulationParameters(const std::string &file) {
     YAML::Node yaml = YAML::LoadFile(file);
@@ -63,8 +59,11 @@ SimulationParameters::SimulationParameters(const std::string &file) {
                                                                initializationFunctionMappings);
 
     numParticles = parse<uint32_t>(yaml, "num_particles", numParticles);
-    std::random_device rd; // seed with TRNG if no seed is supplied
+    std::random_device rd;// seed with TRNG if no seed is supplied
     randomSeed = parse<uint32_t>(yaml, "random_seed", rd());
+    gravity = parse<float>(yaml, "gravity", gravity);
+    deltaTime = parse<float>(yaml, "delta_time", deltaTime);
+    collisionDampingFactor = parse<float>(yaml, "collision_damping_factor", collisionDampingFactor);
 }
 
 std::string SimulationParameters::printToYaml() const {

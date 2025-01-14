@@ -3,13 +3,13 @@
 #include "utils.h"
 #include <string>
 
-template <typename T>
+template<typename T>
 using Mappings = std::initializer_list<std::pair<std::string, T>>;
 
-template <typename T>
-std::vector<const char*> imguiComboArray(const Mappings<T> mappings) {
-    std::vector<const char*> result { mappings.size() };
-    for (const auto &[label, v] : mappings) {
+template<typename T>
+std::vector<const char *> imguiComboArray(const Mappings<T> mappings) {
+    std::vector<const char *> result {mappings.size()};
+    for (const auto &[label, v]: mappings) {
         result[static_cast<size_t>(v)] = label.c_str();
     }
 
@@ -37,7 +37,10 @@ public:
     SceneType type = SceneType::SPH_BOX_2D;
     InitializationFunction initializationFunction = InitializationFunction::UNIFORM;
     uint32_t numParticles = 128;
-    uint32_t randomSeed = 0; // initialized with TRNG if omitted
+    uint32_t randomSeed = 0;            // initialized with TRNG if omitted
+    float gravity = 9.81f;              // Default Earth gravity
+    float deltaTime = 1.0f / 60.0f;     // Default 60 FPS
+    float collisionDampingFactor = 0.8f;// Default 20% energy loss
 
 public:
     SimulationParameters() = default;

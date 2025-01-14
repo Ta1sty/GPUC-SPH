@@ -1,0 +1,52 @@
+#version 450
+
+layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+
+layout(binding = 0) buffer positionBuffer { float positions[]; };
+layout(binding = 1) buffer velocityBuffer { float velocities[]; };
+
+layout(push_constant) uniform PushStruct {
+    float gravity;
+    float deltaTime;
+    uint numParticles;
+    float collisionDampingFactor;
+}
+constants;
+
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+    if (index >= constants.numParticles) return;
+
+    vec2 position = vec2(positions[2 * index], positions[2 * index + 1]);
+    vec2 velocity = vec2(velocities[2 * index], velocities[2 * index + 1]);
+
+    // Update velocity
+    velocity += vec2(0.0, constants.gravity) * constants.deltaTime;
+    // Update position
+    position += velocity * constants.deltaTime;
+
+
+    // Resolve collisions
+    if (position.x < 0.0) {
+        position.x = 0.0;
+        velocity *= -constants.collisionDampingFactor;
+    } else if (position.x > 1.0) {
+        position.x = 1.0;
+        velocity *= -constants.collisionDampingFactor;
+    }
+    if (position.y < 0.0) {
+        position.y = 0.0;
+        velocity *= -constants.collisionDampingFactor;
+    } else if (position.y > 1.0) {
+        position.y = 1.0;
+        velocity *= -constants.collisionDampingFactor;
+    }
+
+
+    //barrier();
+    // Write back results
+    positions[2 * index] = position.x;
+    positions[2 * index + 1] = position.y;
+    velocities[2 * index] = velocity.x;
+    velocities[2 * index + 1] = velocity.y;
+}

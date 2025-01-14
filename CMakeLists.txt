@@ -31,7 +31,7 @@ add_subdirectory(libs)
 find_package(Vulkan REQUIRED)
 
 if(DEFINED ENV{RENDERDOC_PATH})
-    set(RENDERDOC_PATH ENV{RENDERDOC_PATH})
+    set(RENDERDOC_PATH $ENV{RENDERDOC_PATH})
 elseif(WIN32)
     if(EXISTS "C:\\Program Files\\RenderDoc")
         set(RENDERDOC_PATH "C:\\Program Files\\RenderDoc")
@@ -87,6 +87,9 @@ set(SOURCES
 add_compile_definitions(WORKING_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+add_shader(${PROJECT_NAME} shaders/particle_simulation.comp)
+
 add_shader(${PROJECT_NAME} shaders/particles.comp)
 add_shader(${PROJECT_NAME} shaders/white.frag)
 add_shader(${PROJECT_NAME} shaders/soup.vert)
@@ -98,7 +101,6 @@ add_shader(${PROJECT_NAME} shaders/particle2d.vert)
 add_shader(${PROJECT_NAME} shaders/particle2d.frag)
 add_shader(${PROJECT_NAME} shaders/background2d.vert)
 add_shader(${PROJECT_NAME} shaders/background2d.frag)
-
 
 add_shader(${PROJECT_NAME} shaders/spatial_lookup.write.comp)
 add_shader(${PROJECT_NAME} shaders/spatial_lookup.sort.comp)

@@ -2,20 +2,20 @@
 #define GLM_FORCE_RADIANS
 #define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 
-#include <iostream>
 #include <cstdlib>
+#include <iostream>
 
-#include <vulkan/vulkan.hpp>
-#include <vector>
 #include "initialization.h"
 #include "utils.h"
 #include <GLFW/glfw3.h>
 #include <thread>
+#include <vector>
+#include <vulkan/vulkan.hpp>
 
 #include "project.h"
 
-#include "renderdoc.h"
 #include "render.h"
+#include "renderdoc.h"
 #include "simulation.h"
 
 int width = 1200;
@@ -26,7 +26,7 @@ void render() {
     renderdoc::startCapture();
 
     Render render(resources, 2);
-    SimulationParameters parameters { "../scenes/default.yaml" };
+    SimulationParameters parameters {"../scenes/default.yaml"};
     Simulation simulation(parameters, render.camera);
 
     renderdoc::endCapture();
@@ -69,12 +69,10 @@ int main() {
     catch (vk::SystemError& err) {
         std::cout << "vk::SystemError: " << err.what() << std::endl;
         exit(-1);
-    }
-    catch (std::exception& err) {
+    } catch (std::exception &err) {
         std::cout << "std::exception: " << err.what() << std::endl;
         exit(-1);
-    }
-    catch (...) {
+    } catch (...) {
         std::cout << "unknown error/n";
         exit(-1);
     }

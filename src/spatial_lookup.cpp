@@ -1,6 +1,6 @@
 #include "spatial_lookup.h"
 
-struct PushConstants{
+struct PushConstants {
     uint32_t size;
 };
 
@@ -18,7 +18,7 @@ SpatialLookup::SpatialLookup(const SimulationParameters &parameters) {
     Cmn::createDescriptorPool(resources.device, descriptorBindings, descriptorPool);
     Cmn::allocateDescriptorSet(resources.device, descriptorSet, descriptorPool, descriptorLayout);
 
-    vk::PushConstantRange pcr({vk::ShaderStageFlagBits::eCompute}, 0, sizeof (PushConstants));
+    vk::PushConstantRange pcr({vk::ShaderStageFlagBits::eCompute}, 0, sizeof(PushConstants));
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, descriptorLayout, pcr);
     pipelineLayout = resources.device.createPipelineLayout(pipelineLayoutInfo);
 
@@ -27,19 +27,16 @@ SpatialLookup::SpatialLookup(const SimulationParameters &parameters) {
     Cmn::createShader(resources.device, indexShader, shaderPath("spatial_lookup.index.comp"));
 
     std::array<vk::SpecializationMapEntry, 1> specEntries {
-        vk::SpecializationMapEntry(0,0, sizeof(workgroupSizeX))
-    };
+            vk::SpecializationMapEntry(0, 0, sizeof(workgroupSizeX))};
 
     std::array<const uint32_t, 1> specValues = {
-            workgroupSizeX
-    };
+            workgroupSizeX};
 
     vk::SpecializationInfo specInfo(specEntries, vk::ArrayProxyNoTemporaries<const uint32_t>(specValues));
 
     Cmn::createPipeline(resources.device, writePipeline, pipelineLayout, specInfo, writeShader);
     Cmn::createPipeline(resources.device, sortPipeline, pipelineLayout, specInfo, sortShader);
     Cmn::createPipeline(resources.device, indexPipeline, pipelineLayout, specInfo, indexShader);
-
 }
 
 
@@ -59,7 +56,7 @@ SpatialLookup::~SpatialLookup() {
 
 void SpatialLookup::updateCmd(const SimulationState &state) {
 
-    if (nullptr == cmd){
+    if (nullptr == cmd) {
         vk::CommandBufferAllocateInfo cmdInfo(resources.computeCommandPool, vk::CommandBufferLevel::ePrimary, 1);
         cmd = resources.device.allocateCommandBuffers(cmdInfo)[0];
     } else {
@@ -73,8 +70,7 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
     uint32_t dx = (state.parameters.numParticles + workgroupSizeX - 1) / workgroupSizeX;
 
     PushConstants pushConstants {
-        state.parameters.numParticles
-    };
+            state.parameters.numParticles};
 
     cmd.begin(vk::CommandBufferBeginInfo());
 

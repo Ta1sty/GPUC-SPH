@@ -1,12 +1,12 @@
-#include <utility>
-#include <vector>
+#include "simulation_state.h"
+#include "debug_image.h"
+#include "render.h"
 #include <cstdint>
+#include <memory>
 #include <random>
 #include <stdexcept>
-#include <memory>
-#include "simulation_state.h"
-#include "render.h"
-#include "debug_image.h"
+#include <utility>
+#include <vector>
 
 std::vector<float> initUniform(SceneType sceneType, uint32_t numParticles, std::mt19937 &random) {
     std::vector<float> values;
@@ -15,7 +15,7 @@ std::vector<float> initUniform(SceneType sceneType, uint32_t numParticles, std::
         case SceneType::SPH_BOX_2D:
             values.resize(2 * numParticles);
             std::uniform_real_distribution<float> distribution(0.0f, 1.0f);
-            for (auto &v : values) {
+            for (auto &v: values) {
                 v = distribution(random);
             }
     }
@@ -46,24 +46,27 @@ SimulationState::SimulationState(const SimulationParameters &_parameters, std::s
     vk::DeviceSize coordinateBufferSize;
     switch (parameters.type) {
         case SceneType::SPH_BOX_2D:
-            coordinateBufferSize = sizeof(Particle) * parameters.numParticles;
+            coordinateBufferSize = sizeof(glm::vec2) * parameters.numParticles;
             break;
     }
-
+    // Particles
     particleCoordinateBuffer = createDeviceLocalBuffer("buffer-particles", coordinateBufferSize, vk::BufferUsageFlagBits::eVertexBuffer);
-    std::vector<float> values;
+    particleVelocityBuffer = createDeviceLocalBuffer("buffer-velocities", coordinateBufferSize);//just a storage buffer
+    std::vector<float> coordinateValues;
+    std::vector<float> velocityValues(2 * parameters.numParticles, 0.0f);// initialize velocities to 0
+
     switch (parameters.initializationFunction) {
         case InitializationFunction::UNIFORM:
-            values = initUniform(parameters.type, parameters.numParticles, random);
+            coordinateValues = initUniform(parameters.type, parameters.numParticles, random);
             break;
         case InitializationFunction::POISSON_DISK:
-            values = initPoissonDisk(parameters.type, parameters.numParticles, random);
+            coordinateValues = initPoissonDisk(parameters.type, parameters.numParticles, random);
             break;
     }
-    fillDeviceWithStagingBuffer(particleCoordinateBuffer, values);
+    fillDeviceWithStagingBuffer(particleCoordinateBuffer, coordinateValues);
 
     // Spatial Lookup
-    spatialLookup = createDeviceLocalBuffer("spatialLookup", parameters.numParticles * sizeof (SpatialLookupEntry));
+    spatialLookup = createDeviceLocalBuffer("spatialLookup", parameters.numParticles * sizeof(SpatialLookupEntry));
     spatialIndices = createDeviceLocalBuffer("startIndices", parameters.numParticles * sizeof(uint32_t));
 }
 
@@ -75,7 +78,7 @@ bool SimulationTime::advance(double add) {
     time += add;
 
     // it's time for a tick
-    if (time > lastUpdate + tickRate){
+    if (time > lastUpdate + tickRate) {
         lastUpdate += tickRate;
         ticks++;
         return true;

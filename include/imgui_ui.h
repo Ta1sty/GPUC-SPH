@@ -9,7 +9,7 @@ struct SimulationState;
 /**
  * Wrap Parameters and update flags in convenience struct.
  */
-struct UiBindings{
+struct UiBindings {
     uint32_t frameIndex;
     SimulationParameters &simulationParameters;
     RenderParameters &renderParameters;
@@ -29,10 +29,10 @@ struct UiBindings{
      */
     inline UiBindings(uint32_t frameIndex, SimulationParameters &simulationParameters,
                       RenderParameters &renderParameters, SimulationState *simulationState) : frameIndex(frameIndex),
-                                                            simulationParameters(simulationParameters),
-                                                            renderParameters(renderParameters),
-                                                            simulationState(simulationState),
-                                                            updateFlags() {}
+                                                                                              simulationParameters(simulationParameters),
+                                                                                              renderParameters(renderParameters),
+                                                                                              simulationState(simulationState),
+                                                                                              updateFlags() {}
 };
 
 class ImguiUi {
@@ -54,6 +54,3 @@ public:
 
     void drawUi(UiBindings &bindings);
 };
-
-
-
