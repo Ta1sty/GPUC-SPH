@@ -39,6 +39,21 @@ SpatialLookup::SpatialLookup(const SimulationParameters &parameters) {
     Cmn::createPipeline(resources.device, indexPipeline, pipelineLayout, specInfo, indexShader);
 }
 
+
+SpatialLookup::~SpatialLookup() {
+    resources.device.destroyPipeline(writePipeline);
+    resources.device.destroyPipeline(sortPipeline);
+    resources.device.destroyPipeline(indexPipeline);
+
+    resources.device.destroyShaderModule(writeShader);
+    resources.device.destroyShaderModule(sortShader);
+    resources.device.destroyShaderModule(indexShader);
+
+    resources.device.destroyPipelineLayout(pipelineLayout);
+    resources.device.destroyDescriptorPool(descriptorPool);
+    resources.device.destroyDescriptorSetLayout(descriptorLayout);
+}
+
 void SpatialLookup::updateCmd(const SimulationState &state) {
 
     if (nullptr == cmd) {

@@ -63,7 +63,10 @@ int main() {
         renderdoc::initialize();
 
         render();
-    } catch (vk::SystemError &err) {
+
+        resources.destroy();
+    }
+    catch (vk::SystemError& err) {
         std::cout << "vk::SystemError: " << err.what() << std::endl;
         exit(-1);
     } catch (std::exception &err) {

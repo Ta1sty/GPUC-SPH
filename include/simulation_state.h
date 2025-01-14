@@ -17,10 +17,10 @@ struct SpatialLookupEntry {
 };
 
 struct SimulationTime {
-    double time;
+    double time = 0.0;
     long ticks = 0;
     int tickRate = 25;
-    double lastUpdate;
+    double lastUpdate = 0.0;
     bool advance(double add);
 };
 
