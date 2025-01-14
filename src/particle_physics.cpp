@@ -31,11 +31,10 @@ ParticleSimulation::ParticleSimulation(const SimulationParameters &parameters) :
 
 void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
     if (cmd == nullptr) {
-        std::cout << "Command buffer is null, allocating new one" << std::endl;
+        std::cout << "ParticleSimulation command buffer is null, allocating new one" << std::endl;
         vk::CommandBufferAllocateInfo cmdInfo(resources.computeCommandPool, vk::CommandBufferLevel::ePrimary, 1);
         cmd = resources.device.allocateCommandBuffers(cmdInfo)[0];
     } else {
-        std::cout << "Resetting command buffer" << std::endl;
         cmd.reset();
     }
 
