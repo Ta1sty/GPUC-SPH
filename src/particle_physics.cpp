@@ -73,5 +73,4 @@ vk::CommandBuffer ParticleSimulation::run(const SimulationState &simulationState
 ParticleSimulation::~ParticleSimulation() {
     resources.device.freeCommandBuffers(resources.computeCommandPool, cmd);
     classResources.destroy(resources.device);
-    // Also destroy descriptor set layout if you stored it
 }
