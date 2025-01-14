@@ -337,7 +337,7 @@ void Simulation::processUpdateFlags(const UiBindings::UpdateFlags &updateFlags) 
     if (updateFlags.resetSimulation) {
         auto newState = std::make_unique<SimulationState>(simulationParameters, simulationState->camera);
         simulationState = std::move(newState);
-        simulationState->camera->reset();
+        //simulationState->camera->reset();
 
         reset();
     }

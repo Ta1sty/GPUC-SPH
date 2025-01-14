@@ -34,7 +34,7 @@ std::vector<float> initPoissonDisk(SceneType sceneType, uint32_t numParticles, s
     }
 }
 
-SimulationState::SimulationState(const SimulationParameters &_parameters, std::shared_ptr<Camera> camera) : parameters(_parameters), random(parameters.randomSeed), camera(std::move(camera)) {
+SimulationState::SimulationState(const SimulationParameters &_parameters, std::shared_ptr<Camera> _camera) : parameters(_parameters), random(parameters.randomSeed), camera(std::move(_camera)) {
     std::cout << "------------- Initializing Simulation State -------------\n";
     std::cout << parameters.printToYaml() << std::endl;
     std::cout << "---------------------------------------------------------\n";
@@ -47,6 +47,11 @@ SimulationState::SimulationState(const SimulationParameters &_parameters, std::s
     switch (parameters.type) {
         case SceneType::SPH_BOX_2D:
             coordinateBufferSize = sizeof(glm::vec2) * parameters.numParticles;
+
+            auto z = 0.5 / glm::tan(camera->fovy / 2.0f);
+            camera->position = {0.5, 0.5, z};
+            camera->phi = glm::pi<float>();
+            camera->theta = 0.0f;
             break;
     }
     // Particles
