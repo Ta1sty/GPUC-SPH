@@ -47,7 +47,6 @@ private:
     vk::CommandBuffer cmdEmpty;
 
     vk::Semaphore timelineSemaphore;
-    vk::Fence timelineFence;
 
     vk::Semaphore initSemaphore();
     vk::CommandBuffer copy(uint32_t imageIndex);

@@ -25,6 +25,7 @@ class SpatialLookup {
     vk::CommandBuffer cmd;
 public:
     explicit SpatialLookup(const SimulationParameters &parameters);
+    ~SpatialLookup();
     void updateCmd(const SimulationState &state);
     vk::CommandBuffer run(SimulationState &state);
 };

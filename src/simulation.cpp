@@ -14,9 +14,6 @@ Simulation::Simulation(const SimulationParameters &parameters, std::shared_ptr<C
     imguiUi = std::make_unique<ImguiUi>();
     particleRenderer = std::make_unique<ParticleRenderer>(simulationParameters);
 
-    vk::FenceCreateInfo timelineFenceInfo(vk::FenceCreateFlagBits::eSignaled);
-    timelineFence = resources.device.createFence(timelineFenceInfo);
-
     vk::CommandBufferAllocateInfo cmdAllocateInfo(resources.transferCommandPool, vk::CommandBufferLevel::ePrimary, 3);
     auto allocated = resources.device.allocateCommandBuffers(cmdAllocateInfo);
 
@@ -285,7 +282,7 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
 }
 
 Simulation::~Simulation() {
-    // TODO clean up your vulkan objects!
+    resources.device.destroySemaphore(timelineSemaphore);
 }
 
 void Simulation::processUpdateFlags(const UiBindings::UpdateFlags &updateFlags) {
