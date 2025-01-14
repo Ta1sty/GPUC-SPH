@@ -16,11 +16,11 @@ function(add_shader TARGET SHADER)
     file(MAKE_DIRECTORY ${current-output-dir})
 
     add_custom_command(
-           OUTPUT ${current-output-path}
-           COMMAND ${GLSLC} --target-env=vulkan1.1 -o ${current-output-path} ${current-shader-path}
-           DEPENDS ${current-shader-path}
-           IMPLICIT_DEPENDS CXX ${current-shader-path}
-           VERBATIM)
+            OUTPUT ${current-output-path}
+            COMMAND ${GLSLC} --target-env=vulkan1.1 -o ${current-output-path} ${current-shader-path}
+            DEPENDS ${current-shader-path} shaders/spatial_lookup.glsl
+            IMPLICIT_DEPENDS CXX ${current-shader-path}
+            VERBATIM)
 
     # Make sure our build depends on this output.
     set_source_files_properties(${current-output-path} PROPERTIES GENERATED TRUE)
@@ -30,13 +30,13 @@ endfunction(add_shader)
 add_subdirectory(libs)
 find_package(Vulkan REQUIRED)
 
-if(DEFINED ENV{RENDERDOC_PATH})
+if (DEFINED ENV{RENDERDOC_PATH})
     set(RENDERDOC_PATH $ENV{RENDERDOC_PATH})
-elseif(WIN32)
-    if(EXISTS "C:\\Program Files\\RenderDoc")
+elseif (WIN32)
+    if (EXISTS "C:\\Program Files\\RenderDoc")
         set(RENDERDOC_PATH "C:\\Program Files\\RenderDoc")
-    endif()
-endif() # TODO LINUX
+    endif ()
+endif () # TODO LINUX
 
 ### Don't forget that there is a CMakeLists.txt in libs ! ###
 
@@ -109,7 +109,7 @@ add_shader(${PROJECT_NAME} shaders/spatial_lookup.index.comp)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} PUBLIC Vulkan::Vulkan stb glfw tinyobj yaml-cpp)
 
-if(RENDERDOC_PATH)
+if (RENDERDOC_PATH)
     target_include_directories(${PROJECT_NAME} PRIVATE ${RENDERDOC_PATH})
     target_compile_definitions(${PROJECT_NAME} PRIVATE ENABLE_RENDERDOC)
-endif()
+endif ()

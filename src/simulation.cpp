@@ -10,7 +10,7 @@ Simulation::Simulation(const SimulationParameters &parameters, std::shared_ptr<C
     : simulationParameters(parameters), simulationState(std::make_unique<SimulationState>(parameters, std::move(camera))) {
 
     particlePhysics = std::make_unique<ParticleSimulation>(simulationParameters);
-    hashGrid = std::make_unique<SpatialLookup>(simulationParameters);
+    spatialLookup = std::make_unique<SpatialLookup>(simulationParameters);
     imguiUi = std::make_unique<ImguiUi>();
     particleRenderer = std::make_unique<ParticleRenderer>(simulationParameters);
 
@@ -18,17 +18,10 @@ Simulation::Simulation(const SimulationParameters &parameters, std::shared_ptr<C
     auto allocated = resources.device.allocateCommandBuffers(cmdAllocateInfo);
 
     cmdCopy = allocated[0];
-
     cmdReset = allocated[1];
-    cmdReset.begin(vk::CommandBufferBeginInfo());
-    simulationState->debugImagePhysics->clear(cmdReset, {1, 0, 0, 1});
-    simulationState->debugImageSort->clear(cmdReset, {0, 1, 0, 1});
-    simulationState->debugImageRenderer->clear(cmdReset, {0, 0, 1, 1});
-    cmdReset.end();
-
     cmdEmpty = allocated[2];
-    cmdEmpty.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eSimultaneousUse));
-    cmdEmpty.end();
+
+    reset();
 }
 
 
@@ -50,8 +43,6 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     if (nullptr != timelineSemaphore) {
         vk::SemaphoreWaitInfo waitInfo({}, timelineSemaphore, cmd_count);
         vk::detail::resultCheck(resources.device.waitSemaphores(waitInfo, -1), "Failed wait");
-    } else {
-        prevTime = glfwGetTime();
     }
 
     processUpdateFlags(lastUpdate);
@@ -77,7 +68,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     buffers[0] = {resources.transferQueue, cmdReset};
     buffers[1] = {resources.computeQueue, doTick ? particlePhysics->run(*simulationState) : nullptr};
-    buffers[2] = {resources.computeQueue, doTick ? hashGrid->run(*simulationState) : nullptr};
+    buffers[2] = {resources.computeQueue, doTick ? spatialLookup->run(*simulationState) : nullptr};
     buffers[3] = {resources.graphicsQueue, particleRenderer->run(*simulationState, renderParameters)};
     buffers[4] = {resources.graphicsQueue, copy(imageIndex)};
     buffers[5] = {resources.graphicsQueue, imguiCommandBuffer};
@@ -276,16 +267,10 @@ Simulation::~Simulation() {
 void Simulation::processUpdateFlags(const UiBindings::UpdateFlags &updateFlags) {
     if (updateFlags.resetSimulation) {
         auto newState = std::make_unique<SimulationState>(simulationParameters, simulationState->camera);
-        // debug images are part of the simulation state and used in the cmdReset command buffer
-        // this needs to be rebuilt somewhere before the old state gets deleted, might as well be here
-        cmdReset.begin(vk::CommandBufferBeginInfo());
-        newState->debugImagePhysics->clear(cmdReset, {1, 0, 0, 1});
-        newState->debugImageSort->clear(cmdReset, {0, 1, 0, 1});
-        newState->debugImageRenderer->clear(cmdReset, {0, 0, 1, 1});
-        cmdReset.end();
-
         simulationState = std::move(newState);
         simulationState->camera->reset();
+
+        reset();
     }
 
     if (updateFlags.togglePause)
@@ -297,13 +282,34 @@ void Simulation::processUpdateFlags(const UiBindings::UpdateFlags &updateFlags) 
         simulationState->step = true;
     }
 
-
     // moved here to update every frame, since MVP matrix is a push-constant
     updateCommandBuffers();
 }
 
 void Simulation::updateCommandBuffers() {
-    hashGrid->updateCmd(*simulationState);
     particleRenderer->updateCmd(*simulationState);
     particlePhysics->updateCmd(*simulationState);
+}
+
+void Simulation::reset() {
+    cmdReset.reset();
+    cmdReset.begin(vk::CommandBufferBeginInfo());
+    simulationState->debugImagePhysics->clear(cmdReset, {1, 0, 0, 1});
+    simulationState->debugImageSort->clear(cmdReset, {0, 1, 0, 1});
+    simulationState->debugImageRenderer->clear(cmdReset, {0, 0, 1, 1});
+    cmdReset.end();
+
+    cmdEmpty.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eSimultaneousUse));
+    cmdEmpty.end();
+
+    // the spatial-lookup needs to always run at least once before any run
+    spatialLookup->updateCmd(*simulationState);
+    auto cmd = spatialLookup->run(*simulationState);
+    if (nullptr != cmd) {
+        vk::SubmitInfo submit({}, {}, cmd);
+        resources.computeQueue.submit(submit);
+        resources.device.waitIdle();
+    }
+
+    prevTime = glfwGetTime();
 }

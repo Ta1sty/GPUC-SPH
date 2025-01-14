@@ -1,22 +1,22 @@
 #version 450
 
-layout(location = 0) in vec2 position; // position in particle space
+layout (location = 0) in vec2 position; // position in particle space
 
-layout(location = 0) out vec4 outColor;
+layout (location = 0) out vec4 outColor;
 
-layout(binding = 0) readonly buffer particleBuffer { vec2 coordinates[]; };
-layout(binding = 1) uniform sampler1D colorscale;
-layout(binding = 2) uniform UniformBuffer {
+layout (binding = 0) readonly buffer particleBuffer { vec2 coordinates[]; };
+layout (binding = 1) uniform sampler1D colorscale;
+layout (binding = 2) uniform UniformBuffer {
     uint numParticles;
     uint backgroundField;
     float particleRadius;
 };
 
 
-#define GRID_SIZE 128
+#define GRID_BUFFER_SIZE 128
 
 uint cellHash(uvec2 cell) {
-    return ((cell.x * 73856093) ^ (cell.y * 19349663)) % GRID_SIZE;
+    return ((cell.x * 73856093) ^ (cell.y * 19349663)) % GRID_BUFFER_SIZE;
 }
 
 uint getCellForCoordinate(vec2 pos) {
@@ -42,17 +42,17 @@ float evaluateDensity(vec2 pos, float h) {
 }
 
 void main() {
-    //float value = float(getCellForCoordinate(position)) / float(GRID_SIZE);
+    //float value = float(getCellForCoordinate(position)) / float(GRID_BUFFER_SIZE);
     float value = 0.0f;
     switch (backgroundField) {
-    case 0:
-        value = float(getCellForCoordinate(position)) / float(GRID_SIZE);
-        break;
-    case 1:
-        value = evaluateDensity(position, 0.05) / 4;
-        break;
-    default:
-        break;
+        case 0:
+            value = float(getCellForCoordinate(position)) / float(GRID_BUFFER_SIZE);
+            break;
+        case 1:
+            value = evaluateDensity(position, 0.05) / 4;
+            break;
+        default:
+            break;
     }
     outColor = vec4(texture(colorscale, value).rgb, 1.0);
 }

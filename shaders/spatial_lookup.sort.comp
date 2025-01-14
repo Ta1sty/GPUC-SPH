@@ -1,50 +1,50 @@
 #version 450
 
-layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
 #define GRID_PCR
 #include "spatial_lookup.glsl"
 
 shared SpatialLookupEntry[gl_WorkGroupSize.x * 2] entries;
 
-void load(){
+void load() {
     uint left = gl_LocalInvocationID.x;
 
-    if (left >= constants.size) {
-        entries[left] = SpatialLookupEntry(uint(-1),uint(-1));
+    if (left >= GRID_BUFFER_SIZE) {
+        entries[left] = SpatialLookupEntry(uint(-1), uint(-1));
     } else {
         entries[left] = spatial_lookup[left];
     }
 
     uint right = left + gl_WorkGroupSize.x;
-    if (right >= constants.size) {
-        entries[right] = SpatialLookupEntry(uint(-1),uint(-1));
+    if (right >= GRID_BUFFER_SIZE) {
+        entries[right] = SpatialLookupEntry(uint(-1), uint(-1));
     } else {
         entries[right] = spatial_lookup[right];
     }
 }
 
-void store(){
+void store() {
     uint left = gl_LocalInvocationID.x;
 
-    if (left < constants.size) {
+    if (left < GRID_BUFFER_SIZE) {
         spatial_lookup[left] = entries[left];
     }
 
     uint right = left + gl_WorkGroupSize.x;
-    if (right < constants.size) {
+    if (right < GRID_BUFFER_SIZE) {
         spatial_lookup[right] = entries[right];
     }
 }
 
-void main(){
+void main() {
     uint local_index = gl_LocalInvocationID.x * 2;
 
     load();
 
-    SpatialLookupEntry left,right;
+    SpatialLookupEntry left, right;
 
-    for (uint i = 0; i < constants.size; ++i) {
+    for (uint i = 0; i < GRID_BUFFER_SIZE; ++i) {
 
         barrier();
 
@@ -53,7 +53,7 @@ void main(){
         left = entries[local_index];
         right = entries[local_index + 1];
 
-        if (left.cellKey > right.cellKey){
+        if (left.cellKey > right.cellKey) {
             entries[local_index] = right;
             entries[local_index + 1] = left;
         }
@@ -67,7 +67,7 @@ void main(){
         left = entries[local_index - 1];
         right = entries[local_index];
 
-        if (left.cellKey > right.cellKey){
+        if (left.cellKey > right.cellKey) {
             entries[local_index - 1] = right;
             entries[local_index] = left;
         }

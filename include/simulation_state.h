@@ -45,11 +45,12 @@ public:
     std::unique_ptr<DebugImage> debugImageSort;
     std::unique_ptr<DebugImage> debugImageRenderer;
 
-
+    // the radius in which particles are considered close to each other, also the cell size for the spatial-lookup
+    float spatialRadius = 0.5;
     Buffer spatialLookup;
     Buffer spatialIndices;
 
     std::mt19937 random;
-    bool paused = false;
+    bool paused = true;
     bool step = false;
 };

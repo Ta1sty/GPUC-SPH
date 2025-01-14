@@ -1,30 +1,30 @@
 #version 450
 
-layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
 #define GRID_PCR
 #include "spatial_lookup.glsl"
 
-void main(){
+void main() {
     uint index = gl_WorkGroupID.x * gl_WorkGroupSize.x * 2 + gl_LocalInvocationID.x;
 
     {
-        if (index >= constants.size) return;
+        if (index >= GRID_BUFFER_SIZE) return;
 
-        uvec2 cell = uvec2(particles_coordinates[index].xy * 100);
+        uvec2 cell = uvec2(particle_coordinates[index].xy * 100);
 
-        spatial_lookup[index] = SpatialLookupEntry(cellHash(cell), index);
+        spatial_lookup[index] = SpatialLookupEntry(cellKey(cell), index);
         spatial_indices[index] = uint(-1);
     }
 
     index += gl_WorkGroupSize.x;
 
     {
-        if (index >= constants.size) return;
+        if (index >= GRID_BUFFER_SIZE) return;
 
-        uvec2 cell = uvec2(particles_coordinates[index].xy * 100);
+        uvec2 cell = uvec2(particle_coordinates[index].xy * 100);
 
-        spatial_lookup[index] = SpatialLookupEntry(cellHash(cell), index);
+        spatial_lookup[index] = SpatialLookupEntry(cellKey(cell), index);
         spatial_indices[index] = uint(-1);
     }
 

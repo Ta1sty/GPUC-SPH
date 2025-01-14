@@ -1,11 +1,6 @@
 #include "spatial_lookup.h"
 
-struct PushConstants {
-    uint32_t size;
-};
-
 SpatialLookup::SpatialLookup(const SimulationParameters &parameters) {
-    workgroupSizeX = (parameters.numParticles + 1) / 2;
 
     descriptorBindings.clear();
 
@@ -18,13 +13,21 @@ SpatialLookup::SpatialLookup(const SimulationParameters &parameters) {
     Cmn::createDescriptorPool(resources.device, descriptorBindings, descriptorPool);
     Cmn::allocateDescriptorSet(resources.device, descriptorSet, descriptorPool, descriptorLayout);
 
-    vk::PushConstantRange pcr({vk::ShaderStageFlagBits::eCompute}, 0, sizeof(PushConstants));
+    vk::PushConstantRange pcr({vk::ShaderStageFlagBits::eCompute}, 0, sizeof(SpatialLookupPushConstants));
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, descriptorLayout, pcr);
     pipelineLayout = resources.device.createPipelineLayout(pipelineLayoutInfo);
 
     Cmn::createShader(resources.device, writeShader, shaderPath("spatial_lookup.write.comp"));
     Cmn::createShader(resources.device, sortShader, shaderPath("spatial_lookup.sort.comp"));
     Cmn::createShader(resources.device, indexShader, shaderPath("spatial_lookup.index.comp"));
+}
+
+void SpatialLookup::createPipelines() {
+    std::cout << "Build spatial-lookup pipelines" << std::endl;
+
+    resources.device.destroyPipeline(writePipeline);
+    resources.device.destroyPipeline(sortPipeline);
+    resources.device.destroyPipeline(indexPipeline);
 
     std::array<vk::SpecializationMapEntry, 1> specEntries {
             vk::SpecializationMapEntry(0, 0, sizeof(workgroupSizeX))};
@@ -38,7 +41,6 @@ SpatialLookup::SpatialLookup(const SimulationParameters &parameters) {
     Cmn::createPipeline(resources.device, sortPipeline, pipelineLayout, specInfo, sortShader);
     Cmn::createPipeline(resources.device, indexPipeline, pipelineLayout, specInfo, indexShader);
 }
-
 
 SpatialLookup::~SpatialLookup() {
     resources.device.destroyPipeline(writePipeline);
@@ -63,19 +65,35 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
         cmd.reset();
     }
 
+    auto sizeX = (state.parameters.numParticles + 1) / 2;
+    if (sizeX != workgroupSizeX) {
+        workgroupSizeX = sizeX;
+        createPipelines();
+    }
+
+    pushConstants = SpatialLookupPushConstants {state.parameters.numParticles, state.spatialRadius};
+
     Cmn::bindBuffers(resources.device, state.spatialLookup.buf, descriptorSet, 0);
     Cmn::bindBuffers(resources.device, state.spatialIndices.buf, descriptorSet, 1);
     Cmn::bindBuffers(resources.device, state.particleCoordinateBuffer.buf, descriptorSet, 2);
 
-    uint32_t dx = (state.parameters.numParticles + workgroupSizeX - 1) / workgroupSizeX;
+    uint32_t dx = (state.parameters.numParticles + (workgroupSizeX * 2) - 1) / (workgroupSizeX * 2);
 
-    PushConstants pushConstants {
-            state.parameters.numParticles};
+    std::cout
+            << "Record spatial-lookup"
+            << " groupSize: " << workgroupSizeX
+            << " groupCount: " << dx
+            << " size: " << pushConstants.bufferSize
+            << " radius: " << pushConstants.cellSize << std::endl;
 
     cmd.begin(vk::CommandBufferBeginInfo());
 
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipelineLayout, 0, descriptorSet, {});
-    cmd.pushConstants(pipelineLayout, {vk::ShaderStageFlagBits::eCompute}, 0, vk::ArrayProxy<const PushConstants>(pushConstants));
+    cmd.pushConstants(
+            pipelineLayout,
+            {vk::ShaderStageFlagBits::eCompute},
+            0,
+            vk::ArrayProxy<const SpatialLookupPushConstants>(pushConstants));
 
     // write into spatial-lookup and reset spatial-indices
     cmd.bindPipeline(vk::PipelineBindPoint::eCompute, writePipeline);
@@ -98,9 +116,11 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
 
 
 vk::CommandBuffer SpatialLookup::run(SimulationState &state) {
-    if (nullptr == cmd) {
-        updateCmd(state);
+    if (nullptr != cmd && state.spatialRadius == pushConstants.cellSize && state.parameters.numParticles == pushConstants.bufferSize) {
+        return cmd;
     }
+
+    updateCmd(state);
 
     return cmd;
 }

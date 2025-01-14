@@ -174,6 +174,7 @@ void ImguiUi::drawUi(UiBindings &bindings) {
 
         EnumCombo("Background Field", &render.backgroundField, renderBackgroundFieldMappings);
         ImGui::DragFloat("Particle Radius", &render.particleRadius, 0.5, 1.0, 64.0, "%.1f");
+        ImGui::DragFloat("Spatial Radius", &bindings.simulationState->spatialRadius, 0.01, 0.01, 1.0, "%.2f");
 
         ImGui::Separator();
         ImGui::Checkbox("ImGui demo window", &render.showDemoWindow);

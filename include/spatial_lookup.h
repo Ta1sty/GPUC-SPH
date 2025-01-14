@@ -3,8 +3,15 @@
 #include "initialization.h"
 #include "simulation_state.h"
 
+struct SpatialLookupPushConstants {
+    uint32_t bufferSize;
+    float cellSize;
+};
+
 class SpatialLookup {
-    uint32_t workgroupSizeX = 128;
+    SpatialLookupPushConstants pushConstants {0, 0};
+
+    uint32_t workgroupSizeX = -1;
 
     std::vector<vk::DescriptorSetLayoutBinding> descriptorBindings;
     vk::DescriptorSetLayout descriptorLayout;
@@ -14,15 +21,17 @@ class SpatialLookup {
     vk::PipelineLayout pipelineLayout;
 
     vk::ShaderModule writeShader;
-    vk::Pipeline writePipeline;
+    vk::Pipeline writePipeline = nullptr;
 
     vk::ShaderModule sortShader;
-    vk::Pipeline sortPipeline;
+    vk::Pipeline sortPipeline = nullptr;
 
     vk::ShaderModule indexShader;
-    vk::Pipeline indexPipeline;
+    vk::Pipeline indexPipeline = nullptr;
 
     vk::CommandBuffer cmd;
+
+    void createPipelines();
 
 public:
     explicit SpatialLookup(const SimulationParameters &parameters);

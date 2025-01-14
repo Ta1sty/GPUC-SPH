@@ -35,7 +35,6 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
         vk::CommandBufferAllocateInfo cmdInfo(resources.computeCommandPool, vk::CommandBufferLevel::ePrimary, 1);
         cmd = resources.device.allocateCommandBuffers(cmdInfo)[0];
     } else {
-        std::cout << "Resetting command buffer" << std::endl;
         cmd.reset();
     }
 

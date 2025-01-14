@@ -1,11 +1,32 @@
 #ifdef GRID_PCR
-layout(push_constant) uniform PushStruct {
-    uint size;
+layout (push_constant) uniform PushStruct {
+    uint bufferSize;
+    float cellSize;
 } constants;
 #endif
 
-#ifndef GRID_SIZE
-#define GRID_SIZE uint(constants.size)
+#ifndef GRID_BUFFER_SIZE
+#define GRID_BUFFER_SIZE uint(constants.bufferSize)
+#endif
+
+#ifndef GRID_CELL_SIZE
+#define GRID_CELL_SIZE float(constants.cellSize)
+#endif
+
+#ifndef GRID_SET
+#define GRID_SET 0
+#endif
+
+#ifndef GRID_BINDING_LOOKUP
+#define GRID_BINDING_LOOKUP 0
+#endif
+
+#ifndef GRID_BINDING_INDEX
+#define GRID_BINDING_INDEX 1
+#endif
+
+#ifndef GRID_BINDING_COORDINATES
+#define GRID_BINDING_COORDINATES 2
 #endif
 
 struct SpatialLookupEntry {
@@ -13,10 +34,21 @@ struct SpatialLookupEntry {
     uint particleIndex;
 };
 
-layout (binding = 0) buffer lookupBuffer { SpatialLookupEntry spatial_lookup[]; };
-layout (binding = 1) buffer indexBuffer { uint spatial_indices[]; };
-layout (binding = 2) buffer particleBuffer { vec2 particles_coordinates[]; };
+layout (set = GRID_SET, binding = GRID_BINDING_LOOKUP) buffer lookupBuffer { SpatialLookupEntry spatial_lookup[]; };
+layout (set = GRID_SET, binding = GRID_BINDING_INDEX) buffer indexBuffer { uint spatial_indices[]; };
 
-uint cellHash(uvec2 cell) {
-    return ((cell.x * 73856093) ^ (cell.y * 19349663)) % GRID_SIZE;
+#if GRID_BINDING_COORDINATES > -1
+layout (set = GRID_SET, binding = GRID_BINDING_COORDINATES) buffer particleBuffer { vec2 particle_coordinates[]; };
+#endif
+
+uint cellKey(vec2 cell) {
+    vec2 scaled = cell / GRID_CELL_SIZE;
+    ivec2 rounded = ivec2(scaled);
+
+    int key = ((rounded.x * 73856093) ^ (rounded.y * 19349663));
+    return uint(key) % GRID_BUFFER_SIZE;
+}
+
+vec4 cellColor(uint cellKey) {
+    return vec4(1.f * cellKey / GRID_BUFFER_SIZE, 0, 0, 1);
 }

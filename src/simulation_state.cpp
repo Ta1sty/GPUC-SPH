@@ -78,7 +78,7 @@ bool SimulationTime::advance(double add) {
     time += add;
 
     // it's time for a tick
-    if (time > lastUpdate + tickRate) {
+    if (time >= lastUpdate + tickRate) {
         lastUpdate += tickRate;
         ticks++;
         return true;

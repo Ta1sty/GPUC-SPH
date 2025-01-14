@@ -19,10 +19,11 @@ public:
     explicit Simulation(const SimulationParameters &parameters, std::shared_ptr<Camera> camera);
     ~Simulation();
 
+    void reset();
     void run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::Semaphore signalRenderFinished, vk::Fence signalSubmitFinished);
 
 private:
-    double prevTime;
+    double prevTime = 0;
 
     void processUpdateFlags(const UiBindings::UpdateFlags &updateFlags);
     void updateCommandBuffers();
@@ -35,7 +36,7 @@ private:
     std::unique_ptr<ImguiUi> imguiUi;
 
     std::unique_ptr<ParticleRenderer> particleRenderer;
-    std::unique_ptr<SpatialLookup> hashGrid;
+    std::unique_ptr<SpatialLookup> spatialLookup;
     std::unique_ptr<ParticleSimulation> particlePhysics;
 
     // clears the color values for the debug images

@@ -1,15 +1,15 @@
 #version 450
 
-layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
 #define GRID_PCR
 #include "spatial_lookup.glsl"
 
-void main(){
+void main() {
     uint index = gl_WorkGroupID.x * gl_WorkGroupSize.x * 2 + gl_LocalInvocationID.x;
 
     {
-        if (index >= constants.size) return;
+        if (index >= GRID_BUFFER_SIZE) return;
 
         uint currentKey = spatial_lookup[index].cellKey;
 
@@ -24,7 +24,7 @@ void main(){
     index += gl_WorkGroupSize.x;
 
     {
-        if (index >= constants.size) return;
+        if (index >= GRID_BUFFER_SIZE) return;
 
         uint currentKey = spatial_lookup[index].cellKey;
         uint previousKey = spatial_lookup[index - 1].cellKey;
