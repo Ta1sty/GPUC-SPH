@@ -300,7 +300,7 @@ void Simulation::processUpdateFlags(const UiBindings::UpdateFlags &updateFlags) 
         cmdReset.end();
 
         simulationState = std::move(newState);
-        simulationState->camera.reset();
+        simulationState->camera->reset();
     }
 
     if (updateFlags.togglePause)
