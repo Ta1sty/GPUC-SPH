@@ -1,4 +1,6 @@
 #include "simulation.h"
+#include <map>
+#include <set>
 
 #include "debug_image.h"
 #include "particle_physics.h"
@@ -123,12 +125,12 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     // FOR DEBUGGING
 
-    return;
+    //    return;
 
     resources.device.waitIdle();
 
 
-    std::vector<Particle> particles(simulationParameters.numParticles);
+    std::vector<glm::vec2> particles(simulationParameters.numParticles);
     fillHostWithStagingBuffer(simulationState->particleCoordinateBuffer, particles);
 
     std::vector<SpatialLookupEntry> spatial_lookup(simulationParameters.numParticles);
@@ -141,9 +143,76 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     std::sort(spatial_lookup_sorted.begin(), spatial_lookup_sorted.end(),
               [](SpatialLookupEntry left, SpatialLookupEntry right) -> bool { return left.cellKey < right.cellKey; });
 
+    struct HashResult {
+        uint32_t lookupKey;
+        uint32_t testKey;
+        float x;
+        float y;
+        uint32_t cellX;
+        uint32_t cellY;
+    };
+
+    std::set<uint32_t> keys;
+    std::vector<HashResult> hashes;
     for (uint32_t i = 0; i < simulationParameters.numParticles; i++) {
+        float inverseSize = 1.f / simulationState->spatialRadius;
+
+        SpatialLookupEntry lookup = spatial_lookup[i];
+
+        glm::vec2 position = particles[lookup.particleIndex];
+
+        glm::vec2 scaled(position.x * inverseSize, position.y * inverseSize);
+        glm::uvec2 cell(scaled.x, scaled.y);
+
+        uint32_t hash = ((cell.x * 73856093) ^ (cell.y * 19349663));
+        uint32_t testKey = hash % simulationParameters.numParticles;
+
+        HashResult result {
+                .lookupKey = lookup.cellKey,
+                .testKey = testKey,
+                .x = position.x,
+                .y = position.y,
+                .cellX = cell.x,
+                .cellY = cell.y,
+        };
+
+        keys.emplace(lookup.cellKey);
+        hashes.emplace_back(result);
+
+        if (result.lookupKey != result.testKey) {
+            throw std::runtime_error("key differs");
+        }
+
         if (spatial_lookup[i].cellKey != spatial_lookup_sorted[i].cellKey) {
             throw std::runtime_error("spatial lookup not sorted");
+        }
+    }
+
+    std::map<uint32_t, std::vector<HashResult>> groupedResults;
+
+    for (const auto &hash: hashes) {
+        uint32_t lookupKey = hash.lookupKey;
+
+        auto &group = groupedResults[lookupKey];
+        bool isDistinct = true;
+
+        for (const auto &result: group) {
+            if (result.cellX == hash.cellX && result.cellY == hash.cellY) {
+                isDistinct = false;
+                break;
+            }
+        }
+
+        if (isDistinct) {
+            group.push_back(hash);
+        }
+    }
+
+    std::map<uint32_t, std::vector<HashResult>> collisions;
+
+    for (const auto &[lookupKey, group]: groupedResults) {
+        if (group.size() >= 2) {
+            collisions[lookupKey] = group;
         }
     }
 

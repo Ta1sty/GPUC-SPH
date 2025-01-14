@@ -10,18 +10,14 @@ layout (binding = 2) uniform UniformBuffer {
     uint numParticles;
     uint backgroundField;
     float particleRadius;
+    float spatialRadius;
 };
 
-
-#define GRID_BUFFER_SIZE 128
-
-uint cellHash(uvec2 cell) {
-    return ((cell.x * 73856093) ^ (cell.y * 19349663)) % GRID_BUFFER_SIZE;
-}
-
-uint getCellForCoordinate(vec2 pos) {
-    return cellHash(uvec2(pos * 16));
-}
+#define GRID_BINDING_LOOKUP 3
+#define GRID_BINDING_INDEX 4
+#define GRID_BUFFER_SIZE numParticles
+#define GRID_CELL_SIZE spatialRadius
+#include "spatial_lookup.glsl"
 
 float evaluateDensity(vec2 pos, float h) {
     float density = 0.0f;
@@ -46,13 +42,14 @@ void main() {
     float value = 0.0f;
     switch (backgroundField) {
         case 0:
-            value = float(getCellForCoordinate(position)) / float(GRID_BUFFER_SIZE);
+            outColor = cellColor(cellKey(position));
             break;
         case 1:
             value = evaluateDensity(position, 0.05) / 4;
+            outColor = vec4(texture(colorscale, value).rgb, 1.0);
             break;
         default:
+            outColor = vec4(texture(colorscale, value).rgb, 1.0);
             break;
     }
-    outColor = vec4(texture(colorscale, value).rgb, 1.0);
 }

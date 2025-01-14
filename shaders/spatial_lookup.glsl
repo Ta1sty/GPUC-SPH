@@ -34,19 +34,20 @@ struct SpatialLookupEntry {
     uint particleIndex;
 };
 
-layout (set = GRID_SET, binding = GRID_BINDING_LOOKUP) buffer lookupBuffer { SpatialLookupEntry spatial_lookup[]; };
-layout (set = GRID_SET, binding = GRID_BINDING_INDEX) buffer indexBuffer { uint spatial_indices[]; };
+layout (set = GRID_SET, binding = GRID_BINDING_LOOKUP) buffer spatialLookupBuffer { SpatialLookupEntry spatial_lookup[]; };
+layout (set = GRID_SET, binding = GRID_BINDING_INDEX) buffer spatialIndexBuffer { uint spatial_indices[]; };
 
 #if GRID_BINDING_COORDINATES > -1
-layout (set = GRID_SET, binding = GRID_BINDING_COORDINATES) buffer particleBuffer { vec2 particle_coordinates[]; };
+layout (set = GRID_SET, binding = GRID_BINDING_COORDINATES) buffer spatialParticleBuffer { vec2 particle_coordinates[]; };
 #endif
 
-uint cellKey(vec2 cell) {
-    vec2 scaled = cell / GRID_CELL_SIZE;
-    ivec2 rounded = ivec2(scaled);
+uint cellKey(vec2 position) {
+    float inverseSize = 1.f / GRID_CELL_SIZE;
+    vec2 scaled = vec2(position.x * inverseSize, position.y * inverseSize);
+    uvec2 cell = uvec2(scaled);
 
-    int key = ((rounded.x * 73856093) ^ (rounded.y * 19349663));
-    return uint(key) % GRID_BUFFER_SIZE;
+    uint key = ((cell.x * 73856093) ^ (cell.y * 19349663));
+    return key % GRID_BUFFER_SIZE;
 }
 
 vec4 cellColor(uint cellKey) {

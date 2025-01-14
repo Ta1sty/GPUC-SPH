@@ -11,9 +11,7 @@ void main() {
     {
         if (index >= GRID_BUFFER_SIZE) return;
 
-        uvec2 cell = uvec2(particle_coordinates[index].xy * 100);
-
-        spatial_lookup[index] = SpatialLookupEntry(cellKey(cell), index);
+        spatial_lookup[index] = SpatialLookupEntry(cellKey(particle_coordinates[index]), index);
         spatial_indices[index] = uint(-1);
     }
 
@@ -22,9 +20,7 @@ void main() {
     {
         if (index >= GRID_BUFFER_SIZE) return;
 
-        uvec2 cell = uvec2(particle_coordinates[index].xy * 100);
-
-        spatial_lookup[index] = SpatialLookupEntry(cellKey(cell), index);
+        spatial_lookup[index] = SpatialLookupEntry(cellKey(particle_coordinates[index]), index);
         spatial_indices[index] = uint(-1);
     }
 

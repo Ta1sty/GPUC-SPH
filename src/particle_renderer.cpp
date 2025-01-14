@@ -153,7 +153,8 @@ vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState, 
     UniformBufferStruct ub {
             simulationState.parameters.numParticles,
             static_cast<uint32_t>(renderParameters.backgroundField),
-            renderParameters.particleRadius};
+            renderParameters.particleRadius,
+            simulationState.spatialRadius};
 
     if (!(ub == uniformBufferContent)) {
         uniformBufferContent = ub;
@@ -207,10 +208,21 @@ void ParticleRenderer::createPipeline() {
             1U,
             vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eGeometry);
 
+    bindings.emplace_back(// spatial-lookup
+            3,
+            vk::DescriptorType::eStorageBuffer,
+            1U,
+            vk::ShaderStageFlagBits::eFragment);
+
+    bindings.emplace_back(// spatial-indices
+            4,
+            vk::DescriptorType::eStorageBuffer,
+            1U,
+            vk::ShaderStageFlagBits::eFragment);
+
     Cmn::createDescriptorSetLayout(resources.device, bindings, descriptorSetLayout);
     Cmn::createDescriptorPool(resources.device, bindings, descriptorPool);
     Cmn::allocateDescriptorSet(resources.device, descriptorSet, descriptorPool, descriptorSetLayout);
-
 
     vk::PushConstantRange pcr {
             vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct)};
@@ -504,6 +516,8 @@ void ParticleRenderer::updateDescriptorSets(const SimulationState &simulationSta
     Cmn::bindBuffers(resources.device, simulationState.particleCoordinateBuffer.buf, descriptorSet, 0);
     Cmn::bindCombinedImageSampler(resources.device, colormapImageView, colormapSampler, descriptorSet, 1);
     Cmn::bindBuffers(resources.device, uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
+    Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 3);
+    Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, descriptorSet, 4);
 }
 
 void ParticleRenderer::updateCmd(const SimulationState &simulationState) {
