@@ -39,7 +39,7 @@ Project::Project(AppResources &app, Render &render, const uint32_t particleCount
     Cmn::createDescriptorSetLayout(app.device, data.bindings, data.descriptorSetLayout);
 
     using BFlag = vk::BufferUsageFlagBits;
-    auto makeDLocalBuffer = [&](vk::BufferUsageFlags usage, vk::DeviceSize size, const std::string& name) -> Buffer {
+    auto makeDLocalBuffer = [&](vk::BufferUsageFlags usage, vk::DeviceSize size, const std::string &name) -> Buffer {
         return createDeviceLocalBuffer(name, size, usage);
     };
 

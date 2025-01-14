@@ -92,12 +92,14 @@ Render::Render(AppResources &app, int framesinlight) : app(app), framesinlight(f
 
     {
         vk::PushConstantRange pushConstantRange = {
-                vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(PushConstant)
-        };
+                vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(PushConstant)};
 
         vk::PipelineLayoutCreateInfo cI = {
-                {}, 0, nullptr, 1, &pushConstantRange
-        };
+                {},
+                0,
+                nullptr,
+                1,
+                &pushConstantRange};
 
         layout = app.device.createPipelineLayout(cI, nullptr);
     }
@@ -127,76 +129,72 @@ Render::Render(AppResources &app, int framesinlight) : app(app), framesinlight(f
                         vk::ImageLayout::eUndefined,
                         vk::ImageLayout::eDepthStencilAttachmentOptimal,
 
-                }
-        };
+                }};
         vk::AttachmentReference attachmentReferences[] = {
                 {
-                        0, vk::ImageLayout::eColorAttachmentOptimal,
-                }
-        };
+                        0,
+                        vk::ImageLayout::eColorAttachmentOptimal,
+                }};
         vk::AttachmentReference depthStencilAttachmentRef = {
-                1, vk::ImageLayout::eDepthStencilAttachmentOptimal
-        };
+                1, vk::ImageLayout::eDepthStencilAttachmentOptimal};
         vk::SubpassDescription subpasses[] = {
-                {
-                        vk::SubpassDescriptionFlagBits(),
-                        vk::PipelineBindPoint::eGraphics,
-                        0, nullptr,
-                        1, &attachmentReferences[0],
-                        nullptr,
-                        &depthStencilAttachmentRef,
-                        0, nullptr
-                },
-                {
-                        vk::SubpassDescriptionFlagBits(),
-                        vk::PipelineBindPoint::eGraphics,
-                        0, nullptr,
-                        1, &attachmentReferences[0],
-                        nullptr,
-                        &depthStencilAttachmentRef,
-                        0, nullptr
-                }
-        };
+                {vk::SubpassDescriptionFlagBits(),
+                 vk::PipelineBindPoint::eGraphics,
+                 0, nullptr,
+                 1, &attachmentReferences[0],
+                 nullptr,
+                 &depthStencilAttachmentRef,
+                 0, nullptr},
+                {vk::SubpassDescriptionFlagBits(),
+                 vk::PipelineBindPoint::eGraphics,
+                 0, nullptr,
+                 1, &attachmentReferences[0],
+                 nullptr,
+                 &depthStencilAttachmentRef,
+                 0, nullptr}};
 
         vk::SubpassDependency dependencies = {
                 0, 1, vk::PipelineStageFlagBits::eAllGraphics, vk::PipelineStageFlagBits::eAllGraphics,
-                vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eMemoryRead | vk::AccessFlagBits::eMemoryWrite
-        };
+                vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eMemoryRead | vk::AccessFlagBits::eMemoryWrite};
 
         vk::RenderPassCreateInfo cI = {
-                {}, 2, &attachments[0], 2, &subpasses[0], 1, &dependencies
-        };
+                {},
+                2,
+                &attachments[0],
+                2,
+                &subpasses[0],
+                1,
+                &dependencies};
 
         renderPass = app.device.createRenderPass(cI);
     }
     {
         vk::ImageCreateInfo cI = {
-                {}, vk::ImageType::e2D, vk::Format::eD32Sfloat, {app.extent.width, app.extent.height, 1},
-                1, 1, vk::SampleCountFlagBits::e1,
-                vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment,
-                vk::SharingMode::eExclusive, 0, {}, vk::ImageLayout::eUndefined
-        };
+                {},
+                vk::ImageType::e2D,
+                vk::Format::eD32Sfloat,
+                {app.extent.width, app.extent.height, 1},
+                1,
+                1,
+                vk::SampleCountFlagBits::e1,
+                vk::ImageTiling::eOptimal,
+                vk::ImageUsageFlagBits::eDepthStencilAttachment,
+                vk::SharingMode::eExclusive,
+                0,
+                {},
+                vk::ImageLayout::eUndefined};
 
         createImage(app.pDevice, app.device, cI, vk::MemoryPropertyFlagBits::eDeviceLocal, "Depth Buffer",
                     depthImage, depthImageMemory);
 
-        depthImageView = app.device.createImageView({
-                                                            {}, depthImage, vk::ImageViewType::e2D, vk::Format::eD32Sfloat,
-                                                            {
-                                                                    vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity,
-                                                                    vk::ComponentSwizzle::eIdentity
-                                                            },
-                                                            {vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1}
-                                                    });
+        depthImageView = app.device.createImageView({{}, depthImage, vk::ImageViewType::e2D, vk::Format::eD32Sfloat, {vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity}, {vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1}});
     }
 
     {
         framebuffers.clear();
         for (int i = 0; i < app.swapchainImages.size(); i++) {
             vk::ImageView attachments[] = {app.swapchainImageViews[i], depthImageView};
-            framebuffers.push_back(app.device.createFramebuffer({
-                                                                        {}, renderPass, 2, &attachments[0], app.extent.width, app.extent.height, 1
-                                                                }));
+            framebuffers.push_back(app.device.createFramebuffer({{}, renderPass, 2, &attachments[0], app.extent.width, app.extent.height, 1}));
         }
     }
 
@@ -204,10 +202,6 @@ Render::Render(AppResources &app, int framesinlight) : app(app), framesinlight(f
         fences.push_back(app.device.createFence({vk::FenceCreateFlagBits::eSignaled}));
         swapchainAcquireSemaphores.push_back(app.device.createSemaphore({}));
         completionSemaphores.push_back(app.device.createSemaphore({}));
-        commandBuffers.push_back(app.device.allocateCommandBuffers({
-                                                                           app.graphicsCommandPool, vk::CommandBufferLevel::ePrimary, 1U
-                                                                   })[0]);
+        commandBuffers.push_back(app.device.allocateCommandBuffers({app.graphicsCommandPool, vk::CommandBufferLevel::ePrimary, 1U})[0]);
     }
 }
-
-
