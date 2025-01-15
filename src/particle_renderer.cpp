@@ -1,7 +1,10 @@
 #include "particle_renderer.h"
 #include "helper.h"
-#include "simulation.h"
 
+/**
+ * Convenience struct that initializes graphics pipeline parameters with sane values.
+ * Create a graphics pipeline by using this struct and just overwriting any fields as you need.
+ */
 struct GraphicsPipelineBuilder {
     vk::Viewport viewport;
     vk::Rect2D scissor;
@@ -23,7 +26,8 @@ struct GraphicsPipelineBuilder {
 
     GraphicsPipelineBuilder(GraphicsPipelineBuilder &&obj) = default;
 
-    explicit GraphicsPipelineBuilder(const std::initializer_list<std::pair<vk::ShaderStageFlagBits, const char *>> &shaders, const vk::PipelineLayout &pipelineLayout, const vk::RenderPass &renderPass, const uint32_t subpass) {
+    explicit GraphicsPipelineBuilder(const std::initializer_list<std::pair<vk::ShaderStageFlagBits, const char *>> &shaders,
+                                     const vk::PipelineLayout &pipelineLayout, const vk::RenderPass &renderPass, const uint32_t subpass) {
         for (const auto &[stage, file]: shaders) {
             vk::ShaderModule sm;
             Cmn::createShader(resources.device, sm, shaderPath(file));
@@ -128,8 +132,7 @@ struct GraphicsPipelineBuilder {
             resources.device.destroyShaderModule(sm);
     }
 
-private:
-    void finalize() {
+    vk::GraphicsPipelineCreateInfo buildCreateInfo() {
         if (vertexInputSci.vertexBindingDescriptionCount == 0 || vertexInputSci.pVertexBindingDescriptions == nullptr) {
             vertexInputSci.vertexBindingDescriptionCount = vertexInputBindings.size();
             vertexInputSci.pVertexBindingDescriptions = vertexInputBindings.data();
@@ -144,88 +147,37 @@ private:
             colorBlendSCI.attachmentCount = pipelineColorBlendAttachmentStates.size();
             colorBlendSCI.pAttachments = pipelineColorBlendAttachmentStates.data();
         }
+
+
+        return {{},
+                static_cast<uint32_t>(shaderStageCIs.size()),
+                shaderStageCIs.data(),
+                &vertexInputSci,
+                &inputAssemblySCI,
+                nullptr,// tesselation
+                &viewportSCI,
+                &rasterizationSCI,
+                &multisampleSCI,
+                &depthStencilSCI,
+                &colorBlendSCI,
+                nullptr,// dynamic state
+                pipelineLayout,
+                renderPass,
+                subpass,
+                {},
+                0};
     }
 
-public:
     static auto createPipelines(std::vector<GraphicsPipelineBuilder> &builders) {
         std::vector<vk::GraphicsPipelineCreateInfo> pipelineCIs;
-        for (auto &builder: builders) {
-            builder.finalize();
-            pipelineCIs.push_back({{},
-                                   static_cast<uint32_t>(builder.shaderStageCIs.size()),
-                                   builder.shaderStageCIs.data(),
-                                   &builder.vertexInputSci,
-                                   &builder.inputAssemblySCI,
-                                   nullptr,// tesselation
-                                   &builder.viewportSCI,
-                                   &builder.rasterizationSCI,
-                                   &builder.multisampleSCI,
-                                   &builder.depthStencilSCI,
-                                   &builder.colorBlendSCI,
-                                   nullptr,// dynamic state
-                                   builder.pipelineLayout,
-                                   builder.renderPass,
-                                   builder.subpass,
-                                   {},
-                                   0});
-        }
+        for (auto &builder: builders)
+            pipelineCIs.push_back(builder.buildCreateInfo());
 
         return resources.device.createGraphicsPipelines(nullptr, pipelineCIs);
     }
 };
 
-vk::Image ParticleRenderer::getImage() {
-    return colorAttachment;
-}
-
-ParticleRenderer::ParticleRenderer(const SimulationParameters &simulationParameters) {
-    vk::ImageCreateInfo imageInfo(
-            {},
-            vk::ImageType::e2D,
-            resources.surfaceFormat.format,
-            {resources.extent.width, resources.extent.height, 1},
-            1,
-            1,
-            vk::SampleCountFlagBits::e1,
-            vk::ImageTiling::eOptimal,
-            {vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc},
-            vk::SharingMode::eExclusive,
-            1,
-            &resources.gQ,
-            vk::ImageLayout::eUndefined);
-
-    createImage(
-            resources.pDevice,
-            resources.device,
-            imageInfo,
-            {vk::MemoryPropertyFlagBits::eDeviceLocal},
-            "render-color-attachment",
-            colorAttachment,
-            colorAttachmentMemory);
-
-    vk::ImageViewCreateInfo viewInfo(
-            {},
-            colorAttachment,
-            vk::ImageViewType::e2D,
-            resources.surfaceFormat.format,
-            {},
-            {{vk::ImageAspectFlagBits::eColor},
-             0,
-             1,
-             0,
-             1});
-    colorAttachmentView = resources.device.createImageView(viewInfo);
-
-    // can be removed later - layout transitions for the color attachment should be handled by render-pass
-    transitionImageLayout(
-            resources.device,
-            resources.graphicsCommandPool,
-            resources.graphicsQueue,
-            colorAttachment,
-            resources.surfaceFormat.format,
-            vk::ImageLayout::eUndefined,
-            vk::ImageLayout::eColorAttachmentOptimal);
-
+ParticleRenderer2D::ParticleRenderer2D(ParticleRenderer *renderer) : renderer(renderer) {
     vk::AttachmentDescription colorAttachmentDescription {
             {},
             resources.surfaceFormat.format,
@@ -284,10 +236,16 @@ ParticleRenderer::ParticleRenderer(const SimulationParameters &simulationParamet
 
     renderPass = resources.device.createRenderPass(renderPassCI);
 
-    framebuffer = resources.device.createFramebuffer({{}, renderPass, 1, &colorAttachmentView, imageInfo.extent.width, imageInfo.extent.height, imageInfo.extent.depth});
+    framebuffer = resources.device.createFramebuffer({{},
+                                                      renderPass,
+                                                      1,
+                                                      &renderer->colorAttachmentView,
+                                                      renderer->imageSize.width,
+                                                      renderer->imageSize.height,
+                                                      renderer->imageSize.depth});
 
     createColormapTexture(colormaps::viridis);
-    createPipeline();
+    createPipelines();
 
     // quad vertex buffer
     const std::vector<glm::vec2> quadVertices {
@@ -321,7 +279,7 @@ ParticleRenderer::ParticleRenderer(const SimulationParameters &simulationParamet
     fillDeviceWithStagingBuffer(uniformBuffer, uniformBufferVector);
 }
 
-vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState, const RenderParameters &renderParameters) {
+vk::CommandBuffer ParticleRenderer2D::run(const SimulationState &simulationState, const RenderParameters &renderParameters) {
     UniformBufferStruct ub {
             simulationState.parameters.numParticles,
             static_cast<uint32_t>(renderParameters.backgroundField),
@@ -340,11 +298,8 @@ vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState, 
     return commandBuffer;
 }
 
-ParticleRenderer::~ParticleRenderer() {
+ParticleRenderer2D::~ParticleRenderer2D() {
     resources.device.destroyFramebuffer(framebuffer);
-    resources.device.destroyImageView(colorAttachmentView);
-    resources.device.destroyImage(colorAttachment);
-    resources.device.freeMemory(colorAttachmentMemory);
 
     resources.device.freeCommandBuffers(resources.graphicsCommandPool, commandBuffer);
     resources.device.destroyPipeline(particlePipeline);
@@ -361,7 +316,7 @@ ParticleRenderer::~ParticleRenderer() {
     resources.device.destroyDescriptorSetLayout(descriptorSetLayout);
 }
 
-void ParticleRenderer::createPipeline() {
+void ParticleRenderer2D::createPipelines() {
     std::vector<vk::DescriptorSetLayoutBinding> bindings;
     bindings.emplace_back(
             0,
@@ -433,7 +388,7 @@ void ParticleRenderer::createPipeline() {
     particlePipeline = pipelines.value[1];
 }
 
-void ParticleRenderer::createColormapTexture(const std::vector<colormaps::RGB_F32> &colormap) {
+void ParticleRenderer2D::createColormapTexture(const std::vector<colormaps::RGB_F32> &colormap) {
     auto imageFormat = vk::Format::eR8G8B8A8Unorm;
     vk::Extent3D imageExtent = {static_cast<uint32_t>(colormap.size()), 1, 1};
 
@@ -508,7 +463,7 @@ void ParticleRenderer::createColormapTexture(const std::vector<colormaps::RGB_F3
     colormapSampler = resources.device.createSampler(samplerCI);
 }
 
-void ParticleRenderer::updateDescriptorSets(const SimulationState &simulationState) {
+void ParticleRenderer2D::updateDescriptorSets(const SimulationState &simulationState) {
     Cmn::bindBuffers(resources.device, simulationState.particleCoordinateBuffer.buf, descriptorSet, 0);
     Cmn::bindCombinedImageSampler(resources.device, colormapImageView, colormapSampler, descriptorSet, 1);
     Cmn::bindBuffers(resources.device, uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
@@ -516,7 +471,7 @@ void ParticleRenderer::updateDescriptorSets(const SimulationState &simulationSta
     Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, descriptorSet, 4);
 }
 
-void ParticleRenderer::updateCmd(const SimulationState &simulationState) {
+void ParticleRenderer2D::updateCmd(const SimulationState &simulationState) {
     if (commandBuffer == nullptr)
         commandBuffer = resources.device.allocateCommandBuffers(
                 {resources.graphicsCommandPool, vk::CommandBufferLevel::ePrimary, 1U})[0];
@@ -561,4 +516,77 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState) {
     /* ====================================== */
     commandBuffer.endRenderPass();
     commandBuffer.end();
+}
+
+ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resources.extent.height, 1) {
+    vk::ImageCreateInfo imageInfo(
+            {},
+            vk::ImageType::e2D,
+            resources.surfaceFormat.format,
+            imageSize,
+            1,
+            1,
+            vk::SampleCountFlagBits::e1,
+            vk::ImageTiling::eOptimal,
+            {vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc},
+            vk::SharingMode::eExclusive,
+            1,
+            &resources.gQ,
+            vk::ImageLayout::eUndefined);
+
+    createImage(
+            resources.pDevice,
+            resources.device,
+            imageInfo,
+            {vk::MemoryPropertyFlagBits::eDeviceLocal},
+            "render-color-attachment",
+            colorAttachment,
+            colorAttachmentMemory);
+
+    vk::ImageViewCreateInfo viewInfo(
+            {},
+            colorAttachment,
+            vk::ImageViewType::e2D,
+            resources.surfaceFormat.format,
+            {},
+            {{vk::ImageAspectFlagBits::eColor},
+             0,
+             1,
+             0,
+             1});
+    colorAttachmentView = resources.device.createImageView(viewInfo);
+
+    // can be removed later - layout transitions for the color attachment should be handled by render-pass
+    transitionImageLayout(
+            resources.device,
+            resources.graphicsCommandPool,
+            resources.graphicsQueue,
+            colorAttachment,
+            resources.surfaceFormat.format,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eColorAttachmentOptimal);
+
+    // depends on image and needs to be initialized late
+    renderer2D = std::make_unique<ParticleRenderer2D>(this);
+}
+
+ParticleRenderer::~ParticleRenderer() {
+    resources.device.destroyImageView(colorAttachmentView);
+    resources.device.destroyImage(colorAttachment);
+    resources.device.freeMemory(colorAttachmentMemory);
+}
+
+vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState, const RenderParameters &renderParameters) {
+    switch (simulationState.parameters.type) {
+        case SceneType::SPH_BOX_2D:
+            return renderer2D->run(simulationState, renderParameters);
+        default:
+            return nullptr;
+    }
+}
+void ParticleRenderer::updateCmd(const SimulationState &simulationState) {
+    renderer2D->updateCmd(simulationState);
+}
+vk::Image ParticleRenderer::getImage() {
+    return colorAttachment;
 }

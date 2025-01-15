@@ -14,7 +14,7 @@ Simulation::Simulation(const SimulationParameters &parameters, std::shared_ptr<C
     particlePhysics = std::make_unique<ParticleSimulation>(simulationParameters);
     spatialLookup = std::make_unique<SpatialLookup>(simulationParameters);
     imguiUi = std::make_unique<ImguiUi>();
-    particleRenderer = std::make_unique<ParticleRenderer>(simulationParameters);
+    particleRenderer = std::make_unique<ParticleRenderer>();
 
     vk::CommandBufferAllocateInfo cmdAllocateInfo(resources.transferCommandPool, vk::CommandBufferLevel::ePrimary, 3);
     auto allocated = resources.device.allocateCommandBuffers(cmdAllocateInfo);

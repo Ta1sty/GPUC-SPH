@@ -3,18 +3,18 @@
 #include "colormaps.h"
 #include "simulation_state.h"
 
-class ParticleRenderer {
+class ParticleRenderer;
+
+class ParticleRenderer2D {
 public:
-    ParticleRenderer() = delete;
-    ParticleRenderer(const ParticleRenderer &particleRenderer) = delete;
-    explicit ParticleRenderer(const SimulationParameters &simulationParameters);
-    ~ParticleRenderer();
+    explicit ParticleRenderer2D(ParticleRenderer *renderer);
+    ParticleRenderer2D(const ParticleRenderer2D &particleRenderer) = delete;
+    ~ParticleRenderer2D();
     vk::CommandBuffer run(const SimulationState &simulationState, const RenderParameters &renderParameters);
     void updateCmd(const SimulationState &simulationState);
-    [[nodiscard]] vk::Image getImage();
 
 private:
-    void createPipeline();
+    void createPipelines();
     void createColormapTexture(const std::vector<colormaps::RGB_F32> &colormap);
     void updateDescriptorSets(const SimulationState &simulationState);
 
@@ -38,9 +38,8 @@ private:
         }
     } uniformBufferContent;
 
-    vk::Image colorAttachment;
-    vk::ImageView colorAttachmentView;
-    vk::DeviceMemory colorAttachmentMemory;
+    ParticleRenderer *renderer;
+
     vk::Framebuffer framebuffer;
 
     vk::Pipeline particlePipeline;
@@ -63,4 +62,23 @@ private:
     Buffer quadIndexBuffer;
 
     Buffer uniformBuffer;
+};
+
+class ParticleRenderer {
+public:
+    ParticleRenderer();
+    ParticleRenderer(const ParticleRenderer2D &particleRenderer) = delete;
+    ~ParticleRenderer();
+    vk::CommandBuffer run(const SimulationState &simulationState, const RenderParameters &renderParameters);
+    void updateCmd(const SimulationState &simulationState);
+    [[nodiscard]] vk::Image getImage();
+
+private:
+    vk::Extent3D imageSize;
+    std::unique_ptr<ParticleRenderer2D> renderer2D;
+    vk::Image colorAttachment;
+    vk::ImageView colorAttachmentView;
+    vk::DeviceMemory colorAttachmentMemory;
+
+    friend class ParticleRenderer2D;
 };
