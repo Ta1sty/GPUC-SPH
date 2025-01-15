@@ -5,6 +5,8 @@ ParticleSimulation::ParticleSimulation(const SimulationParameters &parameters) :
     // 0 for coordinates, 1 for velocities
     Cmn::addStorage(classResources.bindings, 0);
     Cmn::addStorage(classResources.bindings, 1);
+    Cmn::addStorage(classResources.bindings, 2);
+    Cmn::addStorage(classResources.bindings, 3);
 
     Cmn::createDescriptorSetLayout(resources.device, classResources.bindings, classResources.descriptorSetLayout);
     Cmn::createDescriptorPool(resources.device, classResources.bindings, classResources.descriptorPool);
@@ -40,6 +42,8 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
 
     Cmn::bindBuffers(resources.device, simulationState.particleCoordinateBuffer.buf, classResources.descriptorSet, 0);
     Cmn::bindBuffers(resources.device, simulationState.particleVelocityBuffer.buf, classResources.descriptorSet, 1);
+    Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, classResources.descriptorSet, 2);
+    Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, classResources.descriptorSet, 3);
     uint32_t dx = (simulationState.parameters.numParticles + workgroupSizeX - 1) / workgroupSizeX;
     uint32_t dy = 1;// TODO : make this dynamic
 
@@ -47,6 +51,7 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
     pushStruct.deltaTime = simulationState.parameters.deltaTime;
     pushStruct.numParticles = simulationState.parameters.numParticles;
     pushStruct.collisionDamping = simulationState.parameters.collisionDampingFactor;
+    pushStruct.spatialRadius = simulationState.spatialRadius;
 
     cmd.begin(vk::CommandBufferBeginInfo());
 

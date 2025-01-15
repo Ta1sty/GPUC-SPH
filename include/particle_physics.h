@@ -25,5 +25,7 @@ private:
         float deltaTime;
         uint32_t numParticles;
         float collisionDamping;
+        float particleRadius;
+        float spatialRadius;
     } pushStruct;
 };

@@ -10,8 +10,15 @@ layout(push_constant) uniform PushStruct {
     float deltaTime;
     uint numParticles;
     float collisionDampingFactor;
+    float spatialRadius;
 }
 constants;
+
+#define GRID_BUFFER_SIZE constants.numParticles
+#define GRID_CELL_SIZE constants.spatialRadius
+#define GRID_BINDING_LOOKUP 2
+#define GRID_BINDING_INDEX 3
+#include "spatial_lookup.glsl"
 
 const float VELOCITY_THRESHOLD = 0.5;
 
@@ -22,15 +29,8 @@ void main() {
     vec2 position = vec2(positions[2 * index], positions[2 * index + 1]);
     vec2 velocity = vec2(velocities[2 * index], velocities[2 * index + 1]);
 
+    // Update velocity
     velocity += vec2(0.0, constants.gravity) * constants.deltaTime;
-    // Stop particles with very small velocities
-    if (abs(velocity.y) < VELOCITY_THRESHOLD && position.y <= 0.0) {
-        velocity.y = 0.0;
-        position.y = 0.0;// Snap to ground
-    }
-    if (abs(velocity.x) < VELOCITY_THRESHOLD) {
-        velocity.x = 0.0;
-    }
     // Update position
     position += velocity * constants.deltaTime;
 
