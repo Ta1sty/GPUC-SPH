@@ -167,15 +167,14 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
         uint32_t hash = ((cell.x * 73856093) ^ (cell.y * 19349663));
         uint32_t testKey = hash % simulationParameters.numParticles;
 
-        HashResult result {
-                .lookupKey = lookup.cellKey,
-                .testKey = testKey,
-                .x = position.x,
-                .y = position.y,
-                .cellX = cell.x,
-                .cellY = cell.y,
-        };
-
+        HashResult result;
+        result.lookupKey = lookup.cellKey;
+        result.testKey = testKey;
+        result.x = position.x;
+        result.y = position.y;
+        result.cellX = cell.x;
+        result.cellY = cell.y;
+        
         keys.emplace(lookup.cellKey);
         hashes.emplace_back(result);
 
