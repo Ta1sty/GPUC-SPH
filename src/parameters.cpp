@@ -73,6 +73,9 @@ std::string SimulationParameters::printToYaml() const {
     yaml["initialization_function"] = dumpEnum(initializationFunction, initializationFunctionMappings);
     yaml["num_particles"] = numParticles;
     yaml["random_seed"] = randomSeed;
+    yaml["gravity"] = gravity;
+    yaml["delta_time"] = deltaTime;
+    yaml["collision_damping_factor"] = collisionDampingFactor;
 
     return YAML::Dump(yaml);
 }

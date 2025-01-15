@@ -2,6 +2,178 @@
 #include "helper.h"
 #include "simulation.h"
 
+struct GraphicsPipelineBuilder {
+    vk::Viewport viewport;
+    vk::Rect2D scissor;
+    vk::PipelineViewportStateCreateInfo viewportSCI;
+    vk::PipelineRasterizationStateCreateInfo rasterizationSCI;
+    vk::PipelineMultisampleStateCreateInfo multisampleSCI;
+    vk::PipelineDepthStencilStateCreateInfo depthStencilSCI;
+    std::vector<vk::PipelineShaderStageCreateInfo> shaderStageCIs;
+    std::vector<vk::VertexInputBindingDescription> vertexInputBindings;
+    std::vector<vk::VertexInputAttributeDescription> vertexInputAttributeDescriptions;
+    vk::PipelineVertexInputStateCreateInfo vertexInputSci;
+    vk::PipelineInputAssemblyStateCreateInfo inputAssemblySCI;
+    std::vector<vk::PipelineColorBlendAttachmentState> pipelineColorBlendAttachmentStates;
+    vk::PipelineColorBlendStateCreateInfo colorBlendSCI;
+    vk::PipelineLayout pipelineLayout;
+    vk::RenderPass renderPass;
+    uint32_t subpass;
+    std::vector<vk::ShaderModule> shaderModules;
+
+    GraphicsPipelineBuilder(GraphicsPipelineBuilder &&obj) = default;
+
+    explicit GraphicsPipelineBuilder(const std::initializer_list<std::pair<vk::ShaderStageFlagBits, const char *>> &shaders, const vk::PipelineLayout &pipelineLayout, const vk::RenderPass &renderPass, const uint32_t subpass) {
+        for (const auto &[stage, file]: shaders) {
+            vk::ShaderModule sm;
+            Cmn::createShader(resources.device, sm, shaderPath(file));
+            shaderModules.push_back(sm);
+            shaderStageCIs.push_back({{}, stage, sm, "main", nullptr});
+        }
+
+        viewport = vk::Viewport {
+                0.f,                             // x start coordinate
+                (float) resources.extent.height, // y start coordinate
+                (float) resources.extent.width,  // Width of viewport
+                -(float) resources.extent.height,// Height of viewport
+                0.f,                             // Min framebuffer depth,
+                1.f                              // Max framebuffer depth
+        };
+        scissor = vk::Rect2D {
+                {0, 0},         // Offset to use region from
+                resources.extent// Extent to describe region to use, starting at offset
+        };
+
+        viewportSCI = vk::PipelineViewportStateCreateInfo {
+                {},
+                1,        // Viewport count
+                &viewport,// Viewport used
+                1,        // Scissor count
+                &scissor  // Scissor used
+        };
+
+        // Rasterizer
+        rasterizationSCI = vk::PipelineRasterizationStateCreateInfo {
+                {},
+                false,// Change if fragments beyond near/far planes are clipped (default) or clamped to plane
+                false,
+                // Whether to discard data and skip rasterizer. Never creates fragments, only suitable for pipeline without framebuffer output
+                vk::PolygonMode::eFill,          // How to handle filling points between vertices
+                vk::CullModeFlagBits::eBack,     // Which face of a tri to cull
+                vk::FrontFace::eCounterClockwise,// Winding to determine which side is front
+                false,                           // Whether to add depth bias to fragments (good for stopping "shadow acne" in shadow mapping)
+                0.f,
+                0.f,
+                0.f,
+                1.f// How thick lines should be when drawn
+        };
+
+        multisampleSCI = vk::PipelineMultisampleStateCreateInfo {
+                {},
+                vk::SampleCountFlagBits::e1,// Number of samples to use per fragment
+                false,                      // Enable multisample shading or not
+                0.f,
+                nullptr,
+                false,
+                false};
+
+        // Depth stencil creation
+        depthStencilSCI = vk::PipelineDepthStencilStateCreateInfo {
+                {},
+                vk::False
+                //            {}, vk::True, vk::False, vk::CompareOp::eAlways, vk::False, vk::False, {}, {}, 0.0f, 0.0f
+                //            {}, true, false, vk::CompareOp::eLess, false, false, {}, {}, 0.f, 0.f
+        };
+        colorBlendSCI = vk::PipelineColorBlendStateCreateInfo {
+                {},
+                false,
+                {},
+                0,
+                nullptr,
+                {}};
+        pipelineColorBlendAttachmentStates.emplace_back(vk::PipelineColorBlendAttachmentState {
+                true,
+                vk::BlendFactor::eSrcAlpha,
+                vk::BlendFactor::eOneMinusSrcAlpha,
+                vk::BlendOp::eAdd,
+                vk::BlendFactor::eOne,
+                vk::BlendFactor::eZero,
+                vk::BlendOp::eAdd,
+                vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+                        vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA});
+
+        vertexInputSci = vk::PipelineVertexInputStateCreateInfo {
+                {},
+                0,
+                nullptr,
+                0,
+                nullptr};
+        vertexInputBindings.emplace_back(vk::VertexInputBindingDescription {
+                0, 2 * 4, vk::VertexInputRate::eVertex});
+        vertexInputAttributeDescriptions.emplace_back(vk::VertexInputAttributeDescription {
+                0, 0, vk::Format::eR32G32Sfloat, 0});
+
+        inputAssemblySCI = vk::PipelineInputAssemblyStateCreateInfo {
+                {},
+                vk::PrimitiveTopology::eTriangleList,
+                false};
+
+        this->pipelineLayout = pipelineLayout;
+        this->renderPass = renderPass;
+        this->subpass = subpass;
+    }
+
+    ~GraphicsPipelineBuilder() {
+        for (auto &sm: shaderModules)
+            resources.device.destroyShaderModule(sm);
+    }
+
+private:
+    void finalize() {
+        if (vertexInputSci.vertexBindingDescriptionCount == 0 || vertexInputSci.pVertexBindingDescriptions == nullptr) {
+            vertexInputSci.vertexBindingDescriptionCount = vertexInputBindings.size();
+            vertexInputSci.pVertexBindingDescriptions = vertexInputBindings.data();
+        }
+
+        if (vertexInputSci.vertexAttributeDescriptionCount == 0 || vertexInputSci.pVertexAttributeDescriptions == nullptr) {
+            vertexInputSci.vertexAttributeDescriptionCount = vertexInputAttributeDescriptions.size();
+            vertexInputSci.pVertexAttributeDescriptions = vertexInputAttributeDescriptions.data();
+        }
+
+        if (colorBlendSCI.attachmentCount == 0 || colorBlendSCI.pAttachments == nullptr) {
+            colorBlendSCI.attachmentCount = pipelineColorBlendAttachmentStates.size();
+            colorBlendSCI.pAttachments = pipelineColorBlendAttachmentStates.data();
+        }
+    }
+
+public:
+    static auto createPipelines(std::vector<GraphicsPipelineBuilder> &builders) {
+        std::vector<vk::GraphicsPipelineCreateInfo> pipelineCIs;
+        for (auto &builder: builders) {
+            builder.finalize();
+            pipelineCIs.push_back({{},
+                                   static_cast<uint32_t>(builder.shaderStageCIs.size()),
+                                   builder.shaderStageCIs.data(),
+                                   &builder.vertexInputSci,
+                                   &builder.inputAssemblySCI,
+                                   nullptr,// tesselation
+                                   &builder.viewportSCI,
+                                   &builder.rasterizationSCI,
+                                   &builder.multisampleSCI,
+                                   &builder.depthStencilSCI,
+                                   &builder.colorBlendSCI,
+                                   nullptr,// dynamic state
+                                   builder.pipelineLayout,
+                                   builder.renderPass,
+                                   builder.subpass,
+                                   {},
+                                   0});
+        }
+
+        return resources.device.createGraphicsPipelines(nullptr, pipelineCIs);
+    }
+};
+
 vk::Image ParticleRenderer::getImage() {
     return colorAttachment;
 }
@@ -236,205 +408,29 @@ void ParticleRenderer::createPipeline() {
 
     particlePipelineLayout = resources.device.createPipelineLayout(pipelineLayoutCI);
 
-
-    /* =============================== Common Resources =============================== */
-    // Viewport & Scissor
-    const vk::Viewport viewport = {
-            0.f,                             // x start coordinate
-            (float) resources.extent.height, // y start coordinate
-            (float) resources.extent.width,  // Width of viewport
-            -(float) resources.extent.height,// Height of viewport
-            0.f,                             // Min framebuffer depth,
-            1.f                              // Max framebuffer depth
-    };
-    const vk::Rect2D scissor = {
-            {0, 0},         // Offset to use region from
-            resources.extent// Extent to describe region to use, starting at offset
-    };
-
-    const vk::PipelineViewportStateCreateInfo viewportSCI = {
-            {},
-            1,        // Viewport count
-            &viewport,// Viewport used
-            1,        // Scissor count
-            &scissor  // Scissor used
-    };
-
-    // Rasterizer
-    const vk::PipelineRasterizationStateCreateInfo rasterizationSCI = {
-            {},
-            false,// Change if fragments beyond near/far planes are clipped (default) or clamped to plane
-            false,
-            // Whether to discard data and skip rasterizer. Never creates fragments, only suitable for pipeline without framebuffer output
-            vk::PolygonMode::eFill,          // How to handle filling points between vertices
-            vk::CullModeFlagBits::eBack,     // Which face of a tri to cull
-            vk::FrontFace::eCounterClockwise,// Winding to determine which side is front
-            false,                           // Whether to add depth bias to fragments (good for stopping "shadow acne" in shadow mapping)
-            0.f,
-            0.f,
-            0.f,
-            1.f// How thick lines should be when drawn
-    };
-
-    const vk::PipelineMultisampleStateCreateInfo multisampleSCI = {
-            {},
-            vk::SampleCountFlagBits::e1,// Number of samples to use per fragment
-            false,                      // Enable multisample shading or not
-            0.f,
-            nullptr,
-            false,
-            false};
-
-    // Depth stencil creation
-    const vk::PipelineDepthStencilStateCreateInfo depthStencilSCI = {
-            {},
-            vk::False
-            //            {}, vk::True, vk::False, vk::CompareOp::eAlways, vk::False, vk::False, {}, {}, 0.0f, 0.0f
-            //            {}, true, false, vk::CompareOp::eLess, false, false, {}, {}, 0.f, 0.f
-    };
-
-    /* =============================== Particle Pipeline =============================== */
-    vk::ShaderModule particleGeometrySM, particleVertexSM, particleFragmentSM;
-
-    Cmn::createShader(resources.device, particleVertexSM, shaderPath("particle2d.vert"));
-    Cmn::createShader(resources.device, particleGeometrySM, shaderPath("particle2d.geom"));
-    Cmn::createShader(resources.device, particleFragmentSM, shaderPath("particle2d.frag"));
-
-    // essentially copy pasted from project.h
-    // TODO refactor and reuse for future pipeline initializations
-    vk::PipelineShaderStageCreateInfo particleShaderStageCI[] {
-            {{}, vk::ShaderStageFlagBits::eVertex, particleVertexSM, "main", nullptr},
-            {{}, vk::ShaderStageFlagBits::eGeometry, particleGeometrySM, "main", nullptr},
-            {{}, vk::ShaderStageFlagBits::eFragment, particleFragmentSM, "main", nullptr},
-    };
-
-    vk::VertexInputBindingDescription particleVertexInputBindings[] {
-            {0, 2 * 4, vk::VertexInputRate::eVertex}};
-
-    vk::VertexInputAttributeDescription particleVertexInputAttributeDescriptions[] {
-            {0, 0, vk::Format::eR32G32Sfloat, 0}};
-    //
-    // Vertex input
-    vk::PipelineVertexInputStateCreateInfo particleVertexInputSCI {
-            {},
-            1,                                      // Vertex binding description  count
-            particleVertexInputBindings,            // List of Vertex Binding Descriptions (data spacing/stride information)
-            1,                                      // Vertex attribute description count
-            particleVertexInputAttributeDescriptions// List of Vertex Attribute Descriptions (data format and where to bind to/from)
-    };
-
-    vk::PipelineInputAssemblyStateCreateInfo particleInputAssemblySCI {
-            {},
-            vk::PrimitiveTopology::ePointList,
-            false,
-    };
-
-
-    vk::PipelineColorBlendAttachmentState particleColorBlendAttachmentState {
-            true,
-            vk::BlendFactor::eSrcAlpha,
-            vk::BlendFactor::eOneMinusSrcAlpha,
-            vk::BlendOp::eAdd,
-            vk::BlendFactor::eOne,
-            vk::BlendFactor::eZero,
-            vk::BlendOp::eAdd,
-            vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-                    vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA};
-
-    vk::PipelineColorBlendStateCreateInfo particleColorBlendSCI {
-            {},
-            false,
-            {},
-            1,
-            &particleColorBlendAttachmentState,
-            {}};
-
-    vk::GraphicsPipelineCreateInfo particlePipelineCI {
-            {},
-            3,
-            particleShaderStageCI,
-            &particleVertexInputSCI,
-            &particleInputAssemblySCI,
-            nullptr,
-            &viewportSCI,
-            &rasterizationSCI,
-            &multisampleSCI,
-            &depthStencilSCI,
-            &particleColorBlendSCI,
-            nullptr,
+    std::vector<GraphicsPipelineBuilder> builders;
+    builders.emplace_back(GraphicsPipelineBuilder {
+            {{vk::ShaderStageFlagBits::eVertex, "background2d.vert"},
+             {vk::ShaderStageFlagBits::eFragment, "background2d.frag"}},
             particlePipelineLayout,
             renderPass,
-            1,// subpass
-            {},
-            0};
+            0});
 
-    /* =============================== Background Pipeline =============================== */
-    vk::ShaderModule backgroundVertexSM, backgroundFragmentSM;
-
-    Cmn::createShader(resources.device, backgroundVertexSM, shaderPath("background2d.vert"));
-    Cmn::createShader(resources.device, backgroundFragmentSM, shaderPath("background2d.frag"));
-
-    // essentially copy pasted from project.h
-    // TODO refactor and reuse for future pipeline initializations
-    vk::PipelineShaderStageCreateInfo backgroundShaderStageCI[] {
-            {{}, vk::ShaderStageFlagBits::eVertex, backgroundVertexSM, "main", nullptr},
-            {{}, vk::ShaderStageFlagBits::eFragment, backgroundFragmentSM, "main", nullptr},
-    };
-
-
-    vk::VertexInputBindingDescription backgroundVertexInputBindings[] {
-            {0, 2 * 4, vk::VertexInputRate::eVertex}};
-
-    vk::VertexInputAttributeDescription backgroundVertexInputAttributeDescriptions[] {
-            {0, 0, vk::Format::eR32G32Sfloat, 0}};
-
-    vk::PipelineVertexInputStateCreateInfo backgroundVertexInputSCI {
-            {},
-            1,                                        // Vertex binding description  count
-            backgroundVertexInputBindings,            // List of Vertex Binding Descriptions (data spacing/stride information)
-            1,                                        // Vertex attribute description count
-            backgroundVertexInputAttributeDescriptions// List of Vertex Attribute Descriptions (data format and where to bind to/from)
-    };
-
-    vk::PipelineInputAssemblyStateCreateInfo backgroundInputAssemblySCI {
-            {},
-            vk::PrimitiveTopology::eTriangleList,
-            false,
-    };
-
-
-    vk::GraphicsPipelineCreateInfo backgroundPipelineCI {
-            {},
-            2,
-            backgroundShaderStageCI,
-            &backgroundVertexInputSCI,
-            &backgroundInputAssemblySCI,
-            nullptr,
-            &viewportSCI,
-            &rasterizationSCI,
-            &multisampleSCI,
-            &depthStencilSCI,
-            &particleColorBlendSCI,// TODO
-            nullptr,
+    builders.emplace_back(GraphicsPipelineBuilder {
+            {{vk::ShaderStageFlagBits::eVertex, "particle2d.vert"},
+             {vk::ShaderStageFlagBits::eGeometry, "particle2d.geom"},
+             {vk::ShaderStageFlagBits::eFragment, "particle2d.frag"}},
             particlePipelineLayout,
             renderPass,
-            0,// subpass
-            {},
-            0};
+            1});
+    builders[1].inputAssemblySCI.topology = vk::PrimitiveTopology::ePointList;
 
-    auto pipelines = resources.device.createGraphicsPipelines(VK_NULL_HANDLE, {backgroundPipelineCI, particlePipelineCI});
+    auto pipelines = GraphicsPipelineBuilder::createPipelines(builders);
     if (pipelines.result != vk::Result::eSuccess)
         throw std::runtime_error("Pipeline creation failed");
 
     backgroundPipeline = pipelines.value[0];
     particlePipeline = pipelines.value[1];
-
-    resources.device.destroyShaderModule(particleVertexSM);
-    resources.device.destroyShaderModule(particleGeometrySM);
-    resources.device.destroyShaderModule(particleFragmentSM);
-
-    resources.device.destroyShaderModule(backgroundVertexSM);
-    resources.device.destroyShaderModule(backgroundFragmentSM);
 }
 
 void ParticleRenderer::createColormapTexture(const std::vector<colormaps::RGB_F32> &colormap) {
