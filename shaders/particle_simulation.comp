@@ -20,7 +20,61 @@ constants;
 #define GRID_BINDING_INDEX 3
 #include "spatial_lookup.glsl"
 
-const float VELOCITY_THRESHOLD = 0.5;
+const float PI = 3.14159265359;
+
+float smoothingKernel(float radius, float dist) {
+    float volume = PI* pow(radius, 8) / 4;
+    float value = max(0, radius*radius - dist*dist);
+    return value * value * value / volume;
+}
+
+float smoothingKernelDerivative(float radius, float dist) {
+    if (dist >= radius) return 0.0;
+    float f = radius*radius - dist*dist;
+    float scale = -24.0 / (PI * pow(radius, 8));
+    return scale * dist * f * f;
+}
+
+float evaluateDensity(vec2 pos, float radius) {
+    uint cellKey = cellKey(pos);
+    const float mass = 1.0;
+    
+    float density = 0.0;
+
+    uint spatialLookupIndex = spatial_indices[cellKey];
+    SpatialLookupEntry currentEntry = spatial_lookup[spatialLookupIndex];
+    while (currentEntry.cellKey == cellKey) {
+        uint currentParticleIndex = currentEntry.particleIndex;
+        vec2 currentPosition = vec2(positions[2 * currentParticleIndex], positions[2 * currentParticleIndex + 1]);
+        float dist = length(currentPosition - pos);
+        float influence = smoothingKernel(radius, dist);
+        density += mass * influence;
+        currentEntry = spatial_lookup[++spatialLookupIndex];
+    }
+    return density;
+}
+
+float evaluateDensityGradient(vec2 pos, float radius) {
+    uint cellKey = cellKey(pos);
+    const float mass = 1.0;
+    
+    vec2 gradient = vec2(0.0, 0.0);
+
+    uint spatialLookupIndex = spatial_indices[cellKey];
+    SpatialLookupEntry currentEntry = spatial_lookup[spatialLookupIndex];
+    while (currentEntry.cellKey == cellKey) {
+        uint currentParticleIndex = currentEntry.particleIndex;
+        vec2 currentPosition = vec2(positions[2 * currentParticleIndex], positions[2 * currentParticleIndex + 1]);
+        vec2 diff = currentPosition - pos;
+        float dist = length(diff);
+        vec2 direction = diff / dist;
+        vec2 slope = smoothingKernelDerivative(radius, dist)
+        float density = evaluateDensity(currentPosition, radius);
+        gradient += mass * influence;
+        currentEntry = spatial_lookup[++spatialLookupIndex];
+    }
+    return length(gradient);
+}
 
 void main() {
     uint index = gl_GlobalInvocationID.x;
@@ -28,6 +82,7 @@ void main() {
 
     vec2 position = vec2(positions[2 * index], positions[2 * index + 1]);
     vec2 velocity = vec2(velocities[2 * index], velocities[2 * index + 1]);
+    float density = evaluateDensity(position, constants.spatialRadius);
 
     // Update velocity
     velocity += vec2(0.0, constants.gravity) * constants.deltaTime;
@@ -51,13 +106,10 @@ void main() {
         velocity *= -constants.collisionDampingFactor;
     }
 
-    // Stop particles with very small velocities
 
-
-    //barrier();
-    // Write back results
     positions[2 * index] = position.x;
     positions[2 * index + 1] = position.y;
     velocities[2 * index] = velocity.x;
     velocities[2 * index + 1] = velocity.y;
+
 }
