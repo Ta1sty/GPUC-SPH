@@ -1,7 +1,10 @@
 #ifdef GRID_PCR
 layout (push_constant) uniform PushStruct {
-    uint bufferSize;
     float cellSize;
+    uint bufferSize;
+    uint sort_n;
+    uint sort_k;
+    uint sort_j;
 } constants;
 #endif
 

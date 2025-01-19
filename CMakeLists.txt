@@ -104,7 +104,8 @@ add_shader(${PROJECT_NAME} shaders/background2d.vert)
 add_shader(${PROJECT_NAME} shaders/background2d.frag)
 
 add_shader(${PROJECT_NAME} shaders/spatial_lookup.write.comp)
-add_shader(${PROJECT_NAME} shaders/spatial_lookup.sort.comp)
+add_shader(${PROJECT_NAME} shaders/spatial_lookup.sort.bubble.comp)
+add_shader(${PROJECT_NAME} shaders/spatial_lookup.sort.bitonic.comp)
 add_shader(${PROJECT_NAME} shaders/spatial_lookup.index.comp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_INCLUDE_DIRS})

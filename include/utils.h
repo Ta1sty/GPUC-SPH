@@ -239,3 +239,6 @@ void setObjectName(vk::Device &device, T handle, std::string name) {
 }
 
 void computeBarrier(vk::CommandBuffer &cmd);
+
+
+uint32_t nextPowerOfTwo(uint32_t n);

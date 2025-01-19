@@ -13,6 +13,7 @@ void main() {
         if (index >= GRID_BUFFER_SIZE) return;
 
         spatial_lookup[index] = SpatialLookupEntry(cellKey(particle_coordinates[index]), index);
+        //        spatial_lookup[index] = SpatialLookupEntry(GRID_BUFFER_SIZE - index - 1, index);
         spatial_indices[index] = uint(-1);
     }
 
@@ -22,6 +23,7 @@ void main() {
         if (index >= GRID_BUFFER_SIZE) return;
 
         spatial_lookup[index] = SpatialLookupEntry(cellKey(particle_coordinates[index]), index);
+        //        spatial_lookup[index] = SpatialLookupEntry(GRID_BUFFER_SIZE - index - 1, index);
         spatial_indices[index] = uint(-1);
     }
 
