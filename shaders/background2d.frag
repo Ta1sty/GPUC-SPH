@@ -19,54 +19,15 @@ layout (binding = 2) uniform UniformBuffer {
 #define GRID_CELL_SIZE spatialRadius
 #include "spatial_lookup.glsl"
 
-#define OFFSET_COUNT 9
-const vec2 offsets[OFFSET_COUNT] = {
-vec2(-1, -1),
-vec2(-1, 0),
-vec2(-1, 1),
-vec2(0, -1),
-vec2(0, 0),
-vec2(0, 1),
-vec2(1, -1),
-vec2(1, 0),
-vec2(1, 1),
-};
+void addDensity(inout float density, uint neighbourIndex, vec2 neighbourPosition, float neighbourDinstance) {
+    float normalized = neighbourDinstance / spatialRadius;
+    density += 1 - normalized;
+}
 
-float evaluateDensity(vec2 pos) {
+float evaluateDensity(vec2 position) {
     float density = 0.0f;
 
-    for (int i = 0; i < OFFSET_COUNT; i++) {
-        vec2 offset = vec2(offsets[i].x * GRID_CELL_SIZE, offsets[i].y * GRID_CELL_SIZE);
-        uint cellKey = cellKey(pos + offset);
-        uint index = spatial_indices[cellKey];
-
-        while (index < numParticles) {
-            SpatialLookupEntry entry = spatial_lookup[index];
-            index++;
-
-            // different hash
-            if (entry.cellKey != cellKey) {
-                break;
-            }
-            vec2 position = coordinates[entry.particleIndex];
-
-            // cubic splice kernel from SPH Tutorial paper (assuming a particle mass of 1)
-            float distance = length(position - pos);
-
-            if (distance > spatialRadius) continue;
-
-            float normalized = distance / spatialRadius;
-            density += 1 - normalized;
-
-            //            if (q <= 0.5) {
-            //                density += 6 * (q * q * q - q * q) + 1;
-            //            } else if (q <= 1) {
-            //                float _q = 1 - q;
-            //                density += 2 * _q * _q * _q;
-            //            }
-
-        }
-    }
+    FOREACH_NEIGHBOUR(position, addDensity(density, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE));
 
     return min(density / (numParticles * spatialRadius * spatialRadius * 2), 1);
 }
