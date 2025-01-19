@@ -41,7 +41,7 @@ public:
     std::unique_ptr<DebugImage> debugImageRenderer;
 
     // the radius in which particles are considered close to each other, also the cell size for the spatial-lookup
-    float spatialRadius = 0.1;
+    float spatialRadius = 0.1f;
     Buffer spatialLookup;
     Buffer spatialIndices;
 

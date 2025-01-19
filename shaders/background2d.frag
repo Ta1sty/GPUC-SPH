@@ -19,22 +19,56 @@ layout (binding = 2) uniform UniformBuffer {
 #define GRID_CELL_SIZE spatialRadius
 #include "spatial_lookup.glsl"
 
-float evaluateDensity(vec2 pos, float h) {
+#define OFFSET_COUNT 9
+const vec2 offsets[OFFSET_COUNT] = {
+vec2(-1, -1),
+vec2(-1, 0),
+vec2(-1, 1),
+vec2(0, -1),
+vec2(0, 0),
+vec2(0, 1),
+vec2(1, -1),
+vec2(1, 0),
+vec2(1, 1),
+};
+
+float evaluateDensity(vec2 pos) {
     float density = 0.0f;
 
-    // cubic splice kernel from SPH Tutorial paper (assuming a particle mass of 1)
-    for (int i = 0; i < numParticles; i++) {
-        float distance = length(coordinates[i] - pos);
-        float q = distance / h;
-        if (q <= 0.5) {
-            density += 6 * (q * q * q - q * q) + 1;
-        } else if (q <= 1) {
-            float _q = 1 - q;
-            density += 2 * _q * _q * _q;
+    for (int i = 0; i < OFFSET_COUNT; i++) {
+        vec2 offset = vec2(offsets[i].x * GRID_CELL_SIZE, offsets[i].y * GRID_CELL_SIZE);
+        uint cellKey = cellKey(pos + offset);
+        uint index = spatial_indices[cellKey];
+
+        while (index < numParticles) {
+            SpatialLookupEntry entry = spatial_lookup[index];
+            index++;
+
+            // different hash
+            if (entry.cellKey != cellKey) {
+                break;
+            }
+            vec2 position = coordinates[entry.particleIndex];
+
+            // cubic splice kernel from SPH Tutorial paper (assuming a particle mass of 1)
+            float distance = length(position - pos);
+
+            if (distance > spatialRadius) continue;
+
+            float normalized = distance / spatialRadius;
+            density += 1 - normalized;
+
+            //            if (q <= 0.5) {
+            //                density += 6 * (q * q * q - q * q) + 1;
+            //            } else if (q <= 1) {
+            //                float _q = 1 - q;
+            //                density += 2 * _q * _q * _q;
+            //            }
+
         }
     }
 
-    return density;
+    return min(density / (numParticles * spatialRadius * spatialRadius * 2), 1);
 }
 
 void main() {
@@ -45,7 +79,7 @@ void main() {
             outColor = cellColor(cellKey(position));
             break;
         case 1:
-            value = evaluateDensity(position, 0.05) / 4;
+            value = evaluateDensity(position);
             outColor = vec4(texture(colorscale, value).rgb, 1.0);
             break;
         default:

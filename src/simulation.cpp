@@ -2,6 +2,7 @@
 #include <map>
 #include <set>
 
+#include "debug.h"
 #include "debug_image.h"
 #include "particle_physics.h"
 #include "particle_renderer.h"
@@ -40,6 +41,8 @@ vk::Semaphore Simulation::initSemaphore() {
 }
 
 void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::Semaphore signalRenderFinished, vk::Fence signalSubmitFinished) {
+    float spatialRadius = simulationState->spatialRadius;
+
     const size_t cmd_count = 6;
 
     if (nullptr != timelineSemaphore) {
@@ -70,7 +73,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     buffers[0] = {resources.transferQueue, cmdReset};
     buffers[1] = {resources.computeQueue, doTick ? particlePhysics->run(*simulationState) : nullptr};
-    buffers[2] = {resources.computeQueue, doTick ? spatialLookup->run(*simulationState) : nullptr};
+    buffers[2] = {resources.computeQueue, spatialLookup->run(*simulationState)};
     buffers[3] = {resources.graphicsQueue, particleRenderer->run(*simulationState, renderParameters)};
     buffers[4] = {resources.graphicsQueue, copy(imageIndex)};
     buffers[5] = {resources.graphicsQueue, imguiCommandBuffer};
@@ -122,10 +125,11 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
         queue.submit(submit);
     }
 
+    if (sin(spatialRadius) < 2) {
+        return;
+    }
 
     // FOR DEBUGGING
-
-    return;
 
     resources.device.waitIdle();
 
@@ -143,33 +147,20 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     std::sort(spatial_lookup_sorted.begin(), spatial_lookup_sorted.end(),
               [](SpatialLookupEntry left, SpatialLookupEntry right) -> bool { return left.cellKey < right.cellKey; });
 
-    struct HashResult {
-        uint32_t lookupKey;
-        uint32_t testKey;
-        float x;
-        float y;
-        uint32_t cellX;
-        uint32_t cellY;
-    };
-
+    std::vector<ParticleNeighbour> neighbours;
     std::set<uint32_t> keys;
-    std::vector<HashResult> hashes;
+    std::vector<SpatialHashResult> hashes;
     for (uint32_t i = 0; i < simulationParameters.numParticles; i++) {
-        float inverseSize = 1.f / simulationState->spatialRadius;
-
         SpatialLookupEntry lookup = spatial_lookup[i];
 
         glm::vec2 position = particles[lookup.particleIndex];
 
-        glm::vec2 scaled(position.x * inverseSize, position.y * inverseSize);
-        glm::uvec2 cell(scaled.x, scaled.y);
+        uint32_t cellKey = getCellKey(position, spatialRadius, simulationParameters.numParticles);
+        glm::uvec2 cell = getCell(position, spatialRadius);
 
-        uint32_t hash = ((cell.x * 73856093) ^ (cell.y * 19349663));
-        uint32_t testKey = hash % simulationParameters.numParticles;
-
-        HashResult result {
+        SpatialHashResult result {
                 .lookupKey = lookup.cellKey,
-                .testKey = testKey,
+                .testKey = cellKey,
                 .x = position.x,
                 .y = position.y,
                 .cellX = cell.x,
@@ -186,9 +177,13 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
         if (spatial_lookup[i].cellKey != spatial_lookup_sorted[i].cellKey) {
             throw std::runtime_error("spatial lookup not sorted");
         }
+
+        getNeighbours(position, spatialRadius, simulationParameters.numParticles, spatial_lookup, spatial_indices, particles, neighbours);
+
+        int a = 0;
     }
 
-    std::map<uint32_t, std::vector<HashResult>> groupedResults;
+    std::map<uint32_t, std::vector<SpatialHashResult>> groupedResults;
 
     for (const auto &hash: hashes) {
         uint32_t lookupKey = hash.lookupKey;
@@ -208,7 +203,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
         }
     }
 
-    std::map<uint32_t, std::vector<HashResult>> collisions;
+    std::map<uint32_t, std::vector<SpatialHashResult>> collisions;
 
     for (const auto &[lookupKey, group]: groupedResults) {
         if (group.size() >= 2) {
