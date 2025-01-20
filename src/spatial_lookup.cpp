@@ -73,11 +73,11 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
     }
 
     SpatialLookupPushConstants pushConstants {
-            .cellSize = state.spatialRadius,
-            .bufferSize = state.parameters.numParticles,
-            .sort_n = nextPowerOfTwo(state.parameters.numParticles),
-            .sort_k = 0,
-            .sort_j = 0,
+            state.spatialRadius,
+            state.parameters.numParticles,
+             nextPowerOfTwo(state.parameters.numParticles),
+            0,
+            0,
     };
 
     Cmn::bindBuffers(resources.device, state.spatialLookup.buf, descriptorSet, 0);
