@@ -163,12 +163,12 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
         uint32_t testKey = cellKey(cellHash(cell), simulationParameters.numParticles);
 
         SpatialHashResult result {
-                .lookupKey = lookup.cellKey,
-                .testKey = testKey,
-                .x = position.x,
-                .y = position.y,
-                .cellX = cell.x,
-                .cellY = cell.y,
+                lookup.cellKey,
+                testKey,
+                position.x,
+                position.y,
+                cell.x,
+                cell.y,
         };
 
         keys.emplace(lookup.cellKey);
