@@ -26,6 +26,40 @@ void createPipeline(vk::Device &device, vk::Pipeline &pipeline,
                     vk::PipelineLayout &pipLayout, vk::SpecializationInfo &specInfo, vk::ShaderModule &sModule);
 void createShader(vk::Device &device, vk::ShaderModule &shaderModule, const std::string &filename);
 
+struct DescriptorPool {
+    vk::DescriptorSetLayout layout;
+    vk::DescriptorPool pool;
+    std::vector<vk::DescriptorSet> sets;
+    std::vector<vk::DescriptorSetLayoutBinding> bindings;
+
+    void addStorage(uint32_t binding, uint32_t count, vk::ShaderStageFlags shaderStages) {
+        bindings.emplace_back(
+                binding,
+                vk::DescriptorType::eStorageBuffer,
+                count,
+                shaderStages);
+    }
+    void addSampler(uint32_t binding, uint32_t count, vk::ShaderStageFlags shaderStages) {
+        bindings.emplace_back(
+                binding,
+                vk::DescriptorType::eCombinedImageSampler,
+                count,
+                shaderStages);
+    }
+    void addUniform(uint32_t binding, uint32_t count, vk::ShaderStageFlags shaderStages) {
+        bindings.emplace_back(
+                binding,
+                vk::DescriptorType::eUniformBuffer,
+                count,
+                shaderStages);
+    }
+
+    void allocate(uint32_t numDescriptorSets = 1);
+    ~DescriptorPool();
+
+private:
+    bool allocated = false;
+};
 }// namespace Cmn
 
 struct TaskResources {

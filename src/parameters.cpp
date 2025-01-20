@@ -37,7 +37,8 @@ T parse(const YAML::Node &yaml, const std::string &key, const T defaultValue) {
 }
 
 const Mappings<SceneType> sceneTypeMappings {
-        {"sph_box_2d", SceneType::SPH_BOX_2D}};
+        {"sph_box_2d", SceneType::SPH_BOX_2D},
+        {"sph_box_3d", SceneType::SPH_BOX_3D}};
 const Mappings<InitializationFunction> initializationFunctionMappings {
         {"uniform", InitializationFunction::UNIFORM},
         {"poisson_disk", InitializationFunction::POISSON_DISK}};

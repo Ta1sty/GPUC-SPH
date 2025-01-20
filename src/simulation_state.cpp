@@ -10,21 +10,34 @@
 
 std::vector<float> initUniform(SceneType sceneType, uint32_t numParticles, std::mt19937 &random) {
     std::vector<float> values;
+    std::uniform_real_distribution<float> distribution(0.0f, 1.0f);
 
     switch (sceneType) {
         case SceneType::SPH_BOX_2D:
             values.resize(2 * numParticles);
-            std::uniform_real_distribution<float> distribution(0.0f, 1.0f);
             for (auto &v: values) {
                 v = distribution(random);
             }
+            break;
+        case SceneType::SPH_BOX_3D:
+            values.resize(4 * numParticles);
+            for (size_t i = 0; i < numParticles; i++) {
+                for (size_t j = 0; j < 3; j++)
+                    values[4 * i + j] = distribution(random);
+
+                values[4 * i + 3] = -FLT_MAX;
+            }
+            break;
+        default:
+            throw std::runtime_error("uniform distribution cannot be created for this scene type");
+            break;
     }
 
     return values;
 }
 
 std::vector<float> initPoissonDisk(SceneType sceneType, uint32_t numParticles, std::mt19937 &random) {
-    throw std::runtime_error("not implemented");
+    throw std::runtime_error("poisson disk init not implemented");
 
     std::vector<float> values;
 
@@ -43,15 +56,21 @@ SimulationState::SimulationState(const SimulationParameters &_parameters, std::s
     debugImageSort = std::make_unique<DebugImage>("debug-image-sort");
     debugImageRenderer = std::make_unique<DebugImage>("debug-image-render");
 
-    vk::DeviceSize coordinateBufferSize;
+    vk::DeviceSize coordinateBufferSize = 0;
     switch (parameters.type) {
         case SceneType::SPH_BOX_2D:
             coordinateBufferSize = sizeof(glm::vec2) * parameters.numParticles;
 
-            auto z = 0.5 / glm::tan(camera->fovy / 2.0f);
-            camera->position = {0.5, 0.5, z};
+            camera->position = {0.5, 0.5,
+                                0.5 / glm::tan(camera->fovy / 2.0f)};
             camera->phi = glm::pi<float>();
             camera->theta = 0.0f;
+            break;
+        case SceneType::SPH_BOX_3D:
+            coordinateBufferSize = sizeof(glm::vec4) * parameters.numParticles;
+            break;
+        default:
+            throw std::runtime_error("SimulationState cannot be initialized for this scene type");
             break;
     }
     // Particles

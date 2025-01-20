@@ -146,6 +146,25 @@ void createShader(vk::Device &device, vk::ShaderModule &shaderModule, const std:
             reinterpret_cast<const uint32_t *>(cshader.data()));// Pointer to code (of uint32_t pointer type)
     shaderModule = device.createShaderModule(smi);
 }
+
+void DescriptorPool::allocate(uint32_t numDescriptorSets) {
+    if (allocated)
+        throw std::runtime_error("Descriptor pool already allocated");
+    allocated = true;
+
+    createDescriptorSetLayout(resources.device, bindings, layout);
+    createDescriptorPool(resources.device, bindings, pool, numDescriptorSets);
+
+    sets.resize(numDescriptorSets);
+    for (auto &set: sets) {
+        allocateDescriptorSet(resources.device, set, pool, layout);
+    }
+}
+DescriptorPool::~DescriptorPool() {
+    //resources.device.freeDescriptorSets(pool, sets);
+    resources.device.destroyDescriptorPool(pool);
+    resources.device.destroyDescriptorSetLayout(layout);
+}
 }// namespace Cmn
 
 void TaskResources::destroy(vk::Device &device) {

@@ -116,6 +116,10 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
 
 
 vk::CommandBuffer SpatialLookup::run(SimulationState &state) {
+    // TODO implement 3D!
+    if (state.parameters.type != SceneType::SPH_BOX_2D)
+        return nullptr;
+
     if (nullptr != cmd && state.spatialRadius == pushConstants.cellSize && state.parameters.numParticles == pushConstants.bufferSize) {
         return cmd;
     }

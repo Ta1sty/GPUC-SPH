@@ -311,53 +311,23 @@ ParticleRenderer2D::~ParticleRenderer2D() {
     resources.device.destroyImageView(colormapImageView);
     resources.device.destroyImage(colormapImage);
     resources.device.freeMemory(colormapImageMemory);
-
-    resources.device.destroyDescriptorPool(descriptorPool);
-    resources.device.destroyDescriptorSetLayout(descriptorSetLayout);
 }
 
 void ParticleRenderer2D::createPipelines() {
-    std::vector<vk::DescriptorSetLayoutBinding> bindings;
-    bindings.emplace_back(
-            0,
-            vk::DescriptorType::eStorageBuffer,
-            1U,
-            vk::ShaderStageFlagBits::eFragment);
-    bindings.emplace_back(
-            1,
-            vk::DescriptorType::eCombinedImageSampler,
-            1U,
-            vk::ShaderStageFlagBits::eFragment,
-            nullptr);
-    bindings.emplace_back(
-            2,
-            vk::DescriptorType::eUniformBuffer,
-            1U,
-            vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eGeometry);
-
-    bindings.emplace_back(// spatial-lookup
-            3,
-            vk::DescriptorType::eStorageBuffer,
-            1U,
-            vk::ShaderStageFlagBits::eFragment);
-
-    bindings.emplace_back(// spatial-indices
-            4,
-            vk::DescriptorType::eStorageBuffer,
-            1U,
-            vk::ShaderStageFlagBits::eFragment);
-
-    Cmn::createDescriptorSetLayout(resources.device, bindings, descriptorSetLayout);
-    Cmn::createDescriptorPool(resources.device, bindings, descriptorPool);
-    Cmn::allocateDescriptorSet(resources.device, descriptorSet, descriptorPool, descriptorSetLayout);
+    descriptorPool.addStorage(0, 1, vk::ShaderStageFlagBits::eFragment);
+    descriptorPool.addSampler(1, 1, vk::ShaderStageFlagBits::eFragment);
+    descriptorPool.addUniform(2, 1, vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eGeometry);
+    descriptorPool.addStorage(3, 1, vk::ShaderStageFlagBits::eFragment);// spatial-lookup
+    descriptorPool.addStorage(4, 1, vk::ShaderStageFlagBits::eFragment);// spatial-indices
+    descriptorPool.allocate();
 
     vk::PushConstantRange pcr {
-            vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct)};
+            vk::ShaderStageFlagBits::eAll, 0, sizeof(ParticlePushStruct)};
 
     vk::PipelineLayoutCreateInfo pipelineLayoutCI {
             vk::PipelineLayoutCreateFlags(),
             1U,
-            &descriptorSetLayout,
+            &descriptorPool.layout,
             1U,
             &pcr};
 
@@ -464,6 +434,7 @@ void ParticleRenderer2D::createColormapTexture(const std::vector<colormaps::RGB_
 }
 
 void ParticleRenderer2D::updateDescriptorSets(const SimulationState &simulationState) {
+    auto &descriptorSet = descriptorPool.sets[0];
     Cmn::bindBuffers(resources.device, simulationState.particleCoordinateBuffer.buf, descriptorSet, 0);
     Cmn::bindCombinedImageSampler(resources.device, colormapImageView, colormapSampler, descriptorSet, 1);
     Cmn::bindBuffers(resources.device, uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
@@ -498,8 +469,8 @@ void ParticleRenderer2D::updateCmd(const SimulationState &simulationState) {
     commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, backgroundPipeline);
     commandBuffer.bindVertexBuffers(0, 1, &quadVertexBuffer.buf, offsets);
     commandBuffer.bindIndexBuffer(quadIndexBuffer.buf, 0UL, vk::IndexType::eUint16);
-    commandBuffer.pushConstants(particlePipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
-    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, particlePipelineLayout, 0, 1, &descriptorSet,
+    commandBuffer.pushConstants(particlePipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(ParticlePushStruct), &pushStruct);
+    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, particlePipelineLayout, 0, 1, &descriptorPool.sets[0],
                                      0, nullptr);
     commandBuffer.drawIndexed(6, 1, 0, 0, 0);// draw quad
 
@@ -508,13 +479,131 @@ void ParticleRenderer2D::updateCmd(const SimulationState &simulationState) {
     commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, particlePipeline);
     commandBuffer.bindVertexBuffers(0, 1, &simulationState.particleCoordinateBuffer.buf, offsets);
 
-    commandBuffer.pushConstants(particlePipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
-    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, particlePipelineLayout, 0, 1, &descriptorSet,
+    commandBuffer.pushConstants(particlePipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(ParticlePushStruct), &pushStruct);
+    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, particlePipelineLayout, 0, 1, &descriptorPool.sets[0],
                                      0, nullptr);
     commandBuffer.draw(simulationState.parameters.numParticles, 1, 0, 0);
 
     /* ====================================== */
     commandBuffer.endRenderPass();
+    commandBuffer.end();
+}
+
+ParticleRenderer3D::ParticleRenderer3D(ParticleRenderer *_renderer) : renderer(_renderer) {
+    vk::AttachmentDescription colorAttachmentDescription {
+            {},
+            resources.surfaceFormat.format,
+            vk::SampleCountFlagBits::e1,
+            vk::AttachmentLoadOp::eClear,
+            vk::AttachmentStoreOp::eStore,
+            vk::AttachmentLoadOp::eDontCare,
+            vk::AttachmentStoreOp::eDontCare,
+            vk::ImageLayout::eColorAttachmentOptimal,
+            vk::ImageLayout::eColorAttachmentOptimal};
+
+    vk::AttachmentReference colorAttachmentReference {
+            0, vk::ImageLayout::eColorAttachmentOptimal};
+
+    vk::SubpassDescription subpasses[] {
+            {{},
+             vk::PipelineBindPoint::eGraphics,
+             {},
+             colorAttachmentReference,
+             {},
+             nullptr,
+             {}}};
+
+    vk::SubpassDependency dependencies[] {
+            {VK_SUBPASS_EXTERNAL,
+             0,
+             {vk::PipelineStageFlagBits::eColorAttachmentOutput},
+             {vk::PipelineStageFlagBits::eColorAttachmentOutput},
+             {vk::AccessFlagBits::eColorAttachmentWrite},
+             {vk::AccessFlagBits::eColorAttachmentWrite}}};
+
+    vk::RenderPassCreateInfo renderPassCI {
+            {},
+            1U,
+            &colorAttachmentDescription,
+            1U,
+            subpasses,
+            1U,
+            dependencies};
+
+    renderPass = resources.device.createRenderPass(renderPassCI);
+
+    framebuffer = resources.device.createFramebuffer({{},
+                                                      renderPass,
+                                                      1,
+                                                      &renderer->colorAttachmentView,
+                                                      renderer->imageSize.width,
+                                                      renderer->imageSize.height,
+                                                      renderer->imageSize.depth});
+
+    createPipelines();
+}
+
+void ParticleRenderer3D::createPipelines() {
+    descriptorPool.addStorage(0, 1, vk::ShaderStageFlagBits::eFragment);
+    descriptorPool.addSampler(1, 1, vk::ShaderStageFlagBits::eFragment);
+    descriptorPool.addUniform(2, 1, vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eGeometry);
+    descriptorPool.allocate();
+
+    vk::PushConstantRange pcr {
+            vk::ShaderStageFlagBits::eAll, 0, sizeof(ParticlePushStruct)};
+
+    vk::PipelineLayoutCreateInfo pipelineLayoutCI {
+            vk::PipelineLayoutCreateFlags(),
+            1U,
+            &descriptorPool.layout,
+            1U,
+            &pcr};
+
+    particlePipelineLayout = resources.device.createPipelineLayout(pipelineLayoutCI);
+
+    std::vector<GraphicsPipelineBuilder> builders;
+    builders.emplace_back(GraphicsPipelineBuilder {
+            {{vk::ShaderStageFlagBits::eVertex, "particle3d.vert"},
+             {vk::ShaderStageFlagBits::eGeometry, "particle2d.geom"},
+             {vk::ShaderStageFlagBits::eFragment, "particle2d.frag"}},
+            particlePipelineLayout,
+            renderPass,
+            0});
+    builders[0].inputAssemblySCI.topology = vk::PrimitiveTopology::ePointList;
+    builders[0].vertexInputBindings[0].stride = 4 * 4;
+    builders[0].vertexInputAttributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
+
+    auto pipelines = GraphicsPipelineBuilder::createPipelines(builders);
+    if (pipelines.result != vk::Result::eSuccess)
+        throw std::runtime_error("Pipeline creation failed");
+
+    particlePipeline = pipelines.value[0];
+}
+
+ParticleRenderer3D::~ParticleRenderer3D() {
+    resources.device.destroyPipeline(particlePipeline);
+    resources.device.destroyPipelineLayout(particlePipelineLayout);
+
+    resources.device.freeCommandBuffers(resources.graphicsCommandPool, commandBuffer);
+    resources.device.destroyFramebuffer(framebuffer);
+    resources.device.destroyRenderPass(renderPass);
+}
+
+vk::CommandBuffer ParticleRenderer3D::run(const SimulationState &simulationState, const RenderParameters &renderParameters) {
+    if (commandBuffer == nullptr)
+        updateCmd(simulationState);
+
+    return commandBuffer;
+}
+
+void ParticleRenderer3D::updateCmd(const SimulationState &simulationState) {
+    if (commandBuffer == nullptr)
+        commandBuffer = resources.device.allocateCommandBuffers(
+                {resources.graphicsCommandPool, vk::CommandBufferLevel::ePrimary, 1U})[0];
+    else
+        commandBuffer.reset();
+
+    commandBuffer.begin(vk::CommandBufferBeginInfo {});
     commandBuffer.end();
 }
 
@@ -568,6 +657,7 @@ ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resourc
 
     // depends on image and needs to be initialized late
     renderer2D = std::make_unique<ParticleRenderer2D>(this);
+    renderer3D = std::make_unique<ParticleRenderer3D>(this);
 }
 
 ParticleRenderer::~ParticleRenderer() {
@@ -580,12 +670,15 @@ vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState, 
     switch (simulationState.parameters.type) {
         case SceneType::SPH_BOX_2D:
             return renderer2D->run(simulationState, renderParameters);
+        case SceneType::SPH_BOX_3D:
+            return renderer3D->run(simulationState, renderParameters);
         default:
             return nullptr;
     }
 }
 void ParticleRenderer::updateCmd(const SimulationState &simulationState) {
     renderer2D->updateCmd(simulationState);
+    renderer3D->updateCmd(simulationState);
 }
 vk::Image ParticleRenderer::getImage() {
     return colorAttachment;

@@ -1,7 +1,7 @@
 #version 450
 
 layout (location = 0) in vec2 particleRelativePosition;
-layout (location = 1) in vec2 particleCenter;
+layout (location = 1) in vec3 particleCenter;
 
 layout (location = 0) out vec4 outColor;
 
@@ -28,7 +28,7 @@ float circle(in vec2 dist, in float _radius) {
 }
 
 void main() {
-    //        uint cell = cellHash(uvec2(particleCenter * 8));
+    //        uint cell = cellHash(uvec2(particleCenter.xy * 8));
     //        outColor = vec4(texture(colorscale, float(cell) / float(GRID_BUFFER_SIZE)).rgb, 1.0);
     vec3 color = vec3(circle(particleRelativePosition, 0.5f));
     outColor = vec4(color, circle(particleRelativePosition, 0.90f));

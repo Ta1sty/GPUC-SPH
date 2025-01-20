@@ -60,6 +60,10 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
 }
 
 vk::CommandBuffer ParticleSimulation::run(const SimulationState &simulationState) {
+    // TODO implement 3D!
+    if (simulationState.parameters.type != SceneType::SPH_BOX_2D)
+        return nullptr;
+
     if (nullptr == cmd) {
         std::cout << "ParticleSimulation::run called when cmd==NULL, updating the command buffer" << std::endl;
         updateCmd(simulationState);

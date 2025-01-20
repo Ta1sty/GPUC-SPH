@@ -5,6 +5,12 @@
 
 class ParticleRenderer;
 
+struct ParticlePushStruct {
+    glm::mat4 mvp;
+    uint32_t width = 0;
+    uint32_t height = 0;
+};
+
 class ParticleRenderer2D {
 public:
     explicit ParticleRenderer2D(ParticleRenderer *renderer);
@@ -15,14 +21,8 @@ public:
 
 private:
     void createPipelines();
-    void createColormapTexture(const std::vector<colormaps::RGB_F32> &colormap);
     void updateDescriptorSets(const SimulationState &simulationState);
-
-    struct PushStruct {
-        glm::mat4 mvp;
-        uint32_t width = 0;
-        uint32_t height = 0;
-    } pushStruct;
+    void createColormapTexture(const std::vector<colormaps::RGB_F32> &colormap);
 
     struct UniformBufferStruct {
         uint32_t numParticles = 128;
@@ -54,14 +54,37 @@ private:
     vk::ImageView colormapImageView;
     vk::Sampler colormapSampler;
 
-    vk::DescriptorSetLayout descriptorSetLayout;
-    vk::DescriptorPool descriptorPool;
-    vk::DescriptorSet descriptorSet;
+    Cmn::DescriptorPool descriptorPool;
+    ParticlePushStruct pushStruct;
 
     Buffer quadVertexBuffer;
     Buffer quadIndexBuffer;
 
     Buffer uniformBuffer;
+};
+
+class ParticleRenderer3D {
+public:
+    explicit ParticleRenderer3D(ParticleRenderer *renderer);
+    ParticleRenderer3D(const ParticleRenderer2D &particleRenderer) = delete;
+    ~ParticleRenderer3D();
+    vk::CommandBuffer run(const SimulationState &simulationState, const RenderParameters &renderParameters);
+    void updateCmd(const SimulationState &simulationState);
+
+private:
+    void createPipelines();
+
+    ParticleRenderer *renderer;
+
+    vk::CommandBuffer commandBuffer;
+    vk::RenderPass renderPass;
+    vk::Framebuffer framebuffer;
+
+    Cmn::DescriptorPool descriptorPool;
+    ParticlePushStruct pushStruct;
+
+    vk::PipelineLayout particlePipelineLayout;
+    vk::Pipeline particlePipeline;
 };
 
 class ParticleRenderer {
@@ -76,9 +99,11 @@ public:
 private:
     vk::Extent3D imageSize;
     std::unique_ptr<ParticleRenderer2D> renderer2D;
+    std::unique_ptr<ParticleRenderer3D> renderer3D;
     vk::Image colorAttachment;
     vk::ImageView colorAttachmentView;
     vk::DeviceMemory colorAttachmentMemory;
 
     friend class ParticleRenderer2D;
+    friend class ParticleRenderer3D;
 };
