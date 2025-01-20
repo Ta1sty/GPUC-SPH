@@ -15,7 +15,7 @@ layout (binding = 2) uniform UniformBuffer {
 
 #define GRID_BINDING_LOOKUP 3
 #define GRID_BINDING_INDEX 4
-#define GRID_BUFFER_SIZE numParticles
+#define GRID_NUM_ELEMENTS numParticles
 #define GRID_CELL_SIZE spatialRadius
 #include "spatial_lookup.glsl"
 
@@ -33,7 +33,7 @@ float evaluateDensity(vec2 position) {
 }
 
 void main() {
-    //float value = float(getCellForCoordinate(position)) / float(GRID_BUFFER_SIZE);
+    //float value = float(getCellForCoordinate(position)) / float(GRID_NUM_ELEMENTS);
     float value = 0.0f;
     switch (backgroundField) {
         case 0:

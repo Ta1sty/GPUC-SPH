@@ -71,8 +71,9 @@ SimulationState::SimulationState(const SimulationParameters &_parameters, std::s
     fillDeviceWithStagingBuffer(particleCoordinateBuffer, coordinateValues);
 
     // Spatial Lookup
-    spatialLookup = createDeviceLocalBuffer("spatialLookup", parameters.numParticles * sizeof(SpatialLookupEntry));
-    spatialIndices = createDeviceLocalBuffer("startIndices", parameters.numParticles * sizeof(uint32_t));
+    uint32_t lookupSize = nextPowerOfTwo(parameters.numParticles);
+    spatialLookup = createDeviceLocalBuffer("spatialLookup", lookupSize * sizeof(SpatialLookupEntry));
+    spatialIndices = createDeviceLocalBuffer("startIndices", lookupSize * sizeof(uint32_t));
 }
 
 SimulationState::~SimulationState() {

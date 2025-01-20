@@ -30,10 +30,8 @@ void SpatialLookup::createPipelines() {
     resources.device.destroyPipeline(indexPipeline);
 
     std::array<vk::SpecializationMapEntry, 1> specEntries {
-            vk::SpecializationMapEntry(0, 0, sizeof(workgroupSizeX))};
-
-    std::array<const uint32_t, 1> specValues = {
-            workgroupSizeX};
+            vk::SpecializationMapEntry(0, 0, sizeof(workgroupSize))};
+    std::array<const uint32_t, 1> specValues = {workgroupSize};
 
     vk::SpecializationInfo specInfo(specEntries, vk::ArrayProxyNoTemporaries<const uint32_t>(specValues));
 
@@ -66,16 +64,14 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
         cmd.reset();
     }
 
-    uint32_t sizeX = nextPowerOfTwo(std::min<uint32_t>(128, (state.parameters.numParticles + 1) / 2));
-    if (sizeX != workgroupSizeX) {
-        workgroupSizeX = sizeX;
+    if (updateSize(state.parameters.numParticles)) {
         createPipelines();
     }
 
     SpatialLookupPushConstants pushConstants {
             .cellSize = state.spatialRadius,
-            .bufferSize = state.parameters.numParticles,
-            .sort_n = nextPowerOfTwo(state.parameters.numParticles),
+            .numElements = state.parameters.numParticles,
+            .sort_n = workloadSize,
             .sort_k = 0,
             .sort_j = 0,
     };
@@ -84,13 +80,11 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
     Cmn::bindBuffers(resources.device, state.spatialIndices.buf, descriptorSet, 1);
     Cmn::bindBuffers(resources.device, state.particleCoordinateBuffer.buf, descriptorSet, 2);
 
-    uint32_t dx = (state.parameters.numParticles + (workgroupSizeX * 2) - 1) / (workgroupSizeX * 2);
-
     std::cout
             << "Spatial-Lookup-Record"
-            << " groupSize: " << workgroupSizeX
-            << " groupCount: " << dx
-            << " size: " << pushConstants.sort_n
+            << " size: " << workloadSize
+            << " groupSize: " << workgroupSize
+            << " groupCount: " << workgroupNum
             << " radius: " << pushConstants.cellSize << std::endl;
 
     cmd.begin(vk::CommandBufferBeginInfo());
@@ -100,7 +94,7 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
     {
         cmd.bindPipeline(vk::PipelineBindPoint::eCompute, writePipeline);
         cmd.pushConstants(pipelineLayout, {vk::ShaderStageFlagBits::eCompute}, 0, (pcr = pushConstants));
-        cmd.dispatch(dx, 1, 1);
+        cmd.dispatch(workgroupNum, 1, 1);
         computeBarrier(cmd);
     }
 
@@ -115,8 +109,6 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
                 stepCounter++;
                 pushConstants.sort_j = j;
 
-                uint32_t blocks = (n + workgroupSizeX - 1) / workgroupSizeX;
-
                 if (stepCounter > stepBreak) continue;
 
                 //                std::cout << "n:" << pushConstants.sort_n << " ";
@@ -126,7 +118,7 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
 
 
                 cmd.pushConstants(pipelineLayout, {vk::ShaderStageFlagBits::eCompute}, 0, (pcr = pushConstants));
-                cmd.dispatch(blocks, 1, 1);
+                cmd.dispatch(workgroupNum, 1, 1);
                 computeBarrier(cmd);
             }
         }
@@ -136,22 +128,37 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
     // write the start indices
     cmd.bindPipeline(vk::PipelineBindPoint::eCompute, indexPipeline);
     cmd.pushConstants(pipelineLayout, {vk::ShaderStageFlagBits::eCompute}, 0, (pcr = pushConstants));
-    cmd.dispatch(dx, 1, 1);
+    cmd.dispatch(workgroupNum, 1, 1);
 
     cmd.end();
 
-    std::cout << "Spatial-lookup-Dispatches: " << (stepCounter) << std::endl;
+    std::cout << "Spatial-lookup-Dispatches: " << (stepCounter + 2) << std::endl;
 
     currentPushConstants = pushConstants;
 }
 
 
 vk::CommandBuffer SpatialLookup::run(SimulationState &state) {
-    if (nullptr != cmd && state.spatialRadius == currentPushConstants.cellSize && state.parameters.numParticles == currentPushConstants.bufferSize) {
+    if (nullptr != cmd && state.spatialRadius == currentPushConstants.cellSize && state.parameters.numParticles == currentPushConstants.numElements) {
         return cmd;
     }
 
     updateCmd(state);
 
     return cmd;
+}
+bool SpatialLookup::updateSize(uint32_t numElements) {
+    uint32_t size, groupSize, groupNum;
+
+    size = nextPowerOfTwo(numElements);
+    groupSize = std::min<uint32_t>(128, size);
+    groupNum = size / groupSize;
+
+    if (size == workgroupSize) return false;
+
+    workloadSize = size;
+    workgroupSize = groupSize;
+    workgroupNum = groupNum;
+
+    return true;
 }

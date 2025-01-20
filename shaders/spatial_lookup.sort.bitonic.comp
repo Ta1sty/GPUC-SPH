@@ -13,12 +13,10 @@ void main() {
 
     uint i = gl_GlobalInvocationID.x;
 
-
     uint l = i ^ j;
+    // there are always 2-threads per pair. (for now)
+    // Only the thread where the i is the lower value should perform the swap operation
     if (l <= i) return;
-
-    // no swapping takes place if an element is out of bounds
-    if (i >= GRID_BUFFER_SIZE || l >= GRID_BUFFER_SIZE) return;
 
     SpatialLookupEntry element_i = spatial_lookup[i];
     SpatialLookupEntry element_l = spatial_lookup[l];

@@ -1,7 +1,7 @@
 #ifdef GRID_PCR
 layout (push_constant) uniform PushStruct {
     float cellSize;
-    uint bufferSize;
+    uint numElements;
     uint sort_n;
     uint sort_k;
     uint sort_j;
@@ -12,8 +12,8 @@ layout (push_constant) uniform PushStruct {
 #define GRID_READONLY readonly
 #endif
 
-#ifndef GRID_BUFFER_SIZE
-#define GRID_BUFFER_SIZE uint(constants.bufferSize)
+#ifndef GRID_NUM_ELEMENTS
+#define GRID_NUM_ELEMENTS uint(constants.numElements)
 #endif
 
 #ifndef GRID_CELL_SIZE
@@ -60,7 +60,7 @@ return key;
 }
 
 uint cellKey(uint hash){
-return hash % GRID_BUFFER_SIZE;
+return hash % GRID_NUM_ELEMENTS;
 }
 
 uint cellKey(ivec2 cell){
@@ -72,7 +72,7 @@ return cellKey(cellHash(cellCoord(position)));
 }
 
 vec4 cellColor(uint cellKey) {
-return vec4(1.f * cellKey / GRID_BUFFER_SIZE, 0, 0, 1);
+return vec4(1.f * cellKey / GRID_NUM_ELEMENTS, 0, 0, 1);
 }
 
 #define NEIGHBOUR_OFFSET_COUNT 9
@@ -93,18 +93,19 @@ ivec2(1, 1),
 #define NEIGHBOUR_POSITION n_position
 #define NEIGHBOUR_DISTANCE n_distance
 
-#define FOREACH_NEIGHBOUR(position, x) { \
+#define FOREACH_NEIGHBOUR(position, expression) { \
 ivec2 center = cellCoord(position); \
 for (int i = 0; i < NEIGHBOUR_OFFSET_COUNT; i++) { \
 uint cellKey = cellKey(center + offsets[i]); \
-for (uint j = spatial_indices[cellKey]; j < GRID_BUFFER_SIZE; j++) { \
+for (uint j = spatial_indices[cellKey]; j < GRID_NUM_ELEMENTS; j++) { \
 SpatialLookupEntry entry = spatial_lookup[j]; \
 if (entry.cellKey != cellKey) break; \
-uint n_index = entry.particleIndex; \
-vec2 n_position = coordinates[n_index]; \
-float n_distance = length(position - n_position); \
-if (n_distance > GRID_CELL_SIZE) continue; \
-x; \
+uint NEIGHBOUR_INDEX = entry.particleIndex; \
+if (NEIGHBOUR_INDEX == uint(- 1)) continue; \
+vec2 NEIGHBOUR_POSITION = coordinates[NEIGHBOUR_INDEX]; \
+float NEIGHBOUR_DISTANCE = length(position - NEIGHBOUR_POSITION); \
+if (NEIGHBOUR_DISTANCE > GRID_CELL_SIZE) continue; \
+expression; \
 } \
 } \
 }

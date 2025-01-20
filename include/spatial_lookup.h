@@ -5,7 +5,7 @@
 
 struct SpatialLookupPushConstants {
     float cellSize;
-    uint32_t bufferSize;
+    uint32_t numElements;
     uint32_t sort_n;
     uint32_t sort_k;
     uint32_t sort_j;
@@ -13,7 +13,10 @@ struct SpatialLookupPushConstants {
 
 class SpatialLookup {
     SpatialLookupPushConstants currentPushConstants;
-    uint32_t workgroupSizeX = -1;
+
+    uint32_t workloadSize;
+    uint32_t workgroupSize = -1;
+    uint32_t workgroupNum = -1;
 
     std::vector<vk::DescriptorSetLayoutBinding> descriptorBindings;
     vk::DescriptorSetLayout descriptorLayout;
@@ -33,6 +36,7 @@ class SpatialLookup {
 
     vk::CommandBuffer cmd;
 
+    bool updateSize(uint32_t numElements);
     void createPipelines();
 
 public:

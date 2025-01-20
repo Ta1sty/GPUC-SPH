@@ -11,14 +11,14 @@ shared SpatialLookupEntry[gl_WorkGroupSize.x * 2] entries;
 void load() {
     uint left = gl_LocalInvocationID.x;
 
-    if (left >= GRID_BUFFER_SIZE) {
+    if (left >= GRID_NUM_ELEMENTS) {
         entries[left] = SpatialLookupEntry(uint(-1), uint(-1));
     } else {
         entries[left] = spatial_lookup[left];
     }
 
     uint right = left + gl_WorkGroupSize.x;
-    if (right >= GRID_BUFFER_SIZE) {
+    if (right >= GRID_NUM_ELEMENTS) {
         entries[right] = SpatialLookupEntry(uint(-1), uint(-1));
     } else {
         entries[right] = spatial_lookup[right];
@@ -28,12 +28,12 @@ void load() {
 void store() {
     uint left = gl_LocalInvocationID.x;
 
-    if (left < GRID_BUFFER_SIZE) {
+    if (left < GRID_NUM_ELEMENTS) {
         spatial_lookup[left] = entries[left];
     }
 
     uint right = left + gl_WorkGroupSize.x;
-    if (right < GRID_BUFFER_SIZE) {
+    if (right < GRID_NUM_ELEMENTS) {
         spatial_lookup[right] = entries[right];
     }
 }
@@ -45,7 +45,7 @@ void main() {
 
     SpatialLookupEntry left, right;
 
-    for (uint i = 0; i < GRID_BUFFER_SIZE; ++i) {
+    for (uint i = 0; i < GRID_NUM_ELEMENTS; ++i) {
 
         barrier();
 

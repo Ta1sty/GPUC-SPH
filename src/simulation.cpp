@@ -137,12 +137,13 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     std::vector<glm::vec2> particles(simulationParameters.numParticles);
     fillHostWithStagingBuffer(simulationState->particleCoordinateBuffer, particles);
 
-    std::vector<SpatialLookupEntry> spatial_lookup(simulationParameters.numParticles);
+    uint32_t lookupSize = nextPowerOfTwo(simulationParameters.numParticles);
+    std::vector<SpatialLookupEntry> spatial_lookup(lookupSize);
     fillHostWithStagingBuffer(simulationState->spatialLookup, spatial_lookup);
-    std::vector<uint32_t> spatial_lookup_keys(simulationParameters.numParticles);
+    std::vector<uint32_t> spatial_lookup_keys(lookupSize);
     for (int i = 0; i < spatial_lookup.size(); ++i) spatial_lookup_keys[i] = spatial_lookup[i].cellKey;
 
-    std::vector<uint32_t> spatial_indices(simulationParameters.numParticles);
+    std::vector<uint32_t> spatial_indices(lookupSize);
     fillHostWithStagingBuffer(simulationState->spatialIndices, spatial_indices);
 
     std::vector<SpatialLookupEntry> spatial_lookup_sorted(spatial_lookup.begin(), spatial_lookup.end());
@@ -151,8 +152,10 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     std::set<uint32_t> keys;
     std::vector<SpatialHashResult> hashes;
-    for (uint32_t i = 0; i < simulationParameters.numParticles; i++) {
+    for (uint32_t i = 0; i < lookupSize; i++) {
         SpatialLookupEntry lookup = spatial_lookup[i];
+
+        if (lookup.particleIndex == -1) continue;
 
         glm::vec2 position = particles[lookup.particleIndex];
 
