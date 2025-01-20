@@ -2,6 +2,7 @@
 
 layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
+#define GRID_READONLY
 #define GRID_PCR
 #include "spatial_lookup.glsl"
 
@@ -12,6 +13,7 @@ void main() {
         if (index >= GRID_BUFFER_SIZE) return;
 
         spatial_lookup[index] = SpatialLookupEntry(cellKey(particle_coordinates[index]), index);
+        //        spatial_lookup[index] = SpatialLookupEntry(GRID_BUFFER_SIZE - index - 1, index);
         spatial_indices[index] = uint(-1);
     }
 
@@ -21,6 +23,7 @@ void main() {
         if (index >= GRID_BUFFER_SIZE) return;
 
         spatial_lookup[index] = SpatialLookupEntry(cellKey(particle_coordinates[index]), index);
+        //        spatial_lookup[index] = SpatialLookupEntry(GRID_BUFFER_SIZE - index - 1, index);
         spatial_indices[index] = uint(-1);
     }
 

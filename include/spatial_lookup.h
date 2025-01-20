@@ -4,13 +4,15 @@
 #include "simulation_state.h"
 
 struct SpatialLookupPushConstants {
-    uint32_t bufferSize;
     float cellSize;
+    uint32_t bufferSize;
+    uint32_t sort_n;
+    uint32_t sort_k;
+    uint32_t sort_j;
 };
 
 class SpatialLookup {
-    SpatialLookupPushConstants pushConstants {0, 0};
-
+    SpatialLookupPushConstants currentPushConstants;
     uint32_t workgroupSizeX = -1;
 
     std::vector<vk::DescriptorSetLayoutBinding> descriptorBindings;
