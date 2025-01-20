@@ -24,20 +24,6 @@ private:
     void updateDescriptorSets(const SimulationState &simulationState);
     void createColormapTexture(const std::vector<colormaps::RGB_F32> &colormap);
 
-    struct UniformBufferStruct {
-        uint32_t numParticles = 128;
-        uint32_t backgroundField = 0;
-        float particleRadius = 12.0f;
-        float spatialRadius = 0.1f;
-
-    public:
-        UniformBufferStruct() = default;
-        UniformBufferStruct(const UniformBufferStruct &obj) = default;
-        bool operator==(const UniformBufferStruct &obj) const {
-            return numParticles == obj.numParticles && backgroundField == obj.backgroundField && particleRadius == obj.particleRadius && spatialRadius == obj.spatialRadius;
-        }
-    } uniformBufferContent;
-
     ParticleRenderer *renderer;
 
     vk::Framebuffer framebuffer;
@@ -59,8 +45,6 @@ private:
 
     Buffer quadVertexBuffer;
     Buffer quadIndexBuffer;
-
-    Buffer uniformBuffer;
 };
 
 class ParticleRenderer3D {
@@ -73,6 +57,7 @@ public:
 
 private:
     void createPipelines();
+    void updateDescriptorSets(const SimulationState &simulationState);
 
     ParticleRenderer *renderer;
 
@@ -103,6 +88,22 @@ private:
     vk::Image colorAttachment;
     vk::ImageView colorAttachmentView;
     vk::DeviceMemory colorAttachmentMemory;
+
+
+    struct UniformBufferStruct {
+        uint32_t numParticles = 128;
+        uint32_t backgroundField = 0;
+        float particleRadius = 12.0f;
+        float spatialRadius = 0.1f;
+
+    public:
+        UniformBufferStruct() = default;
+        UniformBufferStruct(const UniformBufferStruct &obj) = default;
+        bool operator==(const UniformBufferStruct &obj) const {
+            return numParticles == obj.numParticles && backgroundField == obj.backgroundField && particleRadius == obj.particleRadius && spatialRadius == obj.spatialRadius;
+        }
+    } uniformBufferContent;
+    Buffer uniformBuffer;
 
     friend class ParticleRenderer2D;
     friend class ParticleRenderer3D;

@@ -269,29 +269,9 @@ ParticleRenderer2D::ParticleRenderer2D(ParticleRenderer *renderer) : renderer(re
 
     fillDeviceWithStagingBuffer(quadVertexBuffer, quadVertices);
     fillDeviceWithStagingBuffer(quadIndexBuffer, quadIndices);
-
-    uniformBuffer = createBuffer(resources.pDevice, resources.device, sizeof(UniformBufferStruct),
-                                 {vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst},
-                                 {vk::MemoryPropertyFlagBits::eDeviceLocal},
-                                 "render2dUniformBuffer");
-
-    const std::vector<UniformBufferStruct> uniformBufferVector {uniformBufferContent};
-    fillDeviceWithStagingBuffer(uniformBuffer, uniformBufferVector);
 }
 
 vk::CommandBuffer ParticleRenderer2D::run(const SimulationState &simulationState, const RenderParameters &renderParameters) {
-    UniformBufferStruct ub {
-            simulationState.parameters.numParticles,
-            static_cast<uint32_t>(renderParameters.backgroundField),
-            renderParameters.particleRadius,
-            simulationState.spatialRadius};
-
-    if (!(ub == uniformBufferContent)) {
-        uniformBufferContent = ub;
-        const std::vector<UniformBufferStruct> uniformBufferVector {uniformBufferContent};
-        fillDeviceWithStagingBuffer(uniformBuffer, uniformBufferVector);
-    }
-
     if (commandBuffer == nullptr)
         updateCmd(simulationState);
 
@@ -437,7 +417,7 @@ void ParticleRenderer2D::updateDescriptorSets(const SimulationState &simulationS
     auto &descriptorSet = descriptorPool.sets[0];
     Cmn::bindBuffers(resources.device, simulationState.particleCoordinateBuffer.buf, descriptorSet, 0);
     Cmn::bindCombinedImageSampler(resources.device, colormapImageView, colormapSampler, descriptorSet, 1);
-    Cmn::bindBuffers(resources.device, uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
+    Cmn::bindBuffers(resources.device, renderer->uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
     Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 3);
     Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, descriptorSet, 4);
 }
@@ -603,7 +583,30 @@ void ParticleRenderer3D::updateCmd(const SimulationState &simulationState) {
     else
         commandBuffer.reset();
 
+    // image must be in eColorAttachmentOptimal after the command buffer executed!
+    updateDescriptorSets(simulationState);
+    pushStruct.width = resources.extent.width;
+    pushStruct.height = resources.extent.height;
+
+    // map [0, 1]^2 into viewport
+    pushStruct.mvp = simulationState.camera->viewProjectionMatrix();
+
     commandBuffer.begin(vk::CommandBufferBeginInfo {});
+    uint64_t offsets[] = {0UL};
+
+    vk::ClearValue clearValue;
+    clearValue.color.uint32 = {{0, 0, 0, 0}};
+    commandBuffer.beginRenderPass(
+            {renderPass, framebuffer, {{0, 0}, resources.extent}, 1, &clearValue},
+            vk::SubpassContents::eInline);
+    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, particlePipeline);
+    commandBuffer.bindVertexBuffers(0, 1, &simulationState.particleCoordinateBuffer.buf, offsets);
+
+    commandBuffer.pushConstants(particlePipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(ParticlePushStruct), &pushStruct);
+    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, particlePipelineLayout, 0, 1, &descriptorPool.sets[0],
+                                     0, nullptr);
+    commandBuffer.draw(simulationState.parameters.numParticles, 1, 0, 0);
+    commandBuffer.endRenderPass();
     commandBuffer.end();
 }
 
@@ -655,9 +658,24 @@ ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resourc
             vk::ImageLayout::eUndefined,
             vk::ImageLayout::eColorAttachmentOptimal);
 
+    uniformBuffer = createBuffer(resources.pDevice, resources.device, sizeof(UniformBufferStruct),
+                                 {vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst},
+                                 {vk::MemoryPropertyFlagBits::eDeviceLocal},
+                                 "render2dUniformBuffer");
+
+    const std::vector<UniformBufferStruct> uniformBufferVector {uniformBufferContent};
+    fillDeviceWithStagingBuffer(uniformBuffer, uniformBufferVector);
+
     // depends on image and needs to be initialized late
     renderer2D = std::make_unique<ParticleRenderer2D>(this);
     renderer3D = std::make_unique<ParticleRenderer3D>(this);
+}
+
+void ParticleRenderer3D::updateDescriptorSets(const SimulationState &simulationState) {
+    auto &descriptorSet = descriptorPool.sets[0];
+    Cmn::bindBuffers(resources.device, simulationState.particleCoordinateBuffer.buf, descriptorSet, 0);
+    //Cmn::bindCombinedImageSampler(resources.device, colormapImageView, colormapSampler, descriptorSet, 1);
+    Cmn::bindBuffers(resources.device, renderer->uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
 }
 
 ParticleRenderer::~ParticleRenderer() {
@@ -667,6 +685,18 @@ ParticleRenderer::~ParticleRenderer() {
 }
 
 vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState, const RenderParameters &renderParameters) {
+    UniformBufferStruct ub {
+            simulationState.parameters.numParticles,
+            static_cast<uint32_t>(renderParameters.backgroundField),
+            renderParameters.particleRadius,
+            simulationState.spatialRadius};
+
+    if (!(ub == uniformBufferContent)) {
+        uniformBufferContent = ub;
+        const std::vector<UniformBufferStruct> uniformBufferVector {uniformBufferContent};
+        fillDeviceWithStagingBuffer(uniformBuffer, uniformBufferVector);
+    }
+
     switch (simulationState.parameters.type) {
         case SceneType::SPH_BOX_2D:
             return renderer2D->run(simulationState, renderParameters);
