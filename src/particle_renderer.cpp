@@ -271,7 +271,8 @@ Texture Texture::createColormapTexture(const std::vector<colormaps::RGB_F32> &co
 }
 
 ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resources.extent.height, 1) {
-    colormap = Texture::createColormapTexture(colormaps::viridis);
+    sharedResources = std::make_shared<SharedResources>();
+    sharedResources->colormap = Texture::createColormapTexture(colormaps::viridis);
 
     // color attachment image
     {
@@ -392,16 +393,16 @@ ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resourc
                                                           imageSize.depth});
     }
 
-    uniformBuffer = createBuffer(resources.pDevice, resources.device, sizeof(UniformBufferStruct),
-                                 {vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst},
-                                 {vk::MemoryPropertyFlagBits::eDeviceLocal},
-                                 "render2dUniformBuffer");
+    sharedResources->uniformBuffer = createBuffer(resources.pDevice, resources.device, sizeof(UniformBufferStruct),
+                                                  {vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst},
+                                                  {vk::MemoryPropertyFlagBits::eDeviceLocal},
+                                                  "renderUniformBuffer");
 
     const std::vector<UniformBufferStruct> uniformBufferVector {uniformBufferContent};
-    fillDeviceWithStagingBuffer(uniformBuffer, uniformBufferVector);
+    fillDeviceWithStagingBuffer(sharedResources->uniformBuffer, uniformBufferVector);
 
-    background2DPipeline = std::make_unique<Background2DPipeline>(renderPass, 0, framebuffer, this);
-    particleCirclePipeline = std::make_unique<ParticleCirclePipeline>(renderPass, 1, framebuffer, this);
+    background2DPipeline = std::make_unique<Background2DPipeline>(renderPass, 0, framebuffer, sharedResources);
+    particleCirclePipeline = std::make_unique<ParticleCirclePipeline>(renderPass, 1, framebuffer, sharedResources);
 }
 
 ParticleRenderer::~ParticleRenderer() {
@@ -424,7 +425,7 @@ vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState, 
     if (!(ub == uniformBufferContent)) {
         uniformBufferContent = ub;
         const std::vector<UniformBufferStruct> uniformBufferVector {uniformBufferContent};
-        fillDeviceWithStagingBuffer(uniformBuffer, uniformBufferVector);
+        fillDeviceWithStagingBuffer(sharedResources->uniformBuffer, uniformBufferVector);
     }
 
     if (commandBuffer == nullptr)
@@ -470,7 +471,7 @@ vk::Image ParticleRenderer::getImage() {
     return colorAttachment;
 }
 
-ParticleCirclePipeline::ParticleCirclePipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, ParticleRenderer *_renderer) : renderer(_renderer) {
+ParticleCirclePipeline::ParticleCirclePipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, SharedResources sharedResources) : sharedResources(sharedResources) {
     descriptorPool.addStorage(0, 1, vk::ShaderStageFlagBits::eFragment);
     descriptorPool.addSampler(1, 1, vk::ShaderStageFlagBits::eFragment);
     descriptorPool.addUniform(2, 1, vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eGeometry);
@@ -513,8 +514,8 @@ ParticleCirclePipeline::~ParticleCirclePipeline() {
 void ParticleCirclePipeline::updateDescriptorSets(const SimulationState &simulationState) {
     auto &descriptorSet = descriptorPool.sets[0];
     Cmn::bindBuffers(resources.device, simulationState.particleCoordinateBuffer.buf, descriptorSet, 0);
-    Cmn::bindCombinedImageSampler(resources.device, renderer->colormap.view, renderer->colormap.sampler, descriptorSet, 1);
-    Cmn::bindBuffers(resources.device, renderer->uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
+    Cmn::bindCombinedImageSampler(resources.device, sharedResources->colormap.view, sharedResources->colormap.sampler, descriptorSet, 1);
+    Cmn::bindBuffers(resources.device, sharedResources->uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
 }
 
 void ParticleCirclePipeline::draw(vk::CommandBuffer &cb, const SimulationState &simulationState) {
@@ -547,7 +548,7 @@ void ParticleCirclePipeline::draw(vk::CommandBuffer &cb, const SimulationState &
     cb.draw(simulationState.parameters.numParticles, 1, 0, 0);
 }
 
-Background2DPipeline::Background2DPipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, ParticleRenderer *_renderer) : renderer(_renderer) {
+Background2DPipeline::Background2DPipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, SharedResources renderer) : sharedResources(renderer) {
     descriptorPool.addStorage(0, 1, vk::ShaderStageFlagBits::eFragment);
     descriptorPool.addSampler(1, 1, vk::ShaderStageFlagBits::eFragment);
     descriptorPool.addUniform(2, 1, vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eGeometry);
@@ -615,8 +616,8 @@ void Background2DPipeline::draw(vk::CommandBuffer &cb, const SimulationState &si
 void Background2DPipeline::updateDescriptorSets(const SimulationState &simulationState) {
     auto &descriptorSet = descriptorPool.sets[0];
     Cmn::bindBuffers(resources.device, simulationState.particleCoordinateBuffer.buf, descriptorSet, 0);
-    Cmn::bindCombinedImageSampler(resources.device, renderer->colormap.view, renderer->colormap.sampler, descriptorSet, 1);
-    Cmn::bindBuffers(resources.device, renderer->uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
+    Cmn::bindCombinedImageSampler(resources.device, sharedResources->colormap.view, sharedResources->colormap.sampler, descriptorSet, 1);
+    Cmn::bindBuffers(resources.device, sharedResources->uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
     Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 3);
     Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, descriptorSet, 4);
 }

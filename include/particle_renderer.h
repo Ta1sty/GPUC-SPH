@@ -43,6 +43,11 @@ public:
     void updateCmd(const SimulationState &simulationState);
     [[nodiscard]] vk::Image getImage();
 
+    struct SharedResources {
+        Texture colormap;
+        Buffer uniformBuffer;
+    };
+
 private:
     vk::Extent3D imageSize;
     vk::Image colorAttachment;
@@ -51,10 +56,10 @@ private:
     vk::RenderPass renderPass;
     vk::Framebuffer framebuffer;
     vk::CommandBuffer commandBuffer;
-    Texture colormap;
 
     std::unique_ptr<ParticleCirclePipeline> particleCirclePipeline;
     std::unique_ptr<Background2DPipeline> background2DPipeline;
+    std::shared_ptr<SharedResources> sharedResources;
 
     struct UniformBufferStruct {
         uint32_t numParticles = 128;
@@ -69,10 +74,6 @@ private:
             return numParticles == obj.numParticles && backgroundField == obj.backgroundField && particleRadius == obj.particleRadius && spatialRadius == obj.spatialRadius;
         }
     } uniformBufferContent;
-    Buffer uniformBuffer;
-
-    friend class ParticleCirclePipeline;
-    friend class Background2DPipeline;
 };
 
 class GraphicsPipeline {
@@ -96,11 +97,13 @@ public:
 
         return resources.device.createPipelineLayout(pipelineLayoutCI);
     }
+
+    using SharedResources = std::shared_ptr<ParticleRenderer::SharedResources>;
 };
 
 class ParticleCirclePipeline : public GraphicsPipeline {
 public:
-    ParticleCirclePipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, ParticleRenderer *renderer);
+    ParticleCirclePipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, SharedResources sharedResources);
     ~ParticleCirclePipeline() override;
     void updateDescriptorSets(const SimulationState &simulationState) override;
     void draw(vk::CommandBuffer &cb, const SimulationState &simulationState) override;
@@ -112,7 +115,7 @@ private:
         uint32_t height = 0;
     } pushStruct;
 
-    ParticleRenderer *renderer;// TODO replace with pointer to "common render resources"
+    SharedResources sharedResources;
     Cmn::DescriptorPool descriptorPool;
     vk::PipelineLayout pipelineLayout;
     vk::Pipeline pipeline2d;
@@ -121,7 +124,7 @@ private:
 
 class Background2DPipeline : public GraphicsPipeline {
 public:
-    Background2DPipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, ParticleRenderer *renderer);
+    Background2DPipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, SharedResources renderer);
     ~Background2DPipeline() override;
     void draw(vk::CommandBuffer &cb, const SimulationState &simulationState) override;
     void updateDescriptorSets(const SimulationState &simulationState) override;
@@ -133,7 +136,7 @@ private:
         uint32_t height = 0;
     } pushStruct;
 
-    ParticleRenderer *renderer;// TODO replace with pointer to "common render resources"
+    SharedResources sharedResources;
     Cmn::DescriptorPool descriptorPool;
     vk::PipelineLayout pipelineLayout;
     vk::Pipeline pipeline;
