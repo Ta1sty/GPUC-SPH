@@ -2,8 +2,9 @@
 
 layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0) buffer positionBuffer { float positions[]; };
-layout(binding = 1) buffer velocityBuffer { float velocities[]; };
+layout(binding = 0) buffer positionBuffer { vec2 positions[]; };
+layout(binding = 1) buffer velocityBuffer { vec2 velocities[]; };
+layout(binding = 2) buffer densityBuffer { float densities[]; };
 
 layout(push_constant) uniform PushStruct {
     float gravity;
@@ -11,81 +12,65 @@ layout(push_constant) uniform PushStruct {
     uint numParticles;
     float collisionDampingFactor;
     float spatialRadius;
+    float targetDensity;
+    float pressureMultiplier;
 }
 constants;
 
 #define GRID_BUFFER_SIZE constants.numParticles
 #define GRID_CELL_SIZE constants.spatialRadius
-#define GRID_BINDING_LOOKUP 2
-#define GRID_BINDING_INDEX 3
+#define GRID_BINDING_LOOKUP 3
+#define GRID_BINDING_INDEX 4
+#define COORDINATES_BUFFER_NAME positions
 #include "spatial_lookup.glsl"
 
 const float PI = 3.14159265359;
+const float particleMass = 1.0;
 
 float smoothingKernel(float radius, float dist) {
-    float volume = PI* pow(radius, 8) / 4;
-    float value = max(0, radius*radius - dist*dist);
-    return value * value * value / volume;
+    if (dist >= radius) return 0.0;
+    float volume = (PI * pow(radius, 4)) / 6.0;
+    return (radius - dist) * (radius - dist) / volume;
 }
 
 float smoothingKernelDerivative(float radius, float dist) {
     if (dist >= radius) return 0.0;
-    float f = radius*radius - dist*dist;
-    float scale = -24.0 / (PI * pow(radius, 8));
-    return scale * dist * f * f;
+
+    float scale = 12.0 / (PI * pow(radius, 4));
+    return (dist-radius) * scale;
 }
 
-float evaluateDensity(vec2 pos, float radius) {
-    uint cellKey = cellKey(pos);
-    const float mass = 1.0;
-    
-    float density = 0.0;
-
-    uint spatialLookupIndex = spatial_indices[cellKey];
-    SpatialLookupEntry currentEntry = spatial_lookup[spatialLookupIndex];
-    while (currentEntry.cellKey == cellKey) {
-        uint currentParticleIndex = currentEntry.particleIndex;
-        vec2 currentPosition = vec2(positions[2 * currentParticleIndex], positions[2 * currentParticleIndex + 1]);
-        float dist = length(currentPosition - pos);
-        float influence = smoothingKernel(radius, dist);
-        density += mass * influence;
-        currentEntry = spatial_lookup[++spatialLookupIndex];
-    }
-    return density;
+float density2pressure(float density) {
+    return constants.pressureMultiplier * (density - constants.targetDensity);
 }
 
-float evaluateDensityGradient(vec2 pos, float radius) {
-    uint cellKey = cellKey(pos);
-    const float mass = 1.0;
-    
-    vec2 gradient = vec2(0.0, 0.0);
+void addPressureForce(inout vec2 pressureForce, const vec2 pos, const float density, const float radius, const float mass, uint neighbourIndex, vec2 neighbourPosition, float neighbourDistance) {
+    vec2 diff = neighbourPosition - pos;
+    float dist = length(diff);
+    vec2 direction = diff / dist;
+    float slope = smoothingKernelDerivative(radius, dist);
+    pressureForce += density2pressure(density) * direction * slope * mass / density;
+}
 
-    uint spatialLookupIndex = spatial_indices[cellKey];
-    SpatialLookupEntry currentEntry = spatial_lookup[spatialLookupIndex];
-    while (currentEntry.cellKey == cellKey) {
-        uint currentParticleIndex = currentEntry.particleIndex;
-        vec2 currentPosition = vec2(positions[2 * currentParticleIndex], positions[2 * currentParticleIndex + 1]);
-        vec2 diff = currentPosition - pos;
-        float dist = length(diff);
-        vec2 direction = diff / dist;
-        vec2 slope = smoothingKernelDerivative(radius, dist)
-        float density = evaluateDensity(currentPosition, radius);
-        gradient += mass * influence;
-        currentEntry = spatial_lookup[++spatialLookupIndex];
-    }
-    return length(gradient);
+vec2 calculatePressureForce(vec2 pos, const float density, float radius) {
+    vec2 pressureForce = vec2(0.0, 0.0);
+    FOREACH_NEIGHBOUR(pos, addPressureForce(pressureForce, pos, density, radius, particleMass, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE));
+    return pressureForce;
 }
 
 void main() {
     uint index = gl_GlobalInvocationID.x;
     if (index >= constants.numParticles) return;
 
-    vec2 position = vec2(positions[2 * index], positions[2 * index + 1]);
-    vec2 velocity = vec2(velocities[2 * index], velocities[2 * index + 1]);
-    float density = evaluateDensity(position, constants.spatialRadius);
+    vec2 position = positions[index];
+    vec2 velocity = velocities[index];
+    float density = densities[index];
+    vec2 pressureForce = calculatePressureForce(position, density, constants.spatialRadius);
+    vec2 pressureAcceleration = pressureForce / density;
 
     // Update velocity
     velocity += vec2(0.0, constants.gravity) * constants.deltaTime;
+    //velocity += pressureAcceleration * constants.deltaTime;
     // Update position
     position += velocity * constants.deltaTime;
 
@@ -107,9 +92,7 @@ void main() {
     }
 
 
-    positions[2 * index] = position.x;
-    positions[2 * index + 1] = position.y;
-    velocities[2 * index] = velocity.x;
-    velocities[2 * index + 1] = velocity.y;
+    positions[index] = position;
+    velocities[index] = velocity;
 
 }

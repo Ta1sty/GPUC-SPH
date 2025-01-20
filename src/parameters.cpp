@@ -64,6 +64,8 @@ SimulationParameters::SimulationParameters(const std::string &file) {
     gravity = parse<float>(yaml, "gravity", gravity);
     deltaTime = parse<float>(yaml, "deltaTime", deltaTime);
     collisionDampingFactor = parse<float>(yaml, "collisionDampingFactor", collisionDampingFactor);
+    targetDensity = parse<float>(yaml, "targetDensity", targetDensity);
+    pressureMultiplier = parse<float>(yaml, "pressureMultiplier", pressureMultiplier);
 }
 
 std::string SimulationParameters::printToYaml() const {

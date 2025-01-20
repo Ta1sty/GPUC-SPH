@@ -36,6 +36,10 @@ layout (push_constant) uniform PushStruct {
 #define GRID_BINDING_COORDINATES 2
 #endif
 
+#ifndef COORDINATES_BUFFER_NAME
+#define COORDINATES_BUFFER_NAME coordinates
+#endif
+
  struct SpatialLookupEntry {
 uint cellKey;
 uint particleIndex;
@@ -101,7 +105,7 @@ for (uint j = spatial_indices[cellKey]; j < GRID_BUFFER_SIZE; j++) { \
 SpatialLookupEntry entry = spatial_lookup[j]; \
 if (entry.cellKey != cellKey) break; \
 uint n_index = entry.particleIndex; \
-vec2 n_position = coordinates[n_index]; \
+vec2 n_position = COORDINATES_BUFFER_NAME[n_index]; \
 float n_distance = length(position - n_position); \
 if (n_distance > GRID_CELL_SIZE) continue; \
 x; \

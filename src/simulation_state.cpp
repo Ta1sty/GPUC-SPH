@@ -57,8 +57,10 @@ SimulationState::SimulationState(const SimulationParameters &_parameters, std::s
     // Particles
     particleCoordinateBuffer = createDeviceLocalBuffer("buffer-particles", coordinateBufferSize, vk::BufferUsageFlagBits::eVertexBuffer);
     particleVelocityBuffer = createDeviceLocalBuffer("buffer-velocities", coordinateBufferSize);//just a storage buffer
+    particleDensityBuffer = createDeviceLocalBuffer("buffer-densities", parameters.numParticles * sizeof(float));
     std::vector<float> coordinateValues;
     std::vector<float> velocityValues(2 * parameters.numParticles, 0.0f);// initialize velocities to 0
+    std::vector<float> densityValues(parameters.numParticles, 0.0f);// initialize densities to 0
 
     switch (parameters.initializationFunction) {
         case InitializationFunction::UNIFORM:
@@ -69,6 +71,8 @@ SimulationState::SimulationState(const SimulationParameters &_parameters, std::s
             break;
     }
     fillDeviceWithStagingBuffer(particleCoordinateBuffer, coordinateValues);
+    fillDeviceWithStagingBuffer(particleVelocityBuffer, velocityValues);
+    fillDeviceWithStagingBuffer(particleDensityBuffer, densityValues);  
 
     // Spatial Lookup
     spatialLookup = createDeviceLocalBuffer("spatialLookup", parameters.numParticles * sizeof(SpatialLookupEntry));
