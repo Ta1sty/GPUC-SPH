@@ -1,443 +1,203 @@
 #include "particle_renderer.h"
 #include "helper.h"
-#include "simulation.h"
 
-vk::Image ParticleRenderer::getImage() {
-    return colorAttachment;
-}
+/**
+ * Convenience struct that initializes graphics pipeline parameters with sane values.
+ * Create a graphics pipeline by using this struct and just overwriting any fields as you need.
+ */
+struct GraphicsPipelineBuilder {
+    vk::Viewport viewport;
+    vk::Rect2D scissor;
+    vk::PipelineViewportStateCreateInfo viewportSCI;
+    vk::PipelineRasterizationStateCreateInfo rasterizationSCI;
+    vk::PipelineMultisampleStateCreateInfo multisampleSCI;
+    vk::PipelineDepthStencilStateCreateInfo depthStencilSCI;
+    std::vector<vk::PipelineShaderStageCreateInfo> shaderStageCIs;
+    std::vector<vk::VertexInputBindingDescription> vertexInputBindings;
+    std::vector<vk::VertexInputAttributeDescription> vertexInputAttributeDescriptions;
+    vk::PipelineVertexInputStateCreateInfo vertexInputSci;
+    vk::PipelineInputAssemblyStateCreateInfo inputAssemblySCI;
+    std::vector<vk::PipelineColorBlendAttachmentState> pipelineColorBlendAttachmentStates;
+    vk::PipelineColorBlendStateCreateInfo colorBlendSCI;
+    vk::PipelineLayout pipelineLayout;
+    vk::RenderPass renderPass;
+    uint32_t subpass;
+    std::vector<vk::ShaderModule> shaderModules;
 
-ParticleRenderer::ParticleRenderer(const SimulationParameters &simulationParameters) {
-    vk::ImageCreateInfo imageInfo(
-            {},
-            vk::ImageType::e2D,
-            resources.surfaceFormat.format,
-            {resources.extent.width, resources.extent.height, 1},
-            1,
-            1,
-            vk::SampleCountFlagBits::e1,
-            vk::ImageTiling::eOptimal,
-            {vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc},
-            vk::SharingMode::eExclusive,
-            1,
-            &resources.gQ,
-            vk::ImageLayout::eUndefined);
+    GraphicsPipelineBuilder(GraphicsPipelineBuilder &&obj) = default;
 
-    createImage(
-            resources.pDevice,
-            resources.device,
-            imageInfo,
-            {vk::MemoryPropertyFlagBits::eDeviceLocal},
-            "render-color-attachment",
-            colorAttachment,
-            colorAttachmentMemory);
+    explicit GraphicsPipelineBuilder(const std::initializer_list<std::pair<vk::ShaderStageFlagBits, const char *>> &shaders,
+                                     const vk::PipelineLayout &pipelineLayout, const vk::RenderPass &renderPass, const uint32_t subpass) {
+        for (const auto &[stage, file]: shaders) {
+            vk::ShaderModule sm;
+            Cmn::createShader(resources.device, sm, shaderPath(file));
+            shaderModules.push_back(sm);
+            shaderStageCIs.push_back({{}, stage, sm, "main", nullptr});
+        }
 
-    vk::ImageViewCreateInfo viewInfo(
-            {},
-            colorAttachment,
-            vk::ImageViewType::e2D,
-            resources.surfaceFormat.format,
-            {},
-            {{vk::ImageAspectFlagBits::eColor},
-             0,
-             1,
-             0,
-             1});
-    colorAttachmentView = resources.device.createImageView(viewInfo);
+        viewport = vk::Viewport {
+                0.f,                             // x start coordinate
+                (float) resources.extent.height, // y start coordinate
+                (float) resources.extent.width,  // Width of viewport
+                -(float) resources.extent.height,// Height of viewport
+                0.f,                             // Min framebuffer depth,
+                1.f                              // Max framebuffer depth
+        };
+        scissor = vk::Rect2D {
+                {0, 0},         // Offset to use region from
+                resources.extent// Extent to describe region to use, starting at offset
+        };
 
-    // can be removed later - layout transitions for the color attachment should be handled by render-pass
-    transitionImageLayout(
-            resources.device,
-            resources.graphicsCommandPool,
-            resources.graphicsQueue,
-            colorAttachment,
-            resources.surfaceFormat.format,
-            vk::ImageLayout::eUndefined,
-            vk::ImageLayout::eColorAttachmentOptimal);
+        viewportSCI = vk::PipelineViewportStateCreateInfo {
+                {},
+                1,        // Viewport count
+                &viewport,// Viewport used
+                1,        // Scissor count
+                &scissor  // Scissor used
+        };
 
-    vk::AttachmentDescription colorAttachmentDescription {
-            {},
-            resources.surfaceFormat.format,
-            vk::SampleCountFlagBits::e1,
-            vk::AttachmentLoadOp::eClear,
-            vk::AttachmentStoreOp::eStore,
-            vk::AttachmentLoadOp::eDontCare,
-            vk::AttachmentStoreOp::eDontCare,
-            vk::ImageLayout::eColorAttachmentOptimal,
-            vk::ImageLayout::eColorAttachmentOptimal};
+        // Rasterizer
+        rasterizationSCI = vk::PipelineRasterizationStateCreateInfo {
+                {},
+                false,// Change if fragments beyond near/far planes are clipped (default) or clamped to plane
+                false,
+                // Whether to discard data and skip rasterizer. Never creates fragments, only suitable for pipeline without framebuffer output
+                vk::PolygonMode::eFill,          // How to handle filling points between vertices
+                vk::CullModeFlagBits::eBack,     // Which face of a tri to cull
+                vk::FrontFace::eCounterClockwise,// Winding to determine which side is front
+                false,                           // Whether to add depth bias to fragments (good for stopping "shadow acne" in shadow mapping)
+                0.f,
+                0.f,
+                0.f,
+                1.f// How thick lines should be when drawn
+        };
 
-    vk::AttachmentReference colorAttachmentReference {
-            0, vk::ImageLayout::eColorAttachmentOptimal};
+        multisampleSCI = vk::PipelineMultisampleStateCreateInfo {
+                {},
+                vk::SampleCountFlagBits::e1,// Number of samples to use per fragment
+                false,                      // Enable multisample shading or not
+                0.f,
+                nullptr,
+                false,
+                false};
 
-    vk::SubpassDescription subpasses[] {
-            {// background subpass
-             {},
-             vk::PipelineBindPoint::eGraphics,
-             {},
-             colorAttachmentReference,
-             {},
-             nullptr,
-             {}},
-            {// particle subpass
-             {},
-             vk::PipelineBindPoint::eGraphics,
-             {},
-             colorAttachmentReference,
-             {},
-             nullptr,
-             {}}};
+        // Depth stencil creation
+        depthStencilSCI = vk::PipelineDepthStencilStateCreateInfo {
+                {},
+                vk::False,
+                vk::False,
+                vk::CompareOp::eLess,
+                vk::False,
+                vk::False
+                //            {}, vk::True, vk::False, vk::CompareOp::eAlways, vk::False, vk::False, {}, {}, 0.0f, 0.0f
+                //            {}, true, false, vk::CompareOp::eLess, false, false, {}, {}, 0.f, 0.f
+        };
+        colorBlendSCI = vk::PipelineColorBlendStateCreateInfo {
+                {},
+                false,
+                {},
+                0,
+                nullptr,
+                {}};
+        pipelineColorBlendAttachmentStates.emplace_back(vk::PipelineColorBlendAttachmentState {
+                true,
+                vk::BlendFactor::eSrcAlpha,
+                vk::BlendFactor::eOneMinusSrcAlpha,
+                vk::BlendOp::eAdd,
+                vk::BlendFactor::eOne,
+                vk::BlendFactor::eZero,
+                vk::BlendOp::eAdd,
+                vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+                        vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA});
 
-    vk::SubpassDependency dependencies[] {
-            {// external dependency
-             VK_SUBPASS_EXTERNAL,
-             0,
-             {vk::PipelineStageFlagBits::eColorAttachmentOutput},
-             {vk::PipelineStageFlagBits::eColorAttachmentOutput},
-             {vk::AccessFlagBits::eColorAttachmentWrite},
-             {vk::AccessFlagBits::eColorAttachmentWrite}},
-            {0,
-             1,
-             {vk::PipelineStageFlagBits::eColorAttachmentOutput},
-             {vk::PipelineStageFlagBits::eColorAttachmentOutput},
-             {vk::AccessFlagBits::eColorAttachmentWrite},
-             {vk::AccessFlagBits::eColorAttachmentWrite}}};
+        vertexInputSci = vk::PipelineVertexInputStateCreateInfo {
+                {},
+                0,
+                nullptr,
+                0,
+                nullptr};
+        vertexInputBindings.emplace_back(vk::VertexInputBindingDescription {
+                0, 2 * 4, vk::VertexInputRate::eVertex});
+        vertexInputAttributeDescriptions.emplace_back(vk::VertexInputAttributeDescription {
+                0, 0, vk::Format::eR32G32Sfloat, 0});
 
-    vk::RenderPassCreateInfo renderPassCI {
-            {},
-            1U,
-            &colorAttachmentDescription,
-            2U,
-            subpasses,
-            2U,
-            dependencies};
+        inputAssemblySCI = vk::PipelineInputAssemblyStateCreateInfo {
+                {},
+                vk::PrimitiveTopology::eTriangleList,
+                false};
 
-    renderPass = resources.device.createRenderPass(renderPassCI);
-
-    framebuffer = resources.device.createFramebuffer({{}, renderPass, 1, &colorAttachmentView, imageInfo.extent.width, imageInfo.extent.height, imageInfo.extent.depth});
-
-    createColormapTexture(colormaps::viridis);
-    createPipeline();
-
-    // quad vertex buffer
-    const std::vector<glm::vec2> quadVertices {
-            {0.0f, 0.0f},
-            {1.0f, 0.0f},
-            {1.0f, 1.0f},
-            {0.0f, 1.0f}};
-
-    const std::vector<uint16_t> quadIndices {
-            0, 1, 2, 2, 3, 0};
-
-    quadVertexBuffer = createBuffer(resources.pDevice, resources.device, quadVertices.size() * sizeof(glm::vec2),
-                                    {vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst},
-                                    {vk::MemoryPropertyFlagBits::eDeviceLocal},
-                                    "quadVertexBuffer");
-
-    quadIndexBuffer = createBuffer(resources.pDevice, resources.device, quadIndices.size() * sizeof(uint16_t),
-                                   {vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst},
-                                   {vk::MemoryPropertyFlagBits::eDeviceLocal},
-                                   "quadIndexBuffer");
-
-    fillDeviceWithStagingBuffer(quadVertexBuffer, quadVertices);
-    fillDeviceWithStagingBuffer(quadIndexBuffer, quadIndices);
-
-    uniformBuffer = createBuffer(resources.pDevice, resources.device, sizeof(UniformBufferStruct),
-                                 {vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst},
-                                 {vk::MemoryPropertyFlagBits::eDeviceLocal},
-                                 "render2dUniformBuffer");
-
-    const std::vector<UniformBufferStruct> uniformBufferVector {uniformBufferContent};
-    fillDeviceWithStagingBuffer(uniformBuffer, uniformBufferVector);
-}
-
-vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState, const RenderParameters &renderParameters) {
-    UniformBufferStruct ub {
-            simulationState.parameters.numParticles,
-            static_cast<uint32_t>(renderParameters.backgroundField),
-            renderParameters.particleRadius,
-            simulationState.spatialRadius};
-
-    if (!(ub == uniformBufferContent)) {
-        uniformBufferContent = ub;
-        const std::vector<UniformBufferStruct> uniformBufferVector {uniformBufferContent};
-        fillDeviceWithStagingBuffer(uniformBuffer, uniformBufferVector);
+        this->pipelineLayout = pipelineLayout;
+        this->renderPass = renderPass;
+        this->subpass = subpass;
     }
 
-    if (commandBuffer == nullptr)
-        updateCmd(simulationState);
+    ~GraphicsPipelineBuilder() {
+        for (auto &sm: shaderModules)
+            resources.device.destroyShaderModule(sm);
+    }
 
-    return commandBuffer;
+    vk::GraphicsPipelineCreateInfo buildCreateInfo() {
+        if (vertexInputSci.vertexBindingDescriptionCount == 0 || vertexInputSci.pVertexBindingDescriptions == nullptr) {
+            vertexInputSci.vertexBindingDescriptionCount = vertexInputBindings.size();
+            vertexInputSci.pVertexBindingDescriptions = vertexInputBindings.data();
+        }
+
+        if (vertexInputSci.vertexAttributeDescriptionCount == 0 || vertexInputSci.pVertexAttributeDescriptions == nullptr) {
+            vertexInputSci.vertexAttributeDescriptionCount = vertexInputAttributeDescriptions.size();
+            vertexInputSci.pVertexAttributeDescriptions = vertexInputAttributeDescriptions.data();
+        }
+
+        if (colorBlendSCI.attachmentCount == 0 || colorBlendSCI.pAttachments == nullptr) {
+            colorBlendSCI.attachmentCount = pipelineColorBlendAttachmentStates.size();
+            colorBlendSCI.pAttachments = pipelineColorBlendAttachmentStates.data();
+        }
+
+
+        return {{},
+                static_cast<uint32_t>(shaderStageCIs.size()),
+                shaderStageCIs.data(),
+                &vertexInputSci,
+                &inputAssemblySCI,
+                nullptr,// tesselation
+                &viewportSCI,
+                &rasterizationSCI,
+                &multisampleSCI,
+                &depthStencilSCI,
+                &colorBlendSCI,
+                nullptr,// dynamic state
+                pipelineLayout,
+                renderPass,
+                subpass,
+                {},
+                0};
+    }
+
+    static auto createPipelines(std::vector<GraphicsPipelineBuilder> &builders) {
+        std::vector<vk::GraphicsPipelineCreateInfo> pipelineCIs;
+        for (auto &builder: builders)
+            pipelineCIs.push_back(builder.buildCreateInfo());
+
+        auto pipelines = resources.device.createGraphicsPipelines(nullptr, pipelineCIs);
+        if (pipelines.result != vk::Result::eSuccess)
+            throw std::runtime_error("Pipeline creation failed");
+        return pipelines.value;
+    }
+};
+
+Texture::~Texture() {
+    if (sampler)
+        resources.device.destroySampler(sampler);
+    if (view)
+        resources.device.destroyImageView(view);
+    if (image)
+        resources.device.destroyImage(image);
+    if (memory)
+        resources.device.freeMemory(memory);
 }
 
-ParticleRenderer::~ParticleRenderer() {
-    resources.device.destroyFramebuffer(framebuffer);
-    resources.device.destroyImageView(colorAttachmentView);
-    resources.device.destroyImage(colorAttachment);
-    resources.device.freeMemory(colorAttachmentMemory);
+Texture Texture::createColormapTexture(const std::vector<colormaps::RGB_F32> &colormap) {
+    Texture r;
 
-    resources.device.freeCommandBuffers(resources.graphicsCommandPool, commandBuffer);
-    resources.device.destroyPipeline(particlePipeline);
-    resources.device.destroyPipeline(backgroundPipeline);
-    resources.device.destroyPipelineLayout(particlePipelineLayout);
-    resources.device.destroyRenderPass(renderPass);
-
-    resources.device.destroySampler(colormapSampler);
-    resources.device.destroyImageView(colormapImageView);
-    resources.device.destroyImage(colormapImage);
-    resources.device.freeMemory(colormapImageMemory);
-
-    resources.device.destroyDescriptorPool(descriptorPool);
-    resources.device.destroyDescriptorSetLayout(descriptorSetLayout);
-}
-
-void ParticleRenderer::createPipeline() {
-    std::vector<vk::DescriptorSetLayoutBinding> bindings;
-    bindings.emplace_back(
-            0,
-            vk::DescriptorType::eStorageBuffer,
-            1U,
-            vk::ShaderStageFlagBits::eFragment);
-    bindings.emplace_back(
-            1,
-            vk::DescriptorType::eCombinedImageSampler,
-            1U,
-            vk::ShaderStageFlagBits::eFragment,
-            nullptr);
-    bindings.emplace_back(
-            2,
-            vk::DescriptorType::eUniformBuffer,
-            1U,
-            vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eGeometry);
-
-    bindings.emplace_back(// spatial-lookup
-            3,
-            vk::DescriptorType::eStorageBuffer,
-            1U,
-            vk::ShaderStageFlagBits::eFragment);
-
-    bindings.emplace_back(// spatial-indices
-            4,
-            vk::DescriptorType::eStorageBuffer,
-            1U,
-            vk::ShaderStageFlagBits::eFragment);
-
-    Cmn::createDescriptorSetLayout(resources.device, bindings, descriptorSetLayout);
-    Cmn::createDescriptorPool(resources.device, bindings, descriptorPool);
-    Cmn::allocateDescriptorSet(resources.device, descriptorSet, descriptorPool, descriptorSetLayout);
-
-    vk::PushConstantRange pcr {
-            vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct)};
-
-    vk::PipelineLayoutCreateInfo pipelineLayoutCI {
-            vk::PipelineLayoutCreateFlags(),
-            1U,
-            &descriptorSetLayout,
-            1U,
-            &pcr};
-
-    particlePipelineLayout = resources.device.createPipelineLayout(pipelineLayoutCI);
-
-
-    /* =============================== Common Resources =============================== */
-    // Viewport & Scissor
-    const vk::Viewport viewport = {
-            0.f,                             // x start coordinate
-            (float) resources.extent.height, // y start coordinate
-            (float) resources.extent.width,  // Width of viewport
-            -(float) resources.extent.height,// Height of viewport
-            0.f,                             // Min framebuffer depth,
-            1.f                              // Max framebuffer depth
-    };
-    const vk::Rect2D scissor = {
-            {0, 0},         // Offset to use region from
-            resources.extent// Extent to describe region to use, starting at offset
-    };
-
-    const vk::PipelineViewportStateCreateInfo viewportSCI = {
-            {},
-            1,        // Viewport count
-            &viewport,// Viewport used
-            1,        // Scissor count
-            &scissor  // Scissor used
-    };
-
-    // Rasterizer
-    const vk::PipelineRasterizationStateCreateInfo rasterizationSCI = {
-            {},
-            false,// Change if fragments beyond near/far planes are clipped (default) or clamped to plane
-            false,
-            // Whether to discard data and skip rasterizer. Never creates fragments, only suitable for pipeline without framebuffer output
-            vk::PolygonMode::eFill,          // How to handle filling points between vertices
-            vk::CullModeFlagBits::eBack,     // Which face of a tri to cull
-            vk::FrontFace::eCounterClockwise,// Winding to determine which side is front
-            false,                           // Whether to add depth bias to fragments (good for stopping "shadow acne" in shadow mapping)
-            0.f,
-            0.f,
-            0.f,
-            1.f// How thick lines should be when drawn
-    };
-
-    const vk::PipelineMultisampleStateCreateInfo multisampleSCI = {
-            {},
-            vk::SampleCountFlagBits::e1,// Number of samples to use per fragment
-            false,                      // Enable multisample shading or not
-            0.f,
-            nullptr,
-            false,
-            false};
-
-    // Depth stencil creation
-    const vk::PipelineDepthStencilStateCreateInfo depthStencilSCI = {
-            {},
-            vk::False
-            //            {}, vk::True, vk::False, vk::CompareOp::eAlways, vk::False, vk::False, {}, {}, 0.0f, 0.0f
-            //            {}, true, false, vk::CompareOp::eLess, false, false, {}, {}, 0.f, 0.f
-    };
-
-    /* =============================== Particle Pipeline =============================== */
-    vk::ShaderModule particleGeometrySM, particleVertexSM, particleFragmentSM;
-
-    Cmn::createShader(resources.device, particleVertexSM, shaderPath("particle2d.vert"));
-    Cmn::createShader(resources.device, particleGeometrySM, shaderPath("particle2d.geom"));
-    Cmn::createShader(resources.device, particleFragmentSM, shaderPath("particle2d.frag"));
-
-    // essentially copy pasted from project.h
-    // TODO refactor and reuse for future pipeline initializations
-    vk::PipelineShaderStageCreateInfo particleShaderStageCI[] {
-            {{}, vk::ShaderStageFlagBits::eVertex, particleVertexSM, "main", nullptr},
-            {{}, vk::ShaderStageFlagBits::eGeometry, particleGeometrySM, "main", nullptr},
-            {{}, vk::ShaderStageFlagBits::eFragment, particleFragmentSM, "main", nullptr},
-    };
-
-    vk::VertexInputBindingDescription particleVertexInputBindings[] {
-            {0, 2 * 4, vk::VertexInputRate::eVertex}};
-
-    vk::VertexInputAttributeDescription particleVertexInputAttributeDescriptions[] {
-            {0, 0, vk::Format::eR32G32Sfloat, 0}};
-    //
-    // Vertex input
-    vk::PipelineVertexInputStateCreateInfo particleVertexInputSCI {
-            {},
-            1,                                      // Vertex binding description  count
-            particleVertexInputBindings,            // List of Vertex Binding Descriptions (data spacing/stride information)
-            1,                                      // Vertex attribute description count
-            particleVertexInputAttributeDescriptions// List of Vertex Attribute Descriptions (data format and where to bind to/from)
-    };
-
-    vk::PipelineInputAssemblyStateCreateInfo particleInputAssemblySCI {
-            {},
-            vk::PrimitiveTopology::ePointList,
-            false,
-    };
-
-
-    vk::PipelineColorBlendAttachmentState particleColorBlendAttachmentState {
-            true,
-            vk::BlendFactor::eSrcAlpha,
-            vk::BlendFactor::eOneMinusSrcAlpha,
-            vk::BlendOp::eAdd,
-            vk::BlendFactor::eOne,
-            vk::BlendFactor::eZero,
-            vk::BlendOp::eAdd,
-            vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-                    vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA};
-
-    vk::PipelineColorBlendStateCreateInfo particleColorBlendSCI {
-            {},
-            false,
-            {},
-            1,
-            &particleColorBlendAttachmentState,
-            {}};
-
-    vk::GraphicsPipelineCreateInfo particlePipelineCI {
-            {},
-            3,
-            particleShaderStageCI,
-            &particleVertexInputSCI,
-            &particleInputAssemblySCI,
-            nullptr,
-            &viewportSCI,
-            &rasterizationSCI,
-            &multisampleSCI,
-            &depthStencilSCI,
-            &particleColorBlendSCI,
-            nullptr,
-            particlePipelineLayout,
-            renderPass,
-            1,// subpass
-            {},
-            0};
-
-    /* =============================== Background Pipeline =============================== */
-    vk::ShaderModule backgroundVertexSM, backgroundFragmentSM;
-
-    Cmn::createShader(resources.device, backgroundVertexSM, shaderPath("background2d.vert"));
-    Cmn::createShader(resources.device, backgroundFragmentSM, shaderPath("background2d.frag"));
-
-    // essentially copy pasted from project.h
-    // TODO refactor and reuse for future pipeline initializations
-    vk::PipelineShaderStageCreateInfo backgroundShaderStageCI[] {
-            {{}, vk::ShaderStageFlagBits::eVertex, backgroundVertexSM, "main", nullptr},
-            {{}, vk::ShaderStageFlagBits::eFragment, backgroundFragmentSM, "main", nullptr},
-    };
-
-
-    vk::VertexInputBindingDescription backgroundVertexInputBindings[] {
-            {0, 2 * 4, vk::VertexInputRate::eVertex}};
-
-    vk::VertexInputAttributeDescription backgroundVertexInputAttributeDescriptions[] {
-            {0, 0, vk::Format::eR32G32Sfloat, 0}};
-
-    vk::PipelineVertexInputStateCreateInfo backgroundVertexInputSCI {
-            {},
-            1,                                        // Vertex binding description  count
-            backgroundVertexInputBindings,            // List of Vertex Binding Descriptions (data spacing/stride information)
-            1,                                        // Vertex attribute description count
-            backgroundVertexInputAttributeDescriptions// List of Vertex Attribute Descriptions (data format and where to bind to/from)
-    };
-
-    vk::PipelineInputAssemblyStateCreateInfo backgroundInputAssemblySCI {
-            {},
-            vk::PrimitiveTopology::eTriangleList,
-            false,
-    };
-
-
-    vk::GraphicsPipelineCreateInfo backgroundPipelineCI {
-            {},
-            2,
-            backgroundShaderStageCI,
-            &backgroundVertexInputSCI,
-            &backgroundInputAssemblySCI,
-            nullptr,
-            &viewportSCI,
-            &rasterizationSCI,
-            &multisampleSCI,
-            &depthStencilSCI,
-            &particleColorBlendSCI,// TODO
-            nullptr,
-            particlePipelineLayout,
-            renderPass,
-            0,// subpass
-            {},
-            0};
-
-    auto pipelines = resources.device.createGraphicsPipelines(VK_NULL_HANDLE, {backgroundPipelineCI, particlePipelineCI});
-    if (pipelines.result != vk::Result::eSuccess)
-        throw std::runtime_error("Pipeline creation failed");
-
-    backgroundPipeline = pipelines.value[0];
-    particlePipeline = pipelines.value[1];
-
-    resources.device.destroyShaderModule(particleVertexSM);
-    resources.device.destroyShaderModule(particleGeometrySM);
-    resources.device.destroyShaderModule(particleFragmentSM);
-
-    resources.device.destroyShaderModule(backgroundVertexSM);
-    resources.device.destroyShaderModule(backgroundFragmentSM);
-}
-
-void ParticleRenderer::createColormapTexture(const std::vector<colormaps::RGB_F32> &colormap) {
     auto imageFormat = vk::Format::eR8G8B8A8Unorm;
     vk::Extent3D imageExtent = {static_cast<uint32_t>(colormap.size()), 1, 1};
 
@@ -463,18 +223,18 @@ void ParticleRenderer::createColormapTexture(const std::vector<colormaps::RGB_F3
             imageCI,
             {vk::MemoryPropertyFlagBits::eDeviceLocal},
             "colormapTexture",
-            colormapImage,
-            colormapImageMemory);
+            r.image,
+            r.memory);
 
     vk::ImageViewCreateInfo viewCI {
             {},
-            colormapImage,
+            r.image,
             vk::ImageViewType::e1D,
             imageFormat,
             {},
             {{vk::ImageAspectFlagBits::eColor}, 0, 1, 0, 1}};
 
-    colormapImageView = resources.device.createImageView(viewCI);
+    r.view = resources.device.createImageView(viewCI);
 
     struct RGBA_int8 {
         uint8_t r, g, b, a;
@@ -489,7 +249,7 @@ void ParticleRenderer::createColormapTexture(const std::vector<colormaps::RGB_F3
                 255};
     }
 
-    fillImageWithStagingBuffer(colormapImage, vk::ImageLayout::eShaderReadOnlyOptimal, imageExtent, converted);
+    fillImageWithStagingBuffer(r.image, vk::ImageLayout::eShaderReadOnlyOptimal, imageExtent, converted);
 
     vk::SamplerCreateInfo samplerCI {
             {},
@@ -509,15 +269,196 @@ void ParticleRenderer::createColormapTexture(const std::vector<colormaps::RGB_F3
             vk::BorderColor::eFloatOpaqueBlack,
             vk::False};
 
-    colormapSampler = resources.device.createSampler(samplerCI);
+    r.sampler = resources.device.createSampler(samplerCI);
+
+    return std::move(r);
 }
 
-void ParticleRenderer::updateDescriptorSets(const SimulationState &simulationState) {
-    Cmn::bindBuffers(resources.device, simulationState.particleCoordinateBuffer.buf, descriptorSet, 0);
-    Cmn::bindCombinedImageSampler(resources.device, colormapImageView, colormapSampler, descriptorSet, 1);
-    Cmn::bindBuffers(resources.device, uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
-    Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 3);
-    Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, descriptorSet, 4);
+ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resources.extent.height, 1) {
+    sharedResources = std::make_shared<SharedResources>();
+    sharedResources->colormap = Texture::createColormapTexture(colormaps::viridis);
+
+    // color attachment image
+    {
+        vk::ImageCreateInfo imageInfo {
+                {},
+                vk::ImageType::e2D,
+                resources.surfaceFormat.format,
+                imageSize,
+                1,
+                1,
+                vk::SampleCountFlagBits::e1,
+                vk::ImageTiling::eOptimal,
+                {vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc},
+                vk::SharingMode::eExclusive,
+                1,
+                &resources.gQ,
+                vk::ImageLayout::eUndefined};
+
+        createImage(
+                resources.pDevice,
+                resources.device,
+                imageInfo,
+                {vk::MemoryPropertyFlagBits::eDeviceLocal},
+                "render-color-attachment",
+                colorAttachment,
+                colorAttachmentMemory);
+
+        vk::ImageViewCreateInfo viewInfo {
+                {},
+                colorAttachment,
+                vk::ImageViewType::e2D,
+                resources.surfaceFormat.format,
+                {},
+                {{vk::ImageAspectFlagBits::eColor},
+                 0,
+                 1,
+                 0,
+                 1}};
+        colorAttachmentView = resources.device.createImageView(viewInfo);
+
+        constexpr vk::Format depthFormat = vk::Format::eD32Sfloat;
+
+        imageInfo.format = depthFormat;
+        imageInfo.usage = {vk::ImageUsageFlagBits::eDepthStencilAttachment};
+        createImage(
+                resources.pDevice,
+                resources.device,
+                imageInfo,
+                {vk::MemoryPropertyFlagBits::eDeviceLocal},
+                "render-depth-attachment",
+                depthImage,
+                depthImageMemory);
+        viewInfo.image = depthImage;
+        viewInfo.format = imageInfo.format;
+        viewInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
+        depthImageView = resources.device.createImageView(viewInfo);
+
+        // render pass/framebuffer
+        std::array<vk::AttachmentDescription, 2> attachments {
+                vk::AttachmentDescription {{},// color attachment
+                                           resources.surfaceFormat.format,
+                                           vk::SampleCountFlagBits::e1,
+                                           vk::AttachmentLoadOp::eClear,
+                                           vk::AttachmentStoreOp::eStore,
+                                           vk::AttachmentLoadOp::eDontCare,
+                                           vk::AttachmentStoreOp::eDontCare,
+                                           vk::ImageLayout::eUndefined,
+                                           vk::ImageLayout::eColorAttachmentOptimal},
+                vk::AttachmentDescription {{},// depth attachment
+                                           depthFormat,
+                                           vk::SampleCountFlagBits::e1,
+                                           vk::AttachmentLoadOp::eClear,
+                                           vk::AttachmentStoreOp::eDontCare,
+                                           vk::AttachmentLoadOp::eDontCare,
+                                           vk::AttachmentStoreOp::eDontCare,
+                                           vk::ImageLayout::eUndefined,
+                                           vk::ImageLayout::eDepthStencilAttachmentOptimal},
+        };
+
+        std::array<vk::ImageView, 2> attachmentViews {
+                colorAttachmentView, depthImageView};
+
+        vk::AttachmentReference colorAttachmentReference {
+                0, vk::ImageLayout::eColorAttachmentOptimal};
+        vk::AttachmentReference depthAttachmentReference {
+                1, vk::ImageLayout::eDepthStencilAttachmentOptimal};
+
+        vk::SubpassDescription subpasses[] {
+                {// background subpass
+                 {},
+                 vk::PipelineBindPoint::eGraphics,
+                 {},
+                 colorAttachmentReference,
+                 {},
+                 nullptr,
+                 {}},
+                {// particle subpass
+                 {},
+                 vk::PipelineBindPoint::eGraphics,
+                 {},
+                 colorAttachmentReference,
+                 {},
+                 &depthAttachmentReference,
+                 {}}};
+
+        vk::SubpassDependency dependencies[] {
+                {// external dependency
+                 VK_SUBPASS_EXTERNAL,
+                 0,
+                 {vk::PipelineStageFlagBits::eColorAttachmentOutput},
+                 {vk::PipelineStageFlagBits::eColorAttachmentOutput},
+                 {vk::AccessFlagBits::eColorAttachmentWrite},
+                 {vk::AccessFlagBits::eColorAttachmentWrite}},
+                {0,
+                 1,
+                 {vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests},
+                 {vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests},
+                 {vk::AccessFlagBits::eColorAttachmentWrite},
+                 {vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite}}};
+
+        vk::RenderPassCreateInfo renderPassCI {
+                {},
+                attachments.size(),
+                attachments.data(),
+                2U,
+                subpasses,
+                2U,
+                dependencies};
+
+        renderPass = resources.device.createRenderPass(renderPassCI);
+
+        framebuffer = resources.device.createFramebuffer({{},
+                                                          renderPass,
+                                                          attachmentViews.size(),
+                                                          attachmentViews.data(),
+                                                          imageSize.width,
+                                                          imageSize.height,
+                                                          imageSize.depth});
+    }
+
+    sharedResources->uniformBuffer = createBuffer(resources.pDevice, resources.device, sizeof(UniformBufferStruct),
+                                                  {vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst},
+                                                  {vk::MemoryPropertyFlagBits::eDeviceLocal},
+                                                  "renderUniformBuffer");
+
+    const std::vector<UniformBufferStruct> uniformBufferVector {uniformBufferContent};
+    fillDeviceWithStagingBuffer(sharedResources->uniformBuffer, uniformBufferVector);
+
+    background2DPipeline = std::make_unique<Background2DPipeline>(renderPass, 0, framebuffer, sharedResources);
+    particleCirclePipeline = std::make_unique<ParticleCirclePipeline>(renderPass, 1, framebuffer, sharedResources);
+}
+
+ParticleRenderer::~ParticleRenderer() {
+    resources.device.freeCommandBuffers(resources.graphicsCommandPool, commandBuffer);
+    resources.device.destroyFramebuffer(framebuffer);
+    resources.device.destroyRenderPass(renderPass);
+
+    resources.device.destroyImageView(colorAttachmentView);
+    resources.device.destroyImage(colorAttachment);
+    resources.device.freeMemory(colorAttachmentMemory);
+    resources.device.destroyImageView(depthImageView);
+    resources.device.destroyImage(depthImage);
+    resources.device.freeMemory(depthImageMemory);
+}
+
+vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState, const RenderParameters &renderParameters) {
+    UniformBufferStruct ub {
+            simulationState.parameters.numParticles,
+            static_cast<uint32_t>(renderParameters.backgroundField),
+            renderParameters.particleRadius,
+            simulationState.spatialRadius};
+
+    if (!(ub == uniformBufferContent)) {
+        uniformBufferContent = ub;
+        const std::vector<UniformBufferStruct> uniformBufferVector {uniformBufferContent};
+        fillDeviceWithStagingBuffer(sharedResources->uniformBuffer, uniformBufferVector);
+    }
+
+    if (commandBuffer == nullptr)
+        updateCmd(simulationState);
+
+    return commandBuffer;
 }
 
 void ParticleRenderer::updateCmd(const SimulationState &simulationState) {
@@ -527,42 +468,186 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState) {
     else
         commandBuffer.reset();
 
-    // image must be in eColorAttachmentOptimal after the command buffer executed!
-    updateDescriptorSets(simulationState);
-    pushStruct.width = resources.extent.width;
-    pushStruct.height = resources.extent.height;
-
-    // map [0, 1]^2 into viewport
-    pushStruct.mvp = simulationState.camera->viewProjectionMatrix();
 
     commandBuffer.begin(vk::CommandBufferBeginInfo {});
-    uint64_t offsets[] = {0UL};
-
-    vk::ClearValue clearValue;
-    clearValue.color.uint32 = {{0, 0, 0, 0}};
+    std::array<vk::ClearValue, 2> clearValues;
+    clearValues[0].color.uint32 = {{0, 0, 0, 0}};
+    clearValues[1].depthStencil.depth = 1.0f;
     commandBuffer.beginRenderPass(
-            {renderPass, framebuffer, {{0, 0}, resources.extent}, 1, &clearValue},
+            {renderPass, framebuffer, {{0, 0}, resources.extent}, clearValues.size(), clearValues.data()},
             vk::SubpassContents::eInline);
+
+
     /* ========== Background Subpass ========== */
-    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, backgroundPipeline);
-    commandBuffer.bindVertexBuffers(0, 1, &quadVertexBuffer.buf, offsets);
-    commandBuffer.bindIndexBuffer(quadIndexBuffer.buf, 0UL, vk::IndexType::eUint16);
-    commandBuffer.pushConstants(particlePipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
-    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, particlePipelineLayout, 0, 1, &descriptorSet,
-                                     0, nullptr);
-    commandBuffer.drawIndexed(6, 1, 0, 0, 0);// draw quad
+    switch (simulationState.parameters.type) {
+        case SceneType::SPH_BOX_2D:
+            background2DPipeline->draw(commandBuffer, simulationState);
+            break;
+        default:
+            break;
+    }
 
     /* ========== Particle Subpass ========== */
     commandBuffer.nextSubpass(vk::SubpassContents::eInline);
-    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, particlePipeline);
-    commandBuffer.bindVertexBuffers(0, 1, &simulationState.particleCoordinateBuffer.buf, offsets);
+    particleCirclePipeline->draw(commandBuffer, simulationState);
 
-    commandBuffer.pushConstants(particlePipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
-    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, particlePipelineLayout, 0, 1, &descriptorSet,
-                                     0, nullptr);
-    commandBuffer.draw(simulationState.parameters.numParticles, 1, 0, 0);
-
-    /* ====================================== */
     commandBuffer.endRenderPass();
     commandBuffer.end();
+}
+
+vk::Image ParticleRenderer::getImage() {
+    return colorAttachment;
+}
+
+ParticleCirclePipeline::ParticleCirclePipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, SharedResources sharedResources) : sharedResources(sharedResources) {
+    descriptorPool.addStorage(0, 1, vk::ShaderStageFlagBits::eFragment);
+    descriptorPool.addSampler(1, 1, vk::ShaderStageFlagBits::eFragment);
+    descriptorPool.addUniform(2, 1, vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eGeometry);
+    descriptorPool.allocate();
+
+    pipelineLayout = createPipelineLayout<PushStruct>(descriptorPool);
+
+    std::vector<GraphicsPipelineBuilder> builders;
+    builders.emplace_back(GraphicsPipelineBuilder {
+            {{vk::ShaderStageFlagBits::eVertex, "particle2d.vert"},
+             {vk::ShaderStageFlagBits::eGeometry, "particle2d.geom"},
+             {vk::ShaderStageFlagBits::eFragment, "particle2d.frag"}},
+            pipelineLayout,
+            renderPass,
+            subpass});
+    builders[0].inputAssemblySCI.topology = vk::PrimitiveTopology::ePointList;
+    builders.emplace_back(GraphicsPipelineBuilder {
+            {{vk::ShaderStageFlagBits::eVertex, "particle3d.vert"},
+             {vk::ShaderStageFlagBits::eGeometry, "particle2d.geom"},
+             {vk::ShaderStageFlagBits::eFragment, "particle2d.frag"}},
+            pipelineLayout,
+            renderPass,
+            subpass});
+    builders[1].inputAssemblySCI.topology = vk::PrimitiveTopology::ePointList;
+    builders[1].vertexInputBindings[0].stride = 4 * 4;
+    builders[1].vertexInputAttributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
+    builders[1].depthStencilSCI.depthTestEnable = vk::True;
+    builders[1].depthStencilSCI.depthWriteEnable = vk::True;
+
+    auto pipelines = GraphicsPipelineBuilder::createPipelines(builders);
+
+    pipeline2d = pipelines[0];
+    pipeline3d = pipelines[1];
+}
+
+ParticleCirclePipeline::~ParticleCirclePipeline() {
+    resources.device.destroyPipeline(pipeline2d);
+    resources.device.destroyPipeline(pipeline3d);
+    resources.device.destroyPipelineLayout(pipelineLayout);
+}
+
+void ParticleCirclePipeline::updateDescriptorSets(const SimulationState &simulationState) {
+    auto &descriptorSet = descriptorPool.sets[0];
+    Cmn::bindBuffers(resources.device, simulationState.particleCoordinateBuffer.buf, descriptorSet, 0);
+    Cmn::bindCombinedImageSampler(resources.device, sharedResources->colormap.view, sharedResources->colormap.sampler, descriptorSet, 1);
+    Cmn::bindBuffers(resources.device, sharedResources->uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
+}
+
+void ParticleCirclePipeline::draw(vk::CommandBuffer &cb, const SimulationState &simulationState) {
+    updateDescriptorSets(simulationState);
+    vk::Pipeline *pipeline;
+
+    switch (simulationState.parameters.type) {
+        case SceneType::SPH_BOX_2D:
+            pipeline = &pipeline2d;
+            break;
+        case SceneType::SPH_BOX_3D:
+            pipeline = &pipeline3d;
+            break;
+        default:
+            throw std::runtime_error("ParticleCirclePipeline::draw is not implemented for this scene type");
+            break;
+    }
+
+    pushStruct.width = resources.extent.width;
+    pushStruct.height = resources.extent.height;
+    pushStruct.mvp = simulationState.camera->viewProjectionMatrix();
+
+    uint64_t offsets[] = {0UL};
+    cb.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline);
+    cb.bindVertexBuffers(0, 1, &simulationState.particleCoordinateBuffer.buf, offsets);
+
+    cb.pushConstants(pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
+    cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descriptorPool.sets[0],
+                          0, nullptr);
+    cb.draw(simulationState.parameters.numParticles, 1, 0, 0);
+}
+
+Background2DPipeline::Background2DPipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, SharedResources renderer) : sharedResources(renderer) {
+    descriptorPool.addStorage(0, 1, vk::ShaderStageFlagBits::eFragment);
+    descriptorPool.addSampler(1, 1, vk::ShaderStageFlagBits::eFragment);
+    descriptorPool.addUniform(2, 1, vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eGeometry);
+    descriptorPool.addStorage(3, 1, vk::ShaderStageFlagBits::eFragment);// spatial-lookup
+    descriptorPool.addStorage(4, 1, vk::ShaderStageFlagBits::eFragment);// spatial-indices
+    descriptorPool.allocate();
+
+    pipelineLayout = createPipelineLayout<PushStruct>(descriptorPool);
+    std::vector<GraphicsPipelineBuilder> builders;
+    builders.emplace_back(GraphicsPipelineBuilder {
+            {{vk::ShaderStageFlagBits::eVertex, "background2d.vert"},
+             {vk::ShaderStageFlagBits::eFragment, "background2d.frag"}},
+            pipelineLayout,
+            renderPass,
+            subpass});
+
+    auto pipelines = GraphicsPipelineBuilder::createPipelines(builders);
+    pipeline = pipelines[0];
+
+    // quad vertex buffer
+    const std::vector<glm::vec2> quadVertices {
+            {0.0f, 0.0f},
+            {1.0f, 0.0f},
+            {1.0f, 1.0f},
+            {0.0f, 1.0f}};
+
+    const std::vector<uint16_t> quadIndices {
+            0, 1, 2, 2, 3, 0};
+
+    quadVertexBuffer = createBuffer(resources.pDevice, resources.device, quadVertices.size() * sizeof(glm::vec2),
+                                    {vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst},
+                                    {vk::MemoryPropertyFlagBits::eDeviceLocal},
+                                    "quadVertexBuffer");
+
+    quadIndexBuffer = createBuffer(resources.pDevice, resources.device, quadIndices.size() * sizeof(uint16_t),
+                                   {vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst},
+                                   {vk::MemoryPropertyFlagBits::eDeviceLocal},
+                                   "quadIndexBuffer");
+
+    fillDeviceWithStagingBuffer(quadVertexBuffer, quadVertices);
+    fillDeviceWithStagingBuffer(quadIndexBuffer, quadIndices);
+}
+
+Background2DPipeline::~Background2DPipeline() {
+    resources.device.destroyPipeline(pipeline);
+    resources.device.destroyPipelineLayout(pipelineLayout);
+}
+
+void Background2DPipeline::draw(vk::CommandBuffer &cb, const SimulationState &simulationState) {
+    updateDescriptorSets(simulationState);
+    uint64_t offsets[] = {0UL};
+    pushStruct.width = resources.extent.width;
+    pushStruct.height = resources.extent.height;
+    pushStruct.mvp = simulationState.camera->viewProjectionMatrix();
+
+    cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+    cb.bindVertexBuffers(0, 1, &quadVertexBuffer.buf, offsets);
+    cb.bindIndexBuffer(quadIndexBuffer.buf, 0UL, vk::IndexType::eUint16);
+    cb.pushConstants(pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
+    cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descriptorPool.sets[0],
+                          0, nullptr);
+    cb.drawIndexed(6, 1, 0, 0, 0);// draw quad
+}
+
+void Background2DPipeline::updateDescriptorSets(const SimulationState &simulationState) {
+    auto &descriptorSet = descriptorPool.sets[0];
+    Cmn::bindBuffers(resources.device, simulationState.particleCoordinateBuffer.buf, descriptorSet, 0);
+    Cmn::bindCombinedImageSampler(resources.device, sharedResources->colormap.view, sharedResources->colormap.sampler, descriptorSet, 1);
+    Cmn::bindBuffers(resources.device, sharedResources->uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
+    Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 3);
+    Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, descriptorSet, 4);
 }

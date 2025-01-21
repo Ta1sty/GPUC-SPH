@@ -3,26 +3,67 @@
 #include "colormaps.h"
 #include "simulation_state.h"
 
+class ParticleCirclePipeline;
+class Background2DPipeline;
+
+struct Texture {
+    vk::Image image;
+    vk::DeviceMemory memory;
+    vk::ImageView view;
+    vk::Sampler sampler;
+
+    Texture() = default;
+    Texture(const Texture &obj) = delete;
+    Texture(Texture &&obj) {
+        *this = std::move(obj);
+    }
+    Texture &operator=(Texture &&obj) {
+        image = obj.image;
+        memory = obj.memory;
+        view = obj.view;
+        sampler = obj.sampler;
+
+        obj.image = nullptr;
+        obj.memory = nullptr;
+        obj.view = nullptr;
+        obj.sampler = nullptr;
+        return *this;
+    }
+    ~Texture();
+
+    static Texture createColormapTexture(const std::vector<colormaps::RGB_F32> &colormap);
+};
+
 class ParticleRenderer {
 public:
-    ParticleRenderer() = delete;
+    ParticleRenderer();
     ParticleRenderer(const ParticleRenderer &particleRenderer) = delete;
-    explicit ParticleRenderer(const SimulationParameters &simulationParameters);
     ~ParticleRenderer();
     vk::CommandBuffer run(const SimulationState &simulationState, const RenderParameters &renderParameters);
     void updateCmd(const SimulationState &simulationState);
     [[nodiscard]] vk::Image getImage();
 
-private:
-    void createPipeline();
-    void createColormapTexture(const std::vector<colormaps::RGB_F32> &colormap);
-    void updateDescriptorSets(const SimulationState &simulationState);
+    struct SharedResources {
+        Texture colormap;
+        Buffer uniformBuffer;
+    };
 
-    struct PushStruct {
-        glm::mat4 mvp;
-        uint32_t width = 0;
-        uint32_t height = 0;
-    } pushStruct;
+private:
+    vk::Extent3D imageSize;
+    vk::Image colorAttachment;
+    vk::ImageView colorAttachmentView;
+    vk::DeviceMemory colorAttachmentMemory;
+    vk::Image depthImage;
+    vk::DeviceMemory depthImageMemory;
+    vk::ImageView depthImageView;
+
+    vk::RenderPass renderPass;
+    vk::Framebuffer framebuffer;
+    vk::CommandBuffer commandBuffer;
+
+    std::unique_ptr<ParticleCirclePipeline> particleCirclePipeline;
+    std::unique_ptr<Background2DPipeline> background2DPipeline;
+    std::shared_ptr<SharedResources> sharedResources;
 
     struct UniformBufferStruct {
         uint32_t numParticles = 128;
@@ -37,30 +78,73 @@ private:
             return numParticles == obj.numParticles && backgroundField == obj.backgroundField && particleRadius == obj.particleRadius && spatialRadius == obj.spatialRadius;
         }
     } uniformBufferContent;
+};
 
-    vk::Image colorAttachment;
-    vk::ImageView colorAttachmentView;
-    vk::DeviceMemory colorAttachmentMemory;
-    vk::Framebuffer framebuffer;
+class GraphicsPipeline {
+public:
+    virtual ~GraphicsPipeline() {}
+    virtual void draw(vk::CommandBuffer &cb, const SimulationState &simulationState) {}
+    virtual void updateDescriptorSets(const SimulationState &simulationState) {}
 
-    vk::Pipeline particlePipeline;
-    vk::Pipeline backgroundPipeline;
-    vk::PipelineLayout particlePipelineLayout;
-    vk::RenderPass renderPass;
+public:
+    template<typename T>
+    static vk::PipelineLayout createPipelineLayout(const Cmn::DescriptorPool &descriptorPool) {
+        vk::PushConstantRange pcr {
+                vk::ShaderStageFlagBits::eAll, 0, sizeof(T)};
 
-    vk::CommandBuffer commandBuffer;
+        vk::PipelineLayoutCreateInfo pipelineLayoutCI {
+                vk::PipelineLayoutCreateFlags(),
+                1U,
+                &descriptorPool.layout,
+                1U,
+                &pcr};
 
-    vk::Image colormapImage;
-    vk::DeviceMemory colormapImageMemory;
-    vk::ImageView colormapImageView;
-    vk::Sampler colormapSampler;
+        return resources.device.createPipelineLayout(pipelineLayoutCI);
+    }
 
-    vk::DescriptorSetLayout descriptorSetLayout;
-    vk::DescriptorPool descriptorPool;
-    vk::DescriptorSet descriptorSet;
+    using SharedResources = std::shared_ptr<ParticleRenderer::SharedResources>;
+};
+
+class ParticleCirclePipeline : public GraphicsPipeline {
+public:
+    ParticleCirclePipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, SharedResources sharedResources);
+    ~ParticleCirclePipeline() override;
+    void updateDescriptorSets(const SimulationState &simulationState) override;
+    void draw(vk::CommandBuffer &cb, const SimulationState &simulationState) override;
+
+private:
+    struct PushStruct {
+        glm::mat4 mvp;
+        uint32_t width = 0;
+        uint32_t height = 0;
+    } pushStruct;
+
+    SharedResources sharedResources;
+    Cmn::DescriptorPool descriptorPool;
+    vk::PipelineLayout pipelineLayout;
+    vk::Pipeline pipeline2d;
+    vk::Pipeline pipeline3d;
+};
+
+class Background2DPipeline : public GraphicsPipeline {
+public:
+    Background2DPipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, SharedResources renderer);
+    ~Background2DPipeline() override;
+    void draw(vk::CommandBuffer &cb, const SimulationState &simulationState) override;
+    void updateDescriptorSets(const SimulationState &simulationState) override;
+
+private:
+    struct PushStruct {
+        glm::mat4 mvp;
+        uint32_t width = 0;
+        uint32_t height = 0;
+    } pushStruct;
+
+    SharedResources sharedResources;
+    Cmn::DescriptorPool descriptorPool;
+    vk::PipelineLayout pipelineLayout;
+    vk::Pipeline pipeline;
 
     Buffer quadVertexBuffer;
     Buffer quadIndexBuffer;
-
-    Buffer uniformBuffer;
 };

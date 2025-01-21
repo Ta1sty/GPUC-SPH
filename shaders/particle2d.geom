@@ -3,7 +3,7 @@
 layout (points) in;
 layout (triangle_strip, max_vertices = 4) out;
 
-layout (location = 0) in vec2 inParticleCoordinate[];
+layout (location = 0) in vec3 inParticleCoordinate[];
 
 layout(push_constant) uniform PushStruct {
     mat4 mvp;
@@ -20,7 +20,7 @@ layout(binding = 2) uniform UniformBuffer {
 
 //layout (location = 0) vec3 particleColor;
 layout (location = 0) out vec2 particleRelativePosition;
-layout (location = 1) out vec2 outParticleCoordinate;
+layout (location = 1) out vec3 outParticleCoordinate;
 
 #define VERTEX(x, y) \
     gl_Position = centerPosition + vec4(vec2(x, y) * scaleFactor, 0.0f, 0.0f); \

@@ -37,7 +37,8 @@ T parse(const YAML::Node &yaml, const std::string &key, const T defaultValue) {
 }
 
 const Mappings<SceneType> sceneTypeMappings {
-        {"sph_box_2d", SceneType::SPH_BOX_2D}};
+        {"sph_box_2d", SceneType::SPH_BOX_2D},
+        {"sph_box_3d", SceneType::SPH_BOX_3D}};
 const Mappings<InitializationFunction> initializationFunctionMappings {
         {"uniform", InitializationFunction::UNIFORM},
         {"poisson_disk", InitializationFunction::POISSON_DISK}};
@@ -73,6 +74,9 @@ std::string SimulationParameters::printToYaml() const {
     yaml["initialization_function"] = dumpEnum(initializationFunction, initializationFunctionMappings);
     yaml["num_particles"] = numParticles;
     yaml["random_seed"] = randomSeed;
+    yaml["gravity"] = gravity;
+    yaml["delta_time"] = deltaTime;
+    yaml["collision_damping_factor"] = collisionDampingFactor;
 
     return YAML::Dump(yaml);
 }

@@ -17,8 +17,8 @@ std::vector<const char *> imguiComboArray(const Mappings<T> mappings) {
 }
 
 enum class SceneType {
-    SPH_BOX_2D
-
+    SPH_BOX_2D,
+    SPH_BOX_3D
 };
 extern const Mappings<SceneType> sceneTypeMappings;
 

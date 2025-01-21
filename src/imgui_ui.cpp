@@ -184,6 +184,7 @@ void ImguiUi::drawUi(UiBindings &bindings) {
         updateFlags.resetSimulation |= ImGui::Button("Restart Simulation");
 
         auto &simulation = bindings.simulationParameters;
+        EnumCombo("Scene Type", &simulation.type, sceneTypeMappings);
         ImGui::DragInt("Num Particles", reinterpret_cast<int *>(&simulation.numParticles), 16, 16, 1024 * 1024 * 1024);
         ImGui::DragFloat("Gravity", &simulation.gravity, 0.1f);
         ImGui::DragFloat("Delta Time", &simulation.deltaTime, 0.001f);

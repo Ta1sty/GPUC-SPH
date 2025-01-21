@@ -5,12 +5,12 @@ layout(push_constant) uniform PushStruct {
     uvec2 windowSize;
 } p;
 
-layout (location = 0) in vec2 inPos;
+layout (location = 0) in vec3 inPos;
 //layout (location = 1) in vec3 inColor;
 
 layout (location = 0) out vec3 outPos;
 
 void main() {
-    outPos = vec3(inPos, 0.0f);
-    gl_Position = p.mvp * vec4(inPos, 0.0f, 1.0f);
+    outPos = inPos;
+    gl_Position = p.mvp * vec4(inPos, 1.0f);
 }

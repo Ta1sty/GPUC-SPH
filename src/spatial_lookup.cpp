@@ -69,11 +69,11 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
     }
 
     SpatialLookupPushConstants pushConstants {
-            .cellSize = state.spatialRadius,
-            .numElements = state.parameters.numParticles,
-            .sort_n = workloadSize,
-            .sort_k = 0,
-            .sort_j = 0,
+            state.spatialRadius,
+            state.parameters.numParticles,
+            workloadSize,
+            0,
+            0,
     };
 
     Cmn::bindBuffers(resources.device, state.spatialLookup.buf, descriptorSet, 0);
@@ -139,6 +139,10 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
 
 
 vk::CommandBuffer SpatialLookup::run(SimulationState &state) {
+    // TODO implement 3D!
+    if (state.parameters.type != SceneType::SPH_BOX_2D)
+        return nullptr;
+
     if (nullptr != cmd && state.spatialRadius == currentPushConstants.cellSize && state.parameters.numParticles == currentPushConstants.numElements) {
         return cmd;
     }
