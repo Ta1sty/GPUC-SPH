@@ -84,6 +84,10 @@ struct GraphicsPipelineBuilder {
         // Depth stencil creation
         depthStencilSCI = vk::PipelineDepthStencilStateCreateInfo {
                 {},
+                vk::False,
+                vk::False,
+                vk::CompareOp::eLess,
+                vk::False,
                 vk::False
                 //            {}, vk::True, vk::False, vk::CompareOp::eAlways, vk::False, vk::False, {}, {}, 0.0f, 0.0f
                 //            {}, true, false, vk::CompareOp::eLess, false, false, {}, {}, 0.f, 0.f
@@ -276,7 +280,7 @@ ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resourc
 
     // color attachment image
     {
-        vk::ImageCreateInfo imageInfo(
+        vk::ImageCreateInfo imageInfo {
                 {},
                 vk::ImageType::e2D,
                 resources.surfaceFormat.format,
@@ -289,7 +293,7 @@ ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resourc
                 vk::SharingMode::eExclusive,
                 1,
                 &resources.gQ,
-                vk::ImageLayout::eUndefined);
+                vk::ImageLayout::eUndefined};
 
         createImage(
                 resources.pDevice,
@@ -300,7 +304,7 @@ ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resourc
                 colorAttachment,
                 colorAttachmentMemory);
 
-        vk::ImageViewCreateInfo viewInfo(
+        vk::ImageViewCreateInfo viewInfo {
                 {},
                 colorAttachment,
                 vk::ImageViewType::e2D,
@@ -310,35 +314,55 @@ ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resourc
                  0,
                  1,
                  0,
-                 1});
+                 1}};
         colorAttachmentView = resources.device.createImageView(viewInfo);
 
-        // can be removed later - layout transitions for the color attachment should be handled by render-pass
-        transitionImageLayout(
-                resources.device,
-                resources.graphicsCommandPool,
-                resources.graphicsQueue,
-                colorAttachment,
-                resources.surfaceFormat.format,
-                vk::ImageLayout::eUndefined,
-                vk::ImageLayout::eColorAttachmentOptimal);
-    }
+        constexpr vk::Format depthFormat = vk::Format::eD32Sfloat;
 
-    // render pass/framebuffer
-    {
-        vk::AttachmentDescription colorAttachmentDescription {
-                {},
-                resources.surfaceFormat.format,
-                vk::SampleCountFlagBits::e1,
-                vk::AttachmentLoadOp::eClear,
-                vk::AttachmentStoreOp::eStore,
-                vk::AttachmentLoadOp::eDontCare,
-                vk::AttachmentStoreOp::eDontCare,
-                vk::ImageLayout::eColorAttachmentOptimal,
-                vk::ImageLayout::eColorAttachmentOptimal};
+        imageInfo.format = depthFormat;
+        imageInfo.usage = {vk::ImageUsageFlagBits::eDepthStencilAttachment};
+        createImage(
+                resources.pDevice,
+                resources.device,
+                imageInfo,
+                {vk::MemoryPropertyFlagBits::eDeviceLocal},
+                "render-depth-attachment",
+                depthImage,
+                depthImageMemory);
+        viewInfo.image = depthImage;
+        viewInfo.format = imageInfo.format;
+        viewInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
+        depthImageView = resources.device.createImageView(viewInfo);
+
+        // render pass/framebuffer
+        std::array<vk::AttachmentDescription, 2> attachments {
+                vk::AttachmentDescription {{},// color attachment
+                                           resources.surfaceFormat.format,
+                                           vk::SampleCountFlagBits::e1,
+                                           vk::AttachmentLoadOp::eClear,
+                                           vk::AttachmentStoreOp::eStore,
+                                           vk::AttachmentLoadOp::eDontCare,
+                                           vk::AttachmentStoreOp::eDontCare,
+                                           vk::ImageLayout::eUndefined,
+                                           vk::ImageLayout::eColorAttachmentOptimal},
+                vk::AttachmentDescription {{},// depth attachment
+                                           depthFormat,
+                                           vk::SampleCountFlagBits::e1,
+                                           vk::AttachmentLoadOp::eClear,
+                                           vk::AttachmentStoreOp::eDontCare,
+                                           vk::AttachmentLoadOp::eDontCare,
+                                           vk::AttachmentStoreOp::eDontCare,
+                                           vk::ImageLayout::eUndefined,
+                                           vk::ImageLayout::eDepthStencilAttachmentOptimal},
+        };
+
+        std::array<vk::ImageView, 2> attachmentViews {
+                colorAttachmentView, depthImageView};
 
         vk::AttachmentReference colorAttachmentReference {
                 0, vk::ImageLayout::eColorAttachmentOptimal};
+        vk::AttachmentReference depthAttachmentReference {
+                1, vk::ImageLayout::eDepthStencilAttachmentOptimal};
 
         vk::SubpassDescription subpasses[] {
                 {// background subpass
@@ -355,7 +379,7 @@ ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resourc
                  {},
                  colorAttachmentReference,
                  {},
-                 nullptr,
+                 &depthAttachmentReference,
                  {}}};
 
         vk::SubpassDependency dependencies[] {
@@ -368,15 +392,15 @@ ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resourc
                  {vk::AccessFlagBits::eColorAttachmentWrite}},
                 {0,
                  1,
-                 {vk::PipelineStageFlagBits::eColorAttachmentOutput},
-                 {vk::PipelineStageFlagBits::eColorAttachmentOutput},
+                 {vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests},
+                 {vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests},
                  {vk::AccessFlagBits::eColorAttachmentWrite},
-                 {vk::AccessFlagBits::eColorAttachmentWrite}}};
+                 {vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite}}};
 
         vk::RenderPassCreateInfo renderPassCI {
                 {},
-                1U,
-                &colorAttachmentDescription,
+                attachments.size(),
+                attachments.data(),
                 2U,
                 subpasses,
                 2U,
@@ -386,8 +410,8 @@ ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resourc
 
         framebuffer = resources.device.createFramebuffer({{},
                                                           renderPass,
-                                                          1,
-                                                          &colorAttachmentView,
+                                                          attachmentViews.size(),
+                                                          attachmentViews.data(),
                                                           imageSize.width,
                                                           imageSize.height,
                                                           imageSize.depth});
@@ -413,6 +437,9 @@ ParticleRenderer::~ParticleRenderer() {
     resources.device.destroyImageView(colorAttachmentView);
     resources.device.destroyImage(colorAttachment);
     resources.device.freeMemory(colorAttachmentMemory);
+    resources.device.destroyImageView(depthImageView);
+    resources.device.destroyImage(depthImage);
+    resources.device.freeMemory(depthImageMemory);
 }
 
 vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState, const RenderParameters &renderParameters) {
@@ -443,10 +470,11 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState) {
 
 
     commandBuffer.begin(vk::CommandBufferBeginInfo {});
-    vk::ClearValue clearValue;
-    clearValue.color.uint32 = {{0, 0, 0, 0}};
+    std::array<vk::ClearValue, 2> clearValues;
+    clearValues[0].color.uint32 = {{0, 0, 0, 0}};
+    clearValues[1].depthStencil.depth = 1.0f;
     commandBuffer.beginRenderPass(
-            {renderPass, framebuffer, {{0, 0}, resources.extent}, 1, &clearValue},
+            {renderPass, framebuffer, {{0, 0}, resources.extent}, clearValues.size(), clearValues.data()},
             vk::SubpassContents::eInline);
 
 
@@ -498,6 +526,8 @@ ParticleCirclePipeline::ParticleCirclePipeline(const vk::RenderPass &renderPass,
     builders[1].inputAssemblySCI.topology = vk::PrimitiveTopology::ePointList;
     builders[1].vertexInputBindings[0].stride = 4 * 4;
     builders[1].vertexInputAttributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
+    builders[1].depthStencilSCI.depthTestEnable = vk::True;
+    builders[1].depthStencilSCI.depthWriteEnable = vk::True;
 
     auto pipelines = GraphicsPipelineBuilder::createPipelines(builders);
 

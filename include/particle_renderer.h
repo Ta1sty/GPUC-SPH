@@ -53,6 +53,10 @@ private:
     vk::Image colorAttachment;
     vk::ImageView colorAttachmentView;
     vk::DeviceMemory colorAttachmentMemory;
+    vk::Image depthImage;
+    vk::DeviceMemory depthImageMemory;
+    vk::ImageView depthImageView;
+
     vk::RenderPass renderPass;
     vk::Framebuffer framebuffer;
     vk::CommandBuffer commandBuffer;
