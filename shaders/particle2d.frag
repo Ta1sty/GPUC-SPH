@@ -31,5 +31,10 @@ void main() {
     //        uint cell = cellHash(uvec2(particleCenter.xy * 8));
     //        outColor = vec4(texture(colorscale, float(cell) / float(GRID_BUFFER_SIZE)).rgb, 1.0);
     vec3 color = vec3(circle(particleRelativePosition, 0.5f));
-    outColor = vec4(color, circle(particleRelativePosition, 0.90f));
+    float alpha = circle(particleRelativePosition, 0.90f);
+    outColor = vec4(color, alpha);
+    if (alpha <= 0.2f)
+        gl_FragDepth = 1.0f;
+    else
+        gl_FragDepth = gl_FragCoord.z;
 }
