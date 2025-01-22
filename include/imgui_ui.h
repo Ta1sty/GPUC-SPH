@@ -22,6 +22,7 @@ struct UiBindings {
         bool resetSimulation = false;
         bool togglePause = false;
         bool stepSimulation = false;
+        bool runChecks = false;
     } updateFlags;
 
     /**

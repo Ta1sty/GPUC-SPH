@@ -16,18 +16,26 @@ SpatialLookup::SpatialLookup(const SimulationParameters &parameters) {
     vk::PushConstantRange pcr({vk::ShaderStageFlagBits::eCompute}, 0, sizeof(SpatialLookupPushConstants));
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, descriptorLayout, pcr);
     pipelineLayout = resources.device.createPipelineLayout(pipelineLayoutInfo);
-
-    Cmn::createShader(resources.device, writeShader, shaderPath("spatial_lookup.write.comp"));
-    Cmn::createShader(resources.device, sortShader, shaderPath("spatial_lookup.sort.bitonic.comp"));
-    Cmn::createShader(resources.device, indexShader, shaderPath("spatial_lookup.index.comp"));
 }
 
-void SpatialLookup::createPipelines() {
-    std::cout << "Spatial-Lookup-Build pipelines" << std::endl;
-
+void SpatialLookup::destroyPipelines() {
     resources.device.destroyPipeline(writePipeline);
+    writePipeline = nullptr;
     resources.device.destroyPipeline(sortPipeline);
+    sortPipeline = nullptr;
     resources.device.destroyPipeline(indexPipeline);
+    indexPipeline = nullptr;
+
+    resources.device.destroyShaderModule(writeShader);
+    writeShader = nullptr;
+    resources.device.destroyShaderModule(sortShader);
+    sortShader = nullptr;
+    resources.device.destroyShaderModule(indexShader);
+    indexShader = nullptr;
+}
+
+void SpatialLookup::createPipelines(SceneType type) {
+    std::cout << "Spatial-Lookup-Build pipelines" << std::endl;
 
     std::array<vk::SpecializationMapEntry, 1> specEntries {
             vk::SpecializationMapEntry(0, 0, sizeof(workgroupSize))};
@@ -35,19 +43,17 @@ void SpatialLookup::createPipelines() {
 
     vk::SpecializationInfo specInfo(specEntries, vk::ArrayProxyNoTemporaries<const uint32_t>(specValues));
 
+    Cmn::createShader(resources.device, writeShader, shaderPath("spatial_lookup.write.comp", type));
+    Cmn::createShader(resources.device, sortShader, shaderPath("spatial_lookup.sort.bitonic.comp", type));
+    Cmn::createShader(resources.device, indexShader, shaderPath("spatial_lookup.index.comp", type));
+
     Cmn::createPipeline(resources.device, writePipeline, pipelineLayout, specInfo, writeShader);
     Cmn::createPipeline(resources.device, sortPipeline, pipelineLayout, specInfo, sortShader);
     Cmn::createPipeline(resources.device, indexPipeline, pipelineLayout, specInfo, indexShader);
 }
 
 SpatialLookup::~SpatialLookup() {
-    resources.device.destroyPipeline(writePipeline);
-    resources.device.destroyPipeline(sortPipeline);
-    resources.device.destroyPipeline(indexPipeline);
-
-    resources.device.destroyShaderModule(writeShader);
-    resources.device.destroyShaderModule(sortShader);
-    resources.device.destroyShaderModule(indexShader);
+    destroyPipelines();
 
     resources.device.destroyPipelineLayout(pipelineLayout);
     resources.device.destroyDescriptorPool(descriptorPool);
@@ -64,11 +70,13 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
         cmd.reset();
     }
 
-    if (updateSize(state.parameters.numParticles)) {
-        createPipelines();
+    if (update(state.parameters)) {
+        destroyPipelines();
+        createPipelines(state.parameters.type);
     }
 
     SpatialLookupPushConstants pushConstants {
+            static_cast<int>(state.parameters.type),
             state.spatialRadius,
             state.parameters.numParticles,
             workloadSize,
@@ -99,7 +107,7 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
     }
 
     uint32_t stepCounter = 0;
-    uint32_t stepBreak = 1000;
+    uint32_t stepBreak = -1;
     {
         cmd.bindPipeline(vk::PipelineBindPoint::eCompute, sortPipeline);
         uint32_t n = pushConstants.sort_n;
@@ -139,11 +147,10 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
 
 
 vk::CommandBuffer SpatialLookup::run(SimulationState &state) {
-    // TODO implement 3D!
-    if (state.parameters.type != SceneType::SPH_BOX_2D)
-        return nullptr;
-
-    if (nullptr != cmd && state.spatialRadius == currentPushConstants.cellSize && state.parameters.numParticles == currentPushConstants.numElements) {
+    if (nullptr != cmd &&
+        state.spatialRadius == currentPushConstants.cellSize &&
+        state.parameters.numParticles == currentPushConstants.numElements &&
+        state.parameters.type == static_cast<SceneType>(currentPushConstants.type)) {
         return cmd;
     }
 
@@ -151,14 +158,14 @@ vk::CommandBuffer SpatialLookup::run(SimulationState &state) {
 
     return cmd;
 }
-bool SpatialLookup::updateSize(uint32_t numElements) {
+bool SpatialLookup::update(const SimulationParameters &parameters) {
     uint32_t size, groupSize, groupNum;
 
-    size = nextPowerOfTwo(numElements);
+    size = nextPowerOfTwo(parameters.numParticles);
     groupSize = std::min<uint32_t>(128, size);
     groupNum = size / groupSize;
 
-    if (size == workgroupSize) return false;
+    if (size == workgroupSize && parameters.type == static_cast<SceneType>(currentPushConstants.type)) return false;
 
     workloadSize = size;
     workgroupSize = groupSize;

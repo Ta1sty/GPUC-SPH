@@ -30,7 +30,7 @@ struct GraphicsPipelineBuilder {
                                      const vk::PipelineLayout &pipelineLayout, const vk::RenderPass &renderPass, const uint32_t subpass) {
         for (const auto &[stage, file]: shaders) {
             vk::ShaderModule sm;
-            Cmn::createShader(resources.device, sm, shaderPath(file));
+            Cmn::createShader(resources.device, sm, shaderPath(file, {}));
             shaderModules.push_back(sm);
             shaderStageCIs.push_back({{}, stage, sm, "main", nullptr});
         }
@@ -509,17 +509,17 @@ ParticleCirclePipeline::ParticleCirclePipeline(const vk::RenderPass &renderPass,
 
     std::vector<GraphicsPipelineBuilder> builders;
     builders.emplace_back(GraphicsPipelineBuilder {
-            {{vk::ShaderStageFlagBits::eVertex, "particle2d.vert"},
-             {vk::ShaderStageFlagBits::eGeometry, "particle2d.geom"},
-             {vk::ShaderStageFlagBits::eFragment, "particle2d.frag"}},
+            {{vk::ShaderStageFlagBits::eVertex, "particle2d.vert.2D"},
+             {vk::ShaderStageFlagBits::eGeometry, "particle2d.geom.2D"},
+             {vk::ShaderStageFlagBits::eFragment, "particle2d.frag.2D"}},
             pipelineLayout,
             renderPass,
             subpass});
     builders[0].inputAssemblySCI.topology = vk::PrimitiveTopology::ePointList;
     builders.emplace_back(GraphicsPipelineBuilder {
-            {{vk::ShaderStageFlagBits::eVertex, "particle3d.vert"},
-             {vk::ShaderStageFlagBits::eGeometry, "particle2d.geom"},
-             {vk::ShaderStageFlagBits::eFragment, "particle2d.frag"}},
+            {{vk::ShaderStageFlagBits::eVertex, "particle3d.vert.2D"},
+             {vk::ShaderStageFlagBits::eGeometry, "particle2d.geom.2D"},
+             {vk::ShaderStageFlagBits::eFragment, "particle2d.frag.2D"}},
             pipelineLayout,
             renderPass,
             subpass});

@@ -26,7 +26,7 @@ std::vector<char> readFile(const std::string &filename) {
     file.seekg(0);
     file.read(buffer.data(), fileSize);
     file.close();
-    std::cout << "read " << buffer.size() << " bytes of data in file " << filename << std::endl;
+    //    std::cout << "read " << buffer.size() << " bytes of data in file " << filename << std::endl;
     return buffer;
 }
 

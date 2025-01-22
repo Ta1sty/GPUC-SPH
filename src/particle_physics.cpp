@@ -16,7 +16,7 @@ ParticleSimulation::ParticleSimulation(const SimulationParameters &parameters) :
     classResources.pipelineLayout = resources.device.createPipelineLayout(pipelineLayoutInfo);
 
     vk::ShaderModule particleComputeSM;
-    Cmn::createShader(resources.device, particleComputeSM, shaderPath("particle_simulation.comp"));
+    Cmn::createShader(resources.device, particleComputeSM, shaderPath("particle_simulation.comp", SceneType::SPH_BOX_2D));
 
     std::array<vk::SpecializationMapEntry, 2> specEntries = std::array<vk::SpecializationMapEntry, 2> {
             vk::SpecializationMapEntry {0U, 0U, sizeof(workgroupSizeX)},

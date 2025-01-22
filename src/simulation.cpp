@@ -125,7 +125,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
         queue.submit(submit);
     }
 
-    if (sin(spatialRadius) < 2) {
+    if (!lastUpdate.runChecks) {
         return;
     }
 
@@ -133,8 +133,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     resources.device.waitIdle();
 
-
-    std::vector<glm::vec2> particles(simulationParameters.numParticles);
+    std::vector<float> particles(simulationParameters.numParticles * (simulationParameters.type == SceneType::SPH_BOX_2D ? 2 : 4));
     fillHostWithStagingBuffer(simulationState->particleCoordinateBuffer, particles);
 
     uint32_t lookupSize = nextPowerOfTwo(simulationParameters.numParticles);
@@ -155,11 +154,21 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     for (uint32_t i = 0; i < lookupSize; i++) {
         SpatialLookupEntry lookup = spatial_lookup[i];
 
+        keys.insert(lookup.cellKey);
+
         if (lookup.particleIndex == -1) continue;
 
-        glm::vec2 position = particles[lookup.particleIndex];
+        glm::vec3 position;
+        switch (simulationParameters.type) {
+            case SceneType::SPH_BOX_2D:
+                position = glm::vec3(particles[lookup.particleIndex * 2], particles[lookup.particleIndex * 2 + 1], 0);
+                break;
+            case SceneType::SPH_BOX_3D:
+                position = glm::vec3(particles[lookup.particleIndex * 4], particles[lookup.particleIndex * 4 + 1], particles[lookup.particleIndex * 4 + 2]);
+                break;
+        }
 
-        glm::ivec2 cell = cellCoord(position, spatialRadius);
+        glm::ivec3 cell = cellCoord(position, spatialRadius);
         uint32_t testKey = cellKey(cellHash(cell), simulationParameters.numParticles);
 
         SpatialHashResult result {
@@ -167,22 +176,22 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
                 testKey,
                 position.x,
                 position.y,
+                position.z,
                 cell.x,
                 cell.y,
+                cell.z,
         };
 
         keys.emplace(lookup.cellKey);
         hashes.emplace_back(result);
 
-        //        if (result.lookupKey != result.testKey) {
-        //            throw std::runtime_error("key differs");
-        //        }
+        if (result.lookupKey != result.testKey) {
+            throw std::runtime_error("key differs");
+        }
 
         if (spatial_lookup[i].cellKey != spatial_lookup_sorted[i].cellKey) {
             throw std::runtime_error("spatial lookup not sorted");
         }
-
-        int a = 0;
     }
 
     std::map<uint32_t, std::vector<SpatialHashResult>> groupedResults;
@@ -193,8 +202,8 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
         auto &group = groupedResults[lookupKey];
         bool isDistinct = true;
 
-        for (const auto &result: group) {
-            if (result.cellX == hash.cellX && result.cellY == hash.cellY) {
+        for (const auto &element: group) {
+            if (element.cellX == hash.cellX && element.cellY == hash.cellY && element.cellZ == hash.cellZ) {
                 isDistinct = false;
                 break;
             }
@@ -213,6 +222,14 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
         }
     }
 
+    uint32_t collisionCellCount = 0;
+    for (const auto &item: collisions) collisionCellCount += item.second.size();
+
+    std::cout << "Hash-Collisions "
+              << "Key-Count: " << keys.size() << " "
+              << "Collision-Count: " << collisions.size() << " "
+              << "Cell-Count: " << collisionCellCount << " "
+              << std::endl;
     int a = 0;
 }
 

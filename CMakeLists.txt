@@ -9,22 +9,31 @@ function(add_shader TARGET SHADER)
     find_program(GLSLC glslc)
 
     set(current-shader-path ${CMAKE_CURRENT_SOURCE_DIR}/${SHADER})
-    set(current-output-path ${CMAKE_CURRENT_SOURCE_DIR}/build/${SHADER}.spv)
+    set(current-output-path-2D ${CMAKE_CURRENT_SOURCE_DIR}/build/${SHADER}.2D.spv)
+    set(current-output-path-3D ${CMAKE_CURRENT_SOURCE_DIR}/build/${SHADER}.3D.spv)
 
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
-    get_filename_component(current-output-dir ${current-output-path} DIRECTORY)
+    get_filename_component(current-output-dir ${current-output-path-2D} DIRECTORY)
     file(MAKE_DIRECTORY ${current-output-dir})
 
     add_custom_command(
-            OUTPUT ${current-output-path}
-            COMMAND ${GLSLC} --target-env=vulkan1.1 -o ${current-output-path} ${current-shader-path}
+            OUTPUT ${current-output-path-2D}
+            COMMAND ${GLSLC} --target-env=vulkan1.1 -o ${current-output-path-2D} ${current-shader-path} -DDEF_2D
+            DEPENDS ${current-shader-path} shaders/spatial_lookup.glsl
+            IMPLICIT_DEPENDS CXX ${current-shader-path}
+            VERBATIM)
+
+    add_custom_command(
+            OUTPUT ${current-output-path-3D}
+            COMMAND ${GLSLC} --target-env=vulkan1.1 -o ${current-output-path-3D} ${current-shader-path} -DDEF_3D
             DEPENDS ${current-shader-path} shaders/spatial_lookup.glsl
             IMPLICIT_DEPENDS CXX ${current-shader-path}
             VERBATIM)
 
     # Make sure our build depends on this output.
     set_source_files_properties(${current-output-path} PROPERTIES GENERATED TRUE)
-    target_sources(${TARGET} PRIVATE ${current-output-path})
+    target_sources(${TARGET} PRIVATE ${current-output-path-2D})
+    target_sources(${TARGET} PRIVATE ${current-output-path-3D})
 endfunction(add_shader)
 
 add_subdirectory(libs)

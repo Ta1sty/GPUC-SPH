@@ -4,6 +4,7 @@
 #include "simulation_state.h"
 
 struct SpatialLookupPushConstants {
+    int type;
     float cellSize;
     uint32_t numElements;
     uint32_t sort_n;
@@ -36,8 +37,9 @@ class SpatialLookup {
 
     vk::CommandBuffer cmd;
 
-    bool updateSize(uint32_t numElements);
-    void createPipelines();
+    bool update(const SimulationParameters &parameters);
+    void destroyPipelines();
+    void createPipelines(SceneType type);
 
 public:
     explicit SpatialLookup(const SimulationParameters &parameters);

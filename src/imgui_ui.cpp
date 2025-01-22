@@ -164,6 +164,8 @@ void ImguiUi::drawUi(UiBindings &bindings) {
     updateFlags.stepSimulation = ImGui::Button("Step");
     ImGui::SameLine();
     updateFlags.resetSimulation = ImGui::Button("Reset");
+    ImGui::SameLine();
+    updateFlags.runChecks = ImGui::Button("Check");
 
     ImGui::Text("Ticks: %d", bindings.simulationState->time.ticks);
     ImGui::DragInt("Tick rate:", &bindings.simulationState->time.tickRate, 5, 5, 5000);

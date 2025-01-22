@@ -9,8 +9,10 @@ struct SpatialHashResult {
     uint32_t testKey;
     float x;
     float y;
+    float z;
     int32_t cellX;
     int32_t cellY;
+    int32_t cellZ;
 };
 
 struct ParticleNeighbour {
@@ -19,8 +21,8 @@ struct ParticleNeighbour {
     uint32_t cellKey;
 };
 
-glm::ivec2 cellCoord(glm::vec2 position, float radius);
-uint32_t cellHash(glm::ivec2 cell);
+glm::ivec3 cellCoord(glm::vec3 position, float radius);
+uint32_t cellHash(glm::ivec3 cell);
 uint32_t cellKey(uint32_t hash, uint32_t numParticles);
 
 void getNeighbours(
