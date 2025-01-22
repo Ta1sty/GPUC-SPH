@@ -63,8 +63,10 @@ SimulationParameters::SimulationParameters(const std::string &file) {
     std::random_device rd;// seed with TRNG if no seed is supplied
     randomSeed = parse<uint32_t>(yaml, "random_seed", rd());
     gravity = parse<float>(yaml, "gravity", gravity);
-    deltaTime = parse<float>(yaml, "delta_time", deltaTime);
-    collisionDampingFactor = parse<float>(yaml, "collision_damping_factor", collisionDampingFactor);
+    deltaTime = parse<float>(yaml, "deltaTime", deltaTime);
+    collisionDampingFactor = parse<float>(yaml, "collisionDampingFactor", collisionDampingFactor);
+    targetDensity = parse<float>(yaml, "targetDensity", targetDensity);
+    pressureMultiplier = parse<float>(yaml, "pressureMultiplier", pressureMultiplier);
 }
 
 std::string SimulationParameters::printToYaml() const {
