@@ -2,11 +2,13 @@
 
 
 ParticleSimulation::ParticleSimulation(const SimulationParameters &parameters) : simulationParameters(parameters) {
-    Cmn::addStorage(bindings, 0); // particle coordinates
-    Cmn::addStorage(bindings, 1); // particle velocities
-    Cmn::addStorage(bindings, 2); // particle densities
-    Cmn::addStorage(bindings, 3); // spatial lookup
-    Cmn::addStorage(bindings, 4); // spatial indices
+
+    Cmn::addStorage(bindings, 0);// particle coordinates input
+    Cmn::addStorage(bindings, 1);// particle velocities
+    Cmn::addStorage(bindings, 2);// particle densities
+    Cmn::addStorage(bindings, 3);// spatial lookup
+    Cmn::addStorage(bindings, 4);// spatial indices
+    Cmn::addStorage(bindings, 5);// particle coordinates copy output
 
     Cmn::createDescriptorSetLayout(resources.device, bindings, descriptorSetLayout);
     Cmn::createDescriptorPool(resources.device, bindings, descriptorPool);
@@ -37,6 +39,15 @@ ParticleSimulation::ParticleSimulation(const SimulationParameters &parameters) :
 
 void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
     vk::ArrayProxy<const ParticleSimulationPushConstants> pcr;
+    // set up copy buffers
+    vk::DeviceSize coordinateBufferSize;
+    switch (simulationState.parameters.type) {
+        case SceneType::SPH_BOX_2D:
+            coordinateBufferSize = sizeof(glm::vec2) * simulationState.parameters.numParticles;
+            break;
+    }
+
+    particleCoordinateBufferCopy = createDeviceLocalBuffer("buffer-particles-copy", coordinateBufferSize, vk::BufferUsageFlagBits::eVertexBuffer);
     if (cmd == nullptr) {
         std::cout << "ParticleSimulation command buffer is null, allocating new one" << std::endl;
         vk::CommandBufferAllocateInfo cmdInfo(resources.computeCommandPool, vk::CommandBufferLevel::ePrimary, 1);
@@ -50,6 +61,7 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
     Cmn::bindBuffers(resources.device, simulationState.particleDensityBuffer.buf, descriptorSet, 2);
     Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 3);
     Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, descriptorSet, 4);
+    Cmn::bindBuffers(resources.device, particleCoordinateBufferCopy.buf, descriptorSet, 5);
     uint32_t dx = (simulationState.parameters.numParticles + workgroupSizeX - 1) / workgroupSizeX;
     uint32_t dy = 1;// TODO : make this dynamic
 
@@ -66,7 +78,6 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
 
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipelineLayout, 0, descriptorSet, {});
     cmd.pushConstants(pipelineLayout, {vk::ShaderStageFlagBits::eCompute}, 0, (pcr = pushConstants));
-
     // compute densities
     cmd.bindPipeline(vk::PipelineBindPoint::eCompute, densityPipeline);
     cmd.dispatch(dx, dy, 1);
@@ -76,7 +87,18 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
     cmd.bindPipeline(vk::PipelineBindPoint::eCompute, computePipeline);
     cmd.dispatch(dx, dy, 1);
     computeBarrier(cmd);
-    
+    // copy particle coordinates
+    cmd.copyBuffer(particleCoordinateBufferCopy.buf, simulationState.particleCoordinateBuffer.buf, vk::BufferCopy(0, 0, simulationState.parameters.numParticles * sizeof(glm::vec2)));
+    cmd.pipelineBarrier(
+            vk::PipelineStageFlagBits::eComputeShader,
+            vk::PipelineStageFlagBits::eTransfer,
+            {},
+            vk::MemoryBarrier(
+                    vk::AccessFlagBits::eShaderWrite,
+                    vk::AccessFlagBits::eTransferRead),
+            nullptr,
+            nullptr);
+
     cmd.end();
     currentPushConstants = pushConstants;
 }
@@ -85,10 +107,9 @@ vk::CommandBuffer ParticleSimulation::run(const SimulationState &simulationState
     if (nullptr == cmd || hasStateChanged(simulationState)) {
         updateCmd(simulationState);
     }
-    // Debug: Copy densities to debug image
+    // Debug:
     std::vector<float> densities(simulationState.parameters.numParticles);
     fillHostWithStagingBuffer(simulationState.particleDensityBuffer, densities);
-    // Print out density values
     for (size_t i = 0; i < densities.size(); i++) {
         std::cout << "Density " << i << ": " << densities[i] << std::endl;
     }
@@ -107,7 +128,6 @@ bool ParticleSimulation::hasStateChanged(const SimulationState &state) {
     } else {
         return true;
     }
-
 }
 
 

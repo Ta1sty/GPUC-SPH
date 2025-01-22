@@ -368,7 +368,7 @@ void Simulation::reset() {
     // the spatial-lookup needs to always run at least once before any run
     spatialLookup->updateCmd(*simulationState);
     particlePhysics->updateCmd(*simulationState);
-    
+
     auto cmd = spatialLookup->run(*simulationState);
     if (nullptr != cmd) {
         vk::SubmitInfo submit({}, {}, cmd);
@@ -377,6 +377,6 @@ void Simulation::reset() {
     }
 
     prevTime = glfwGetTime();
-    
+
     std::cout << "Simulation reset done" << std::endl;
 }

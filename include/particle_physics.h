@@ -11,7 +11,6 @@ struct ParticleSimulationPushConstants {
     float deltaTime;
     uint32_t numParticles;
     float collisionDamping;
-    float particleRadius;
     float spatialRadius;
     float targetDensity;
     float pressureMultiplier;
@@ -28,6 +27,7 @@ public:
     void updateCmd(const SimulationState &state);
     bool hasStateChanged(const SimulationState &state);
     vk::CommandBuffer cmd;
+
 private:
     const uint32_t workgroupSizeX = 128;
     const uint32_t workgroupSizeY = 1;
@@ -42,8 +42,10 @@ private:
     vk::Pipeline computePipeline;
     vk::Pipeline densityPipeline;
     vk::PipelineLayout pipelineLayout;
-    
+
     SimulationParameters simulationParameters;
 
-
+    Buffer particleCoordinateBufferCopy;
+    Buffer particleVelocityBufferCopy;
+    Buffer particleDensityBufferCopy;
 };

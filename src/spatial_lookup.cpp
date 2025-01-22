@@ -75,7 +75,7 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
     SpatialLookupPushConstants pushConstants {
             state.spatialRadius,
             state.parameters.numParticles,
-             nextPowerOfTwo(state.parameters.numParticles),
+            nextPowerOfTwo(state.parameters.numParticles),
             0,
             0,
     };
