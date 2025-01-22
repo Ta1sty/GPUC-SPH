@@ -125,6 +125,8 @@ vk::CommandBuffer ParticleSimulation::run(const SimulationState &simulationState
     if (nullptr == cmd || hasStateChanged(simulationState)) {
         updateCmd(simulationState);
     }
+
+    /*
     std::vector<glm::vec2> positions(simulationState.parameters.numParticles);
     std::vector<glm::vec2> velocities(simulationState.parameters.numParticles);
     std::vector<float> densities(simulationState.parameters.numParticles);
@@ -139,6 +141,7 @@ vk::CommandBuffer ParticleSimulation::run(const SimulationState &simulationState
                   << " vel=" << velocities[i].x << "," << velocities[i].y
                   << " density=" << densities[i] << std::endl;
     }
+    */
     return cmd;
 }
 
