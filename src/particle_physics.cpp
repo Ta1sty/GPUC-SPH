@@ -45,14 +45,14 @@ ParticleSimulation::ParticleSimulation(const SimulationParameters &parameters) :
 void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
     vk::ArrayProxy<const ParticleSimulationPushConstants> pcr;
     // set up copy buffers
-    vk::DeviceSize coordinateBufferSize;
+    vk::DeviceSize velocityBufferSize;
     switch (simulationState.parameters.type) {
         case SceneType::SPH_BOX_2D:
-            coordinateBufferSize = sizeof(glm::vec2) * simulationState.parameters.numParticles;
+            velocityBufferSize = sizeof(glm::vec2) * simulationState.parameters.numParticles;
             break;
     }
 
-    particleCoordinateBufferCopy = createDeviceLocalBuffer("buffer-particles-copy", coordinateBufferSize, vk::BufferUsageFlagBits::eVertexBuffer);
+    particleVelocityBufferCopy = createDeviceLocalBuffer("buffer-velocity-copy", velocityBufferSize, vk::BufferUsageFlagBits::eVertexBuffer);
     if (cmd == nullptr) {
         std::cout << "ParticleSimulation command buffer is null, allocating new one" << std::endl;
         vk::CommandBufferAllocateInfo cmdInfo(resources.computeCommandPool, vk::CommandBufferLevel::ePrimary, 1);
@@ -66,7 +66,7 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
     Cmn::bindBuffers(resources.device, simulationState.particleDensityBuffer.buf, descriptorSet, 2);
     Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 3);
     Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, descriptorSet, 4);
-    Cmn::bindBuffers(resources.device, particleCoordinateBufferCopy.buf, descriptorSet, 5);
+    Cmn::bindBuffers(resources.device, particleVelocityBufferCopy.buf, descriptorSet, 5);
 
     uint32_t dx = (simulationState.parameters.numParticles + workgroupSizeX - 1) / workgroupSizeX;
     uint32_t dy = 1;// TODO : make this dynamic
@@ -79,6 +79,7 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
     pushConstants.spatialRadius = simulationState.spatialRadius;
     pushConstants.targetDensity = simulationState.parameters.targetDensity;
     pushConstants.pressureMultiplier = simulationState.parameters.pressureMultiplier;
+    pushConstants.viscosity = simulationState.parameters.viscosity;
 
     cmd.begin(vk::CommandBufferBeginInfo());
 
@@ -101,7 +102,7 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
     computeBarrier(cmd);
 
     // copy particle coordinates
-    cmd.copyBuffer(particleCoordinateBufferCopy.buf, simulationState.particleCoordinateBuffer.buf, vk::BufferCopy(0, 0, simulationState.parameters.numParticles * sizeof(glm::vec2)));
+    cmd.copyBuffer(particleVelocityBufferCopy.buf, simulationState.particleVelocityBuffer.buf, vk::BufferCopy(0, 0, simulationState.parameters.numParticles * sizeof(glm::vec2)));
     cmd.pipelineBarrier(
             vk::PipelineStageFlagBits::eComputeShader,
             vk::PipelineStageFlagBits::eTransfer,
@@ -158,6 +159,7 @@ bool ParticleSimulation::hasStateChanged(const SimulationState &state) {
 
 ParticleSimulation::~ParticleSimulation() {
 
+    // Buffer cleanup handled automatically by Buffer destructor
     resources.device.destroyPipeline(computePipeline);
     resources.device.destroyPipeline(densityPipeline);
     resources.device.destroyPipeline(positionUpdatePipeline);

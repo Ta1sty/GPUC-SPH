@@ -14,6 +14,7 @@ struct ParticleSimulationPushConstants {
     float spatialRadius;
     float targetDensity;
     float pressureMultiplier;
+    float viscosity;
 };
 
 
@@ -46,5 +47,5 @@ private:
 
     SimulationParameters simulationParameters;
 
-    Buffer particleCoordinateBufferCopy;
+    Buffer particleVelocityBufferCopy;
 };

@@ -1,8 +1,9 @@
 type: sph_box_2d
 initialization_function: uniform
-num_particles: 64
+num_particles: 2048
 gravity: 9.81
 deltaTime: 0.008
-collisionDampingFactor: 0.8
+collisionDampingFactor: 0.7
 targetDensity: 1000
-pressureMultiplier: 0.8
+pressureMultiplier: 2.0
+viscosity: 0.02
