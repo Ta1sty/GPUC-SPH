@@ -51,7 +51,7 @@ layout (set = GRID_SET, binding = GRID_BINDING_LOOKUP) buffer GRID_READONLY spat
 layout (set = GRID_SET, binding = GRID_BINDING_INDEX) buffer GRID_READONLY spatialIndexBuffer { uint spatial_indices[]; };
 
 #if GRID_BINDING_COORDINATES > - 1
- layout (std140, set = GRID_SET, binding = GRID_BINDING_COORDINATES) buffer spatialParticleBuffer { VEC_T particle_coordinates[]; };
+ layout (set = GRID_SET, binding = GRID_BINDING_COORDINATES) buffer spatialParticleBuffer { VEC_T particle_coordinates[]; };
 #endif
 
 IVEC_T cellCoord(VEC_T position) {

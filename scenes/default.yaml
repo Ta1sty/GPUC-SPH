@@ -1,4 +1,4 @@
-type: sph_box_3d
+type: sph_box_2d
 initialization_function: uniform
 num_particles: 1024
 gravity: 9.81
