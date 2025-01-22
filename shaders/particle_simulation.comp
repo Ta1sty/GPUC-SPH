@@ -1,13 +1,13 @@
 #version 450
 
-layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0) buffer positionBuffer { vec2 positions[]; };
-layout(binding = 1) buffer velocityBuffer { vec2 velocities[]; };
-layout(binding = 2) buffer densityBuffer { float densities[]; };
-layout(binding = 5) buffer positionOutputBuffer { vec2 positionsOutput[]; };
+layout (binding = 0) buffer positionBuffer { vec2 positions[]; };
+layout (binding = 1) buffer velocityBuffer { vec2 velocities[]; };
+layout (binding = 2) buffer densityBuffer { float densities[]; };
+layout (binding = 5) buffer positionOutputBuffer { vec2 positionsOutput[]; };
 
-layout(push_constant) uniform PushStruct {
+layout (push_constant) uniform PushStruct {
     float gravity;
     float deltaTime;
     uint numParticles;
@@ -62,9 +62,11 @@ void addPressureForce(inout vec2 pressureForce, const vec2 pos, const float dens
 
 vec2 calculatePressureForce(vec2 pos, const float density, float radius) {
     vec2 pressureForce = vec2(0.0, 0.0);
+    #ifdef DEF_2D
     FOREACH_NEIGHBOUR(pos, {
-        addPressureForce(pressureForce, pos, density, radius, particleMass, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE);
+    addPressureForce(pressureForce, pos, density, radius, particleMass, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE);
     });
+    #endif
     return pressureForce;
 }
 

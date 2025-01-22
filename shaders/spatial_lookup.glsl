@@ -42,6 +42,10 @@ layout (push_constant) uniform PushStruct {
 #define GRID_BINDING_COORDINATES 2
 #endif
 
+#ifndef COORDINATES_BUFFER_NAME
+#define COORDINATES_BUFFER_NAME particle_coordinates
+#endif
+
  struct SpatialLookupEntry {
 uint cellKey;
 uint particleIndex;
@@ -151,7 +155,7 @@ SpatialLookupEntry entry = spatial_lookup[j]; \
 if (entry.cellKey != cellKey) break; \
 uint NEIGHBOUR_INDEX = entry.particleIndex; \
 if (NEIGHBOUR_INDEX == uint(- 1)) continue; \
-VEC_T NEIGHBOUR_POSITION = coordinates[NEIGHBOUR_INDEX]; \
+VEC_T NEIGHBOUR_POSITION = COORDINATES_BUFFER_NAME[NEIGHBOUR_INDEX]; \
 float NEIGHBOUR_DISTANCE = length(position - NEIGHBOUR_POSITION); \
 if (NEIGHBOUR_DISTANCE > GRID_CELL_SIZE) continue; \
 expression; \

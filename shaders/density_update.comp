@@ -1,13 +1,13 @@
 #version 450
 
 
-layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0) buffer positionBuffer { vec2 positions[]; };
-layout(binding = 1) buffer velocityBuffer { vec2 velocities[]; };
-layout(binding = 2) buffer densityBuffer { float densities[]; };
+layout (binding = 0) buffer positionBuffer { vec2 positions[]; };
+layout (binding = 1) buffer velocityBuffer { vec2 velocities[]; };
+layout (binding = 2) buffer densityBuffer { float densities[]; };
 
-layout(push_constant) uniform PushStruct {
+layout (push_constant) uniform PushStruct {
     float gravity;
     float deltaTime;
     uint numParticles;
@@ -50,24 +50,26 @@ void addDensity(inout float density, const float radius, const float mass, uint 
 float evaluateDensity(vec2 pos, float radius) {
     float density = 0.0;
 
+    #ifdef DEF_2D
     FOREACH_NEIGHBOUR(pos, {
-        //density += 1.0;
-        addDensity(density, radius, particleMass, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE);
-    });
+    //density += 1.0;
+    addDensity(density, radius, particleMass, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE);
+});
+#endif
 
-    return density;
+ return density;
 }
 
 void main() {
-    uint index = gl_GlobalInvocationID.x;
-    if (index >= constants.numParticles) return;
+uint index = gl_GlobalInvocationID.x;
+if (index >= constants.numParticles) return;
 
-    vec2 position = positions[index];
-    vec2 velocity = velocities[index];
-    //apply gravity
-    velocity += vec2(0.0, constants.gravity) * constants.deltaTime;
+vec2 position = positions[index];
+vec2 velocity = velocities[index];
+//apply gravity
+velocity += vec2(0.0, constants.gravity) * constants.deltaTime;
 
-    float density = evaluateDensity(position, constants.spatialRadius);
-    densities[index] = density;
-    velocities[index] = velocity;
+float density = evaluateDensity(position, constants.spatialRadius);
+densities[index] = density;
+velocities[index] = velocity;
 }

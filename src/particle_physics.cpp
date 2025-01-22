@@ -21,8 +21,8 @@ ParticleSimulation::ParticleSimulation(const SimulationParameters &parameters) :
 
     vk::ShaderModule particleComputeSM;
     vk::ShaderModule densityComputeSM;
-    Cmn::createShader(resources.device, particleComputeSM, shaderPath("particle_simulation.comp"));
-    Cmn::createShader(resources.device, densityComputeSM, shaderPath("density_update.comp"));
+    Cmn::createShader(resources.device, particleComputeSM, shaderPath("particle_simulation.comp", SceneType::SPH_BOX_2D));
+    Cmn::createShader(resources.device, densityComputeSM, shaderPath("density_update.comp", SceneType::SPH_BOX_2D));
 
     std::array<vk::SpecializationMapEntry, 2> specEntries = std::array<vk::SpecializationMapEntry, 2> {
             vk::SpecializationMapEntry {0U, 0U, sizeof(workgroupSizeX)},
@@ -45,6 +45,10 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
         case SceneType::SPH_BOX_2D:
             coordinateBufferSize = sizeof(glm::vec2) * simulationState.parameters.numParticles;
             break;
+        case SceneType::SPH_BOX_3D:
+            resources.device.freeCommandBuffers(resources.computeCommandPool, cmd);
+            cmd = nullptr;
+            return;
     }
 
     particleCoordinateBufferCopy = createDeviceLocalBuffer("buffer-particles-copy", coordinateBufferSize, vk::BufferUsageFlagBits::eVertexBuffer);
