@@ -175,6 +175,8 @@ void ImguiUi::drawUi(UiBindings &bindings) {
         EnumCombo("Selected Image", &render.selectedImage, selectedImageMappings);
 
         EnumCombo("Background Field", &render.backgroundField, renderBackgroundFieldMappings);
+        EnumCombo("Particle Color", &render.particleColor, renderParticleColorMappings);
+
         ImGui::DragFloat("Particle Radius", &render.particleRadius, 0.5, 1.0, 64.0, "%.1f");
         ImGui::DragFloat("Spatial Radius", &bindings.simulationState->spatialRadius, 0.01, 0.01, 1.0, "%.2f");
 

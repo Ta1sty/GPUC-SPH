@@ -68,6 +68,7 @@ private:
     struct UniformBufferStruct {
         uint32_t numParticles = 128;
         uint32_t backgroundField = 0;
+        uint32_t particleColor = 0;
         float particleRadius = 12.0f;
         float spatialRadius = 0.1f;
 
@@ -75,7 +76,7 @@ private:
         UniformBufferStruct() = default;
         UniformBufferStruct(const UniformBufferStruct &obj) = default;
         bool operator==(const UniformBufferStruct &obj) const {
-            return numParticles == obj.numParticles && backgroundField == obj.backgroundField && particleRadius == obj.particleRadius && spatialRadius == obj.spatialRadius;
+            return numParticles == obj.numParticles && backgroundField == obj.backgroundField && particleColor == obj.particleColor && particleRadius == obj.particleRadius && spatialRadius == obj.spatialRadius;
         }
     } uniformBufferContent;
 };

@@ -446,6 +446,7 @@ vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState, 
     UniformBufferStruct ub {
             simulationState.parameters.numParticles,
             static_cast<uint32_t>(renderParameters.backgroundField),
+            static_cast<uint32_t>(renderParameters.particleColor),
             renderParameters.particleRadius,
             simulationState.spatialRadius};
 
@@ -503,6 +504,8 @@ ParticleCirclePipeline::ParticleCirclePipeline(const vk::RenderPass &renderPass,
     descriptorPool.addStorage(0, 1, vk::ShaderStageFlagBits::eFragment);
     descriptorPool.addSampler(1, 1, vk::ShaderStageFlagBits::eFragment);
     descriptorPool.addUniform(2, 1, vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eGeometry);
+    descriptorPool.addStorage(3, 1, vk::ShaderStageFlagBits::eFragment);// spatial-lookup
+    descriptorPool.addStorage(4, 1, vk::ShaderStageFlagBits::eFragment);// spatial-indices
     descriptorPool.allocate();
 
     pipelineLayout = createPipelineLayout<PushStruct>(descriptorPool);
@@ -517,9 +520,9 @@ ParticleCirclePipeline::ParticleCirclePipeline(const vk::RenderPass &renderPass,
             subpass});
     builders[0].inputAssemblySCI.topology = vk::PrimitiveTopology::ePointList;
     builders.emplace_back(GraphicsPipelineBuilder {
-            {{vk::ShaderStageFlagBits::eVertex, "particle3d.vert.2D"},
-             {vk::ShaderStageFlagBits::eGeometry, "particle2d.geom.2D"},
-             {vk::ShaderStageFlagBits::eFragment, "particle2d.frag.2D"}},
+            {{vk::ShaderStageFlagBits::eVertex, "particle3d.vert.3D"},
+             {vk::ShaderStageFlagBits::eGeometry, "particle2d.geom.3D"},
+             {vk::ShaderStageFlagBits::eFragment, "particle2d.frag.3D"}},
             pipelineLayout,
             renderPass,
             subpass});
@@ -546,6 +549,8 @@ void ParticleCirclePipeline::updateDescriptorSets(const SimulationState &simulat
     Cmn::bindBuffers(resources.device, simulationState.particleCoordinateBuffer.buf, descriptorSet, 0);
     Cmn::bindCombinedImageSampler(resources.device, sharedResources->colormap.view, sharedResources->colormap.sampler, descriptorSet, 1);
     Cmn::bindBuffers(resources.device, sharedResources->uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
+    Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 3);
+    Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, descriptorSet, 4);
 }
 
 void ParticleCirclePipeline::draw(vk::CommandBuffer &cb, const SimulationState &simulationState) {

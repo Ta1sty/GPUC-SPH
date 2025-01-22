@@ -13,7 +13,9 @@ layout(push_constant) uniform PushStruct {
 layout(binding = 2) uniform UniformBuffer {
     uint numParticles;
     uint backgroundField;
+    uint particleColor;
     float particleRadius;
+    float spatialRadius;
 };
 
 //layout (binding = 0) readonly buffer ParticlePositions { vec2 gParticlePositions[]; }

@@ -61,6 +61,13 @@ enum class RenderBackgroundField {
 };
 extern const Mappings<RenderBackgroundField> renderBackgroundFieldMappings;
 
+enum class RenderParticleColor {
+    WHITE,
+    NUM_NEIGHBOURS,
+    DENSITY,
+};
+extern const Mappings<RenderParticleColor> renderParticleColorMappings;
+
 /**
  * Parameters that only influence the visualization of the Simulation.
  */
@@ -69,5 +76,7 @@ struct RenderParameters {
     SelectedImage selectedImage = SelectedImage::RENDER;
 
     RenderBackgroundField backgroundField = RenderBackgroundField::CELL_HASH;
+    RenderParticleColor particleColor = RenderParticleColor::WHITE;
+
     float particleRadius = 12.0f;
 };

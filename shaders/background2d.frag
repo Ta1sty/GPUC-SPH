@@ -7,6 +7,7 @@ layout (binding = 1) uniform sampler1D colorscale;
 layout (binding = 2) uniform UniformBuffer {
     uint numParticles;
     uint backgroundField;
+    uint particleColor;
     float particleRadius;
     float spatialRadius;
 };

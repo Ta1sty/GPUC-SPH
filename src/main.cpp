@@ -44,8 +44,8 @@ void render() {
 
         render.input();
 
-        if (glfwGetKey(resources.window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-            glfwSetWindowShouldClose(resources.window, 1);
+        //if (glfwGetKey(resources.window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        //    glfwSetWindowShouldClose(resources.window, 1);
 
         if (glfwWindowShouldClose(resources.window))
             break;

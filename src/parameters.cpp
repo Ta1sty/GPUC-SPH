@@ -50,6 +50,10 @@ const Mappings<SelectedImage> selectedImageMappings {
 const Mappings<RenderBackgroundField> renderBackgroundFieldMappings {
         {"cell_hash", RenderBackgroundField::CELL_HASH},
         {"density", RenderBackgroundField::DENSITY}};
+const Mappings<RenderParticleColor> renderParticleColorMappings {
+        {"white", RenderParticleColor::WHITE},
+        {"num_neighbours", RenderParticleColor::NUM_NEIGHBOURS},
+        {"density", RenderParticleColor::DENSITY}};
 
 SimulationParameters::SimulationParameters(const std::string &file) {
     YAML::Node yaml = YAML::LoadFile(file);
