@@ -53,6 +53,13 @@ struct DescriptorPool {
                 count,
                 shaderStages);
     }
+    void addInputAttachment(uint32_t binding, uint32_t count, vk::ShaderStageFlags shaderStages) {
+        bindings.emplace_back(
+                binding,
+                vk::DescriptorType::eInputAttachment,
+                count,
+                shaderStages);
+    }
 
     void allocate(uint32_t numDescriptorSets = 1);
     ~DescriptorPool();

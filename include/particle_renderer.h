@@ -52,8 +52,11 @@ public:
         Buffer quadIndexBuffer;
         Buffer cubeVertexBuffer;
 
+        vk::Sampler depthImageSampler;
+        vk::ImageView depthImageView;// written by ParticleRenderer()
+
         SharedResources();
-        ~SharedResources() = default;
+        ~SharedResources();
     };
 
 private:
@@ -167,6 +170,8 @@ public:
 private:
     struct PushStruct {
         glm::mat4 mvp;
+        glm::vec4 cameraPos;// pad to vec4 for explicit alignment
+        glm::vec2 nearFar;
     } pushStruct;
 
     SharedResources sharedResources;

@@ -100,7 +100,7 @@ void createPipeline(vk::Device &device, vk::Pipeline &pipeline,
 }
 //Number of DescriptorSets is one by default
 void createDescriptorPool(vk::Device &device, std::vector<vk::DescriptorSetLayoutBinding> &bindings, vk::DescriptorPool &descPool, uint32_t numDescriptorSets) {
-    uint32_t numStorage = 0, numCombinedImageSampler = 0, numUniform = 0;
+    uint32_t numStorage = 0, numCombinedImageSampler = 0, numUniform = 0, numInputAttachment = 0;
 
     for (const auto &binding: bindings) {
         switch (binding.descriptorType) {
@@ -112,6 +112,9 @@ void createDescriptorPool(vk::Device &device, std::vector<vk::DescriptorSetLayou
                 break;
             case vk::DescriptorType::eUniformBuffer:
                 numUniform++;
+                break;
+            case vk::DescriptorType::eInputAttachment:
+                numInputAttachment++;
                 break;
             default:
                 break;
@@ -129,6 +132,9 @@ void createDescriptorPool(vk::Device &device, std::vector<vk::DescriptorSetLayou
     if (numUniform > 0)
         descriptorPoolSizes.push_back(vk::DescriptorPoolSize {
                 vk::DescriptorType::eUniformBuffer, numUniform * numDescriptorSets});
+    if (numInputAttachment > 0)
+        descriptorPoolSizes.push_back(vk::DescriptorPoolSize {
+                vk::DescriptorType::eInputAttachment, numInputAttachment * numDescriptorSets});
 
     // Data to create Descriptor Pool
     vk::DescriptorPoolCreateInfo descriptorPoolCI = vk::DescriptorPoolCreateInfo(

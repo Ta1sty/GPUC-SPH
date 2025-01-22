@@ -2,6 +2,7 @@
 
 layout(push_constant) uniform PushStruct {
     mat4 mvp;
+    vec3 cameraPos;
 } p;
 
 layout (location = 0) in vec3 inPos;
