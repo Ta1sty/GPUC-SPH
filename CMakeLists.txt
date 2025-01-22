@@ -113,6 +113,8 @@ add_shader(${PROJECT_NAME} shaders/particle2d.geom)
 add_shader(${PROJECT_NAME} shaders/particle2d.frag)
 add_shader(${PROJECT_NAME} shaders/background2d.vert)
 add_shader(${PROJECT_NAME} shaders/background2d.frag)
+add_shader(${PROJECT_NAME} shaders/simulation_cube.vert)
+add_shader(${PROJECT_NAME} shaders/ray_marcher.frag)
 
 add_shader(${PROJECT_NAME} shaders/spatial_lookup.write.comp)
 add_shader(${PROJECT_NAME} shaders/spatial_lookup.sort.bubble.comp)

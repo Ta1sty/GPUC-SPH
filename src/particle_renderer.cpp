@@ -276,7 +276,6 @@ Texture Texture::createColormapTexture(const std::vector<colormaps::RGB_F32> &co
 
 ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resources.extent.height, 1) {
     sharedResources = std::make_shared<SharedResources>();
-    sharedResources->colormap = Texture::createColormapTexture(colormaps::viridis);
 
     // color attachment image
     {
@@ -380,6 +379,13 @@ ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resourc
                  colorAttachmentReference,
                  {},
                  &depthAttachmentReference,
+                 {}},
+                {{},// ray marcher (depends on depth buffer)
+                 vk::PipelineBindPoint::eGraphics,
+                 {},
+                 colorAttachmentReference,
+                 {},
+                 nullptr,
                  {}}};
 
         vk::SubpassDependency dependencies[] {
@@ -395,15 +401,21 @@ ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resourc
                  {vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests},
                  {vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests},
                  {vk::AccessFlagBits::eColorAttachmentWrite},
-                 {vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite}}};
+                 {vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite}},
+                {1,
+                 2,
+                 {vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests},
+                 {vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests},
+                 {vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite},
+                 {vk::AccessFlagBits::eColorAttachmentWrite}}};
 
         vk::RenderPassCreateInfo renderPassCI {
                 {},
                 attachments.size(),
                 attachments.data(),
-                2U,
+                3U,
                 subpasses,
-                2U,
+                3U,
                 dependencies};
 
         renderPass = resources.device.createRenderPass(renderPassCI);
@@ -417,16 +429,13 @@ ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resourc
                                                           imageSize.depth});
     }
 
-    sharedResources->uniformBuffer = createBuffer(resources.pDevice, resources.device, sizeof(UniformBufferStruct),
-                                                  {vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst},
-                                                  {vk::MemoryPropertyFlagBits::eDeviceLocal},
-                                                  "renderUniformBuffer");
-
+    // this needs to be done here as uniformBufferContent is owned by this class
     const std::vector<UniformBufferStruct> uniformBufferVector {uniformBufferContent};
     fillDeviceWithStagingBuffer(sharedResources->uniformBuffer, uniformBufferVector);
 
     background2DPipeline = std::make_unique<Background2DPipeline>(renderPass, 0, framebuffer, sharedResources);
     particleCirclePipeline = std::make_unique<ParticleCirclePipeline>(renderPass, 1, framebuffer, sharedResources);
+    rayMarcherPipeline = std::make_unique<RayMarcherPipeline>(renderPass, 2, framebuffer, sharedResources);
 }
 
 ParticleRenderer::~ParticleRenderer() {
@@ -492,12 +501,76 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState) {
     commandBuffer.nextSubpass(vk::SubpassContents::eInline);
     particleCirclePipeline->draw(commandBuffer, simulationState);
 
+    /* ========== Ray Marcher Subpass ========== */
+    commandBuffer.nextSubpass(vk::SubpassContents::eInline);
+    switch (simulationState.parameters.type) {
+        case SceneType::SPH_BOX_3D:
+            rayMarcherPipeline->draw(commandBuffer, simulationState);
+            break;
+        default:
+            break;
+    }
+
     commandBuffer.endRenderPass();
     commandBuffer.end();
 }
 
 vk::Image ParticleRenderer::getImage() {
     return colorAttachment;
+}
+
+ParticleRenderer::SharedResources::SharedResources() : colormap(Texture::createColormapTexture(colormaps::viridis)) {
+    // initialized in SharedResources()
+    uniformBuffer = createBuffer(resources.pDevice, resources.device, sizeof(UniformBufferStruct),
+                                 {vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst},
+                                 {vk::MemoryPropertyFlagBits::eDeviceLocal},
+                                 "renderUniformBuffer");
+
+    // quad vertex buffer
+    const std::vector<glm::vec2> quadVertices {
+            {0.0f, 0.0f},
+            {1.0f, 0.0f},
+            {1.0f, 1.0f},
+            {0.0f, 1.0f}};
+
+    const std::vector<uint16_t> quadIndices {
+            0, 1, 2, 2, 3, 0};
+
+    quadVertexBuffer = createBuffer(resources.pDevice, resources.device, quadVertices.size() * sizeof(glm::vec2),
+                                    {vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst},
+                                    {vk::MemoryPropertyFlagBits::eDeviceLocal},
+                                    "quadVertexBuffer");
+
+    quadIndexBuffer = createBuffer(resources.pDevice, resources.device, quadIndices.size() * sizeof(uint16_t),
+                                   {vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst},
+                                   {vk::MemoryPropertyFlagBits::eDeviceLocal},
+                                   "quadIndexBuffer");
+
+    fillDeviceWithStagingBuffer(quadVertexBuffer, quadVertices);
+    fillDeviceWithStagingBuffer(quadIndexBuffer, quadIndices);
+
+    // https://stackoverflow.com/questions/28375338/cube-using-single-gl-triangle-strip
+    const std::vector<glm::vec3> cubeVertices {
+            {1.f, 1.f, 1.f},
+            {-1.f, 1.f, 1.f},
+            {1.f, -1.f, 1.f},
+            {-1.f, -1.f, 1.f},
+            {-1.f, -1.f, -1.f},
+            {-1.f, 1.f, 1.f},
+            {-1.f, 1.f, -1.f},
+            {1.f, 1.f, 1.f},
+            {1.f, 1.f, -1.f},
+            {1.f, -1.f, 1.f},
+            {1.f, -1.f, -1.f},
+            {-1.f, -1.f, -1.f},
+            {1.f, 1.f, -1.f},
+            {-1.f, 1.f, -1.f}};
+
+    cubeVertexBuffer = createBuffer(resources.pDevice, resources.device, cubeVertices.size() * sizeof(glm::vec3),
+                                    {vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst},
+                                    {vk::MemoryPropertyFlagBits::eDeviceLocal},
+                                    "quadVertexBuffer");
+    fillDeviceWithStagingBuffer(cubeVertexBuffer, cubeVertices);
 }
 
 ParticleCirclePipeline::ParticleCirclePipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, SharedResources sharedResources) : sharedResources(sharedResources) {
@@ -602,29 +675,6 @@ Background2DPipeline::Background2DPipeline(const vk::RenderPass &renderPass, uin
 
     auto pipelines = GraphicsPipelineBuilder::createPipelines(builders);
     pipeline = pipelines[0];
-
-    // quad vertex buffer
-    const std::vector<glm::vec2> quadVertices {
-            {0.0f, 0.0f},
-            {1.0f, 0.0f},
-            {1.0f, 1.0f},
-            {0.0f, 1.0f}};
-
-    const std::vector<uint16_t> quadIndices {
-            0, 1, 2, 2, 3, 0};
-
-    quadVertexBuffer = createBuffer(resources.pDevice, resources.device, quadVertices.size() * sizeof(glm::vec2),
-                                    {vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst},
-                                    {vk::MemoryPropertyFlagBits::eDeviceLocal},
-                                    "quadVertexBuffer");
-
-    quadIndexBuffer = createBuffer(resources.pDevice, resources.device, quadIndices.size() * sizeof(uint16_t),
-                                   {vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst},
-                                   {vk::MemoryPropertyFlagBits::eDeviceLocal},
-                                   "quadIndexBuffer");
-
-    fillDeviceWithStagingBuffer(quadVertexBuffer, quadVertices);
-    fillDeviceWithStagingBuffer(quadIndexBuffer, quadIndices);
 }
 
 Background2DPipeline::~Background2DPipeline() {
@@ -640,8 +690,8 @@ void Background2DPipeline::draw(vk::CommandBuffer &cb, const SimulationState &si
     pushStruct.mvp = simulationState.camera->viewProjectionMatrix();
 
     cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
-    cb.bindVertexBuffers(0, 1, &quadVertexBuffer.buf, offsets);
-    cb.bindIndexBuffer(quadIndexBuffer.buf, 0UL, vk::IndexType::eUint16);
+    cb.bindVertexBuffers(0, 1, &sharedResources->quadVertexBuffer.buf, offsets);
+    cb.bindIndexBuffer(sharedResources->quadIndexBuffer.buf, 0UL, vk::IndexType::eUint16);
     cb.pushConstants(pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
     cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descriptorPool.sets[0],
                           0, nullptr);
@@ -655,4 +705,46 @@ void Background2DPipeline::updateDescriptorSets(const SimulationState &simulatio
     Cmn::bindBuffers(resources.device, sharedResources->uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
     Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 3);
     Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, descriptorSet, 4);
+}
+
+RayMarcherPipeline::RayMarcherPipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, GraphicsPipeline::SharedResources renderer) : sharedResources(renderer) {
+    descriptorPool.addStorage(0, 1, vk::ShaderStageFlagBits::eFragment);
+    descriptorPool.allocate();
+
+    pipelineLayout = createPipelineLayout<PushStruct>(descriptorPool);
+    std::vector<GraphicsPipelineBuilder> builders;
+    builders.emplace_back(GraphicsPipelineBuilder {
+            {{vk::ShaderStageFlagBits::eVertex, "simulation_cube.vert.3D"},
+             {vk::ShaderStageFlagBits::eFragment, "ray_marcher.frag.3D"}},
+            pipelineLayout,
+            renderPass,
+            subpass});
+    builders[0].vertexInputBindings[0].stride = 3 * 4;
+    builders[0].vertexInputAttributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
+    builders[0].inputAssemblySCI.topology = vk::PrimitiveTopology::eTriangleStrip;
+
+    auto pipelines = GraphicsPipelineBuilder::createPipelines(builders);
+    pipeline = pipelines[0];
+}
+
+RayMarcherPipeline::~RayMarcherPipeline() {
+    resources.device.destroyPipeline(pipeline);
+    resources.device.destroyPipelineLayout(pipelineLayout);
+}
+
+void RayMarcherPipeline::draw(vk::CommandBuffer &cb, const SimulationState &simulationState) {
+    updateDescriptorSets(simulationState);
+    uint64_t offsets[] = {0UL};
+    pushStruct.mvp = simulationState.camera->viewProjectionMatrix();
+
+    cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+    cb.bindVertexBuffers(0, 1, &sharedResources->cubeVertexBuffer.buf, offsets);
+    cb.pushConstants(pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
+    cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descriptorPool.sets[0], 0, nullptr);
+    cb.draw(14, 1, 0, 0);
+}
+
+void RayMarcherPipeline::updateDescriptorSets(const SimulationState &simulationState) {
+    auto &descriptorSet = descriptorPool.sets[0];
+    Cmn::bindBuffers(resources.device, simulationState.particleCoordinateBuffer.buf, descriptorSet, 0);
 }

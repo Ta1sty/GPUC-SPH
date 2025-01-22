@@ -5,6 +5,7 @@
 
 class ParticleCirclePipeline;
 class Background2DPipeline;
+class RayMarcherPipeline;
 
 struct Texture {
     vk::Image image;
@@ -46,6 +47,13 @@ public:
     struct SharedResources {
         Texture colormap;
         Buffer uniformBuffer;
+
+        Buffer quadVertexBuffer;
+        Buffer quadIndexBuffer;
+        Buffer cubeVertexBuffer;
+
+        SharedResources();
+        ~SharedResources() = default;
     };
 
 private:
@@ -63,6 +71,7 @@ private:
 
     std::unique_ptr<ParticleCirclePipeline> particleCirclePipeline;
     std::unique_ptr<Background2DPipeline> background2DPipeline;
+    std::unique_ptr<RayMarcherPipeline> rayMarcherPipeline;
     std::shared_ptr<SharedResources> sharedResources;
 
     struct UniformBufferStruct {
@@ -102,6 +111,7 @@ public:
 
         return resources.device.createPipelineLayout(pipelineLayoutCI);
     }
+
 
     using SharedResources = std::shared_ptr<ParticleRenderer::SharedResources>;
 };
@@ -145,7 +155,22 @@ private:
     Cmn::DescriptorPool descriptorPool;
     vk::PipelineLayout pipelineLayout;
     vk::Pipeline pipeline;
+};
 
-    Buffer quadVertexBuffer;
-    Buffer quadIndexBuffer;
+class RayMarcherPipeline : public GraphicsPipeline {
+public:
+    RayMarcherPipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, SharedResources renderer);
+    ~RayMarcherPipeline() override;
+    void draw(vk::CommandBuffer &cb, const SimulationState &simulationState) override;
+    void updateDescriptorSets(const SimulationState &simulationState) override;
+
+private:
+    struct PushStruct {
+        glm::mat4 mvp;
+    } pushStruct;
+
+    SharedResources sharedResources;
+    Cmn::DescriptorPool descriptorPool;
+    vk::PipelineLayout pipelineLayout;
+    vk::Pipeline pipeline;
 };
