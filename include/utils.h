@@ -226,7 +226,7 @@ void fillHostWithStagingBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
 }
 
 template<typename T>
-void fillHostWithStagingBuffer(Buffer &b, std::vector<T> &data) {
+void fillHostWithStagingBuffer(const Buffer &b, std::vector<T> &data) {
     fillHostWithStagingBuffer<T>(resources.pDevice, resources.device, resources.transferCommandPool, resources.transferQueue, b, data);
 }
 

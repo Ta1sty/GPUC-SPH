@@ -32,6 +32,7 @@ public:
     SimulationTime time;
     Buffer particleCoordinateBuffer;
     Buffer particleVelocityBuffer;
+    Buffer particleDensityBuffer;
 
     const SimulationParameters parameters;
     std::shared_ptr<Camera> camera;

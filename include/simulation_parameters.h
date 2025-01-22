@@ -37,6 +37,8 @@ public:
     float gravity = 9.81f;              // Default Earth gravity
     float deltaTime = 1.0f / 60.0f;     // Default 60 FPS
     float collisionDampingFactor = 0.8f;// Default 20% energy loss
+    float targetDensity = 2.75f;
+    float pressureMultiplier = 0.5f;
 
 public:
     SimulationParameters() = default;

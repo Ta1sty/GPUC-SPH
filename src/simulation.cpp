@@ -371,10 +371,10 @@ void Simulation::processUpdateFlags(const UiBindings::UpdateFlags &updateFlags) 
 
 void Simulation::updateCommandBuffers() {
     particleRenderer->updateCmd(*simulationState);
-    particlePhysics->updateCmd(*simulationState);
 }
 
 void Simulation::reset() {
+    std::cout << "Simulation reset" << std::endl;
     cmdReset.reset();
     cmdReset.begin(vk::CommandBufferBeginInfo());
     simulationState->debugImagePhysics->clear(cmdReset, {1, 0, 0, 1});
@@ -387,6 +387,8 @@ void Simulation::reset() {
 
     // the spatial-lookup needs to always run at least once before any run
     spatialLookup->updateCmd(*simulationState);
+    particlePhysics->updateCmd(*simulationState);
+
     auto cmd = spatialLookup->run(*simulationState);
     if (nullptr != cmd) {
         vk::SubmitInfo submit({}, {}, cmd);
@@ -395,4 +397,6 @@ void Simulation::reset() {
     }
 
     prevTime = glfwGetTime();
+
+    std::cout << "Simulation reset done" << std::endl;
 }
