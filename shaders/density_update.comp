@@ -1,0 +1,73 @@
+#version 450
+
+
+layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+
+layout(binding = 0) buffer positionBuffer { vec2 positions[]; };
+layout(binding = 1) buffer velocityBuffer { vec2 velocities[]; };
+layout(binding = 2) buffer densityBuffer { float densities[]; };
+
+layout(push_constant) uniform PushStruct {
+    float gravity;
+    float deltaTime;
+    uint numParticles;
+    float collisionDampingFactor;
+    float spatialRadius;
+    float targetDensity;
+    float pressureMultiplier;
+}
+constants;
+
+#define GRID_NUM_ELEMENTS constants.numParticles
+#define GRID_CELL_SIZE constants.spatialRadius
+#define GRID_BINDING_LOOKUP 3
+#define GRID_BINDING_INDEX 4
+#define COORDINATES_BUFFER_NAME positions
+#include "spatial_lookup.glsl"
+
+const float PI = 3.14159265359;
+const float particleMass = 1.0;
+
+float smoothingKernel(float radius, float dist) {
+    if (dist >= radius) return 0.0;
+    float volume = (PI * pow(radius, 4)) / 6.0;
+    return (radius - dist) * (radius - dist) / volume;
+}
+
+float smoothingKernelDerivative(float radius, float dist) {
+    if (dist >= radius) return 0.0;
+
+    float scale = 12.0 / (PI * pow(radius, 4));
+    return (dist - radius) * scale;
+}
+
+void addDensity(inout float density, const float radius, const float mass, uint neighbourIndex, vec2 neighbourPosition, float neighbourDistance) {
+    float influence = smoothingKernel(radius, neighbourDistance);
+    float contribution = mass * influence;
+    density += contribution;
+}
+
+float evaluateDensity(vec2 pos, float radius) {
+    float density = 0.0;
+
+    FOREACH_NEIGHBOUR(pos, {
+        //density += 1.0;
+        addDensity(density, radius, particleMass, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE);
+    });
+
+    return density;
+}
+
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+    if (index >= constants.numParticles) return;
+
+    vec2 position = positions[index];
+    vec2 velocity = velocities[index];
+    //apply gravity
+    velocity += vec2(0.0, constants.gravity) * constants.deltaTime;
+
+    float density = evaluateDensity(position, constants.spatialRadius);
+    densities[index] = density;
+    velocities[index] = velocity;
+}

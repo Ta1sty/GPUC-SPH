@@ -1,6 +1,7 @@
 #pragma once
 
 #include "initialization.h"
+#include <functional>
 
 class DebugImage {
     vk::DescriptorImageInfo descriptorInfo;

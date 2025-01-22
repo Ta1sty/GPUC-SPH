@@ -555,7 +555,8 @@ void createSwapchain(AppResources &app) {
     // How many images are in the swap chain? Get 1 more than the minimum to allow triple buffering
     uint32_t selectedImageCount = capabilities.minImageCount + 1;
     // If imageCount higher than max, then clamp down to max
-    selectedImageCount = std::clamp(selectedImageCount, capabilities.minImageCount, capabilities.maxImageCount);
+    auto maxCount = (capabilities.maxImageCount == 0) ? selectedImageCount : capabilities.maxImageCount;
+    selectedImageCount = std::clamp(selectedImageCount, capabilities.minImageCount, maxCount);
 
     // Creation information for swap chain
     vk::SwapchainCreateInfoKHR createInfo(

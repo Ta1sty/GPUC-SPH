@@ -2,38 +2,90 @@
 
 layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0) buffer positionBuffer { float positions[]; };
-layout(binding = 1) buffer velocityBuffer { float velocities[]; };
+layout(binding = 0) buffer positionBuffer { vec2 positions[]; };
+layout(binding = 1) buffer velocityBuffer { vec2 velocities[]; };
+layout(binding = 2) buffer densityBuffer { float densities[]; };
+layout(binding = 5) buffer positionOutputBuffer { vec2 positionsOutput[]; };
 
 layout(push_constant) uniform PushStruct {
     float gravity;
     float deltaTime;
     uint numParticles;
     float collisionDampingFactor;
+    float spatialRadius;
+    float targetDensity;
+    float pressureMultiplier;
 }
 constants;
 
-const float VELOCITY_THRESHOLD = 0.5;
+#define GRID_NUM_ELEMENTS constants.numParticles
+#define GRID_CELL_SIZE constants.spatialRadius
+#define GRID_BINDING_LOOKUP 3
+#define GRID_BINDING_INDEX 4
+#define COORDINATES_BUFFER_NAME positions
+#include "spatial_lookup.glsl"
+
+const float PI = 3.14159265359;
+const float particleMass = 1.0;
+
+float smoothingKernel(float radius, float dist) {
+    if (dist >= radius) return 0.0;
+    float volume = (PI * pow(radius, 4)) / 6.0;
+    return (radius - dist) * (radius - dist) / volume;
+}
+
+float smoothingKernelDerivative(float radius, float dist) {
+    if (dist >= radius) return 0.0;
+
+    float scale = 12.0 / (PI * pow(radius, 4));
+    return (dist - radius) * scale;
+}
+
+float density2pressure(float density) {
+    return constants.pressureMultiplier * (density - constants.targetDensity);
+}
+
+void addPressureForce(inout vec2 pressureForce, const vec2 pos, const float density, const float radius, const float mass, uint neighbourIndex, vec2 neighbourPosition, float neighbourDistance) {
+    vec2 diff = pos - neighbourPosition;
+    float dist = length(diff);
+    vec2 direction;
+    if (dist == 0.0) {
+        //pick a random direction
+        float angle = fract(sin(float(neighbourIndex) * 12.9898) * 43758.5453) * 2.0 * PI;
+        direction = vec2(cos(angle), sin(angle));
+    } else {
+        direction = diff / dist;
+    }
+    float slope = -smoothingKernelDerivative(radius, dist);
+    pressureForce += density2pressure(density) * direction * slope * mass / density;
+}
+
+vec2 calculatePressureForce(vec2 pos, const float density, float radius) {
+    vec2 pressureForce = vec2(0.0, 0.0);
+    FOREACH_NEIGHBOUR(pos, {
+        addPressureForce(pressureForce, pos, density, radius, particleMass, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE);
+    });
+    return pressureForce;
+}
 
 void main() {
     uint index = gl_GlobalInvocationID.x;
     if (index >= constants.numParticles) return;
 
-    vec2 position = vec2(positions[2 * index], positions[2 * index + 1]);
-    vec2 velocity = vec2(velocities[2 * index], velocities[2 * index + 1]);
+    vec2 position = positions[index];
+    vec2 velocity = velocities[index];
+    float density = densities[index];
 
+    vec2 pressureForce = calculatePressureForce(position, density, constants.spatialRadius);
+    vec2 pressureAcceleration = pressureForce / density;
+
+    // Update velocity
     velocity += vec2(0.0, constants.gravity) * constants.deltaTime;
-    // Stop particles with very small velocities
-    if (abs(velocity.y) < VELOCITY_THRESHOLD && position.y <= 0.0) {
-        velocity.y = 0.0;
-        position.y = 0.0;// Snap to ground
-    }
-    if (abs(velocity.x) < VELOCITY_THRESHOLD) {
-        velocity.x = 0.0;
-    }
+    velocity = pressureAcceleration * constants.deltaTime;
+
+
     // Update position
     position += velocity * constants.deltaTime;
-
 
     // Resolve collisions
     if (position.x < 0.0) {
@@ -51,13 +103,7 @@ void main() {
         velocity *= -constants.collisionDampingFactor;
     }
 
-    // Stop particles with very small velocities
 
-
-    //barrier();
-    // Write back results
-    positions[2 * index] = position.x;
-    positions[2 * index + 1] = position.y;
-    velocities[2 * index] = velocity.x;
-    velocities[2 * index + 1] = velocity.y;
+    positionsOutput[index] = position;
+    velocities[index] = velocity;
 }
