@@ -78,7 +78,7 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
 
     Cmn::bindBuffers(resources.device, state.spatialLookup.buf, descriptorSet, 0);
     Cmn::bindBuffers(resources.device, state.spatialIndices.buf, descriptorSet, 1);
-    Cmn::bindBuffers(resources.device, state.particleCoordinatePredictionsBuffer.buf, descriptorSet, 2);
+    Cmn::bindBuffers(resources.device, state.particleCoordinateBuffer.buf, descriptorSet, 2);
 
     std::cout
             << "Spatial-Lookup-Record"

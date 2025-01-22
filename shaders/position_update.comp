@@ -5,7 +5,6 @@ layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 layout(binding = 0) buffer positionBuffer { vec2 positions[]; };
 layout(binding = 1) buffer velocityBuffer { vec2 velocities[]; };
 layout(binding = 5) buffer positionOutputBuffer { vec2 positionsOutput[]; };
-layout(binding = 6) buffer positionPredictions { vec2 predictions[]; };
 
 layout(push_constant) uniform PushStruct {
     float gravity;
@@ -47,8 +46,5 @@ void main() {
 
     // Write updated position to output buffer
     positionsOutput[index] = position;
-
-    vec2 velocity_next = velocity + vec2(0.0, constants.gravity * constants.deltaTime);
-    velocities[index] = velocity_next;
-    predictions[index] = position + velocity_next;
+    velocities[index] = velocity;
 }

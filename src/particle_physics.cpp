@@ -67,7 +67,6 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
     Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 3);
     Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, descriptorSet, 4);
     Cmn::bindBuffers(resources.device, particleCoordinateBufferCopy.buf, descriptorSet, 5);
-    Cmn::bindBuffers(resources.device, simulationState.particleCoordinatePredictionsBuffer.buf, descriptorSet, 6);
 
     uint32_t dx = (simulationState.parameters.numParticles + workgroupSizeX - 1) / workgroupSizeX;
     uint32_t dy = 1;// TODO : make this dynamic
@@ -124,6 +123,20 @@ vk::CommandBuffer ParticleSimulation::run(const SimulationState &simulationState
 
     if (nullptr == cmd || hasStateChanged(simulationState)) {
         updateCmd(simulationState);
+    }
+    std::vector<glm::vec2> positions(simulationState.parameters.numParticles);
+    std::vector<glm::vec2> velocities(simulationState.parameters.numParticles);
+    std::vector<float> densities(simulationState.parameters.numParticles);
+
+    fillHostWithStagingBuffer(simulationState.particleCoordinateBuffer, positions);
+    fillHostWithStagingBuffer(simulationState.particleVelocityBuffer, velocities);
+    fillHostWithStagingBuffer(simulationState.particleDensityBuffer, densities);
+
+    std::cout << "Particle state:" << std::endl;
+    for (uint32_t i = 0; i < simulationState.parameters.numParticles; i++) {
+        std::cout << "Particle " << i << ": pos=" << positions[i].x << "," << positions[i].y
+                  << " vel=" << velocities[i].x << "," << velocities[i].y
+                  << " density=" << densities[i] << std::endl;
     }
     return cmd;
 }

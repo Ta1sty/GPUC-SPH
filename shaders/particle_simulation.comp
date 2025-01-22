@@ -6,7 +6,6 @@ layout(binding = 0) buffer positionBuffer { vec2 positions[]; };
 layout(binding = 1) buffer velocityBuffer { vec2 velocities[]; };
 layout(binding = 2) buffer densityBuffer { float densities[]; };
 layout(binding = 5) buffer positionOutputBuffer { vec2 positionsOutput[]; };
-layout(binding = 6) buffer positionPredictions { vec2 predictions[]; };
 
 layout(push_constant) uniform PushStruct {
     float gravity;
@@ -23,7 +22,7 @@ constants;
 #define GRID_CELL_SIZE constants.spatialRadius
 #define GRID_BINDING_LOOKUP 3
 #define GRID_BINDING_INDEX 4
-#define COORDINATES_BUFFER_NAME predictions
+#define COORDINATES_BUFFER_NAME positions
 #include "spatial_lookup.glsl"
 
 const float PI = 3.14159265359;
@@ -53,11 +52,15 @@ float calculateSharedPressure(float density, float neighbourDensity) {
 void addPressureForce(inout vec2 pressureForce, const vec2 pos, const float density, const float radius, const float mass, uint neighbourIndex, vec2 neighbourPosition, float neighbourDistance) {
     vec2 diff = pos - neighbourPosition;
     float dist = length(diff);
+    if (dist >= radius) return;
     vec2 direction;
     if (dist == 0.0) {
+        /*
         //pick a random direction
         float angle = fract(sin(float(neighbourIndex) * 12.9898) * 43758.5453) * 2.0 * PI;
         direction = vec2(cos(angle), sin(angle));
+        */
+        return;
     } else {
         direction = diff / dist;
     }
@@ -78,7 +81,7 @@ void main() {
     uint index = gl_GlobalInvocationID.x;
     if (index >= constants.numParticles) return;
 
-    vec2 position = predictions[index];
+    vec2 position = positions[index];
     vec2 velocity = velocities[index];
     float density = densities[index];
 
@@ -87,6 +90,7 @@ void main() {
 
     // Update velocity
     velocity += pressureAcceleration * constants.deltaTime;
+    velocity += vec2(0.0, constants.gravity * constants.deltaTime);
 
     velocities[index] = velocity;
 }
