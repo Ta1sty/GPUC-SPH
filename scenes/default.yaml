@@ -4,5 +4,5 @@ num_particles: 1024
 gravity: 9.81
 deltaTime: 0.008
 collisionDampingFactor: 0.8
-targetDensity: 0.275
-pressureMultiplier: 0.01
+targetDensity: 1000
+pressureMultiplier: 0.8
