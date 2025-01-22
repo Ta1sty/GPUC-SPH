@@ -91,6 +91,7 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 
 add_shader(${PROJECT_NAME} shaders/particle_simulation.comp)
 add_shader(${PROJECT_NAME} shaders/density_update.comp)
+add_shader(${PROJECT_NAME} shaders/position_update.comp)
 
 add_shader(${PROJECT_NAME} shaders/particles.comp)
 add_shader(${PROJECT_NAME} shaders/white.frag)

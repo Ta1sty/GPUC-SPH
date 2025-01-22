@@ -1,0 +1,54 @@
+#version 450
+
+layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+
+layout(binding = 0) buffer positionBuffer { vec2 positions[]; };
+layout(binding = 1) buffer velocityBuffer { vec2 velocities[]; };
+layout(binding = 5) buffer positionOutputBuffer { vec2 positionsOutput[]; };
+layout(binding = 6) buffer positionPredictions { vec2 predictions[]; };
+
+layout(push_constant) uniform PushStruct {
+    float gravity;
+    float deltaTime;
+    uint numParticles;
+    float collisionDampingFactor;
+    float spatialRadius;
+    float targetDensity;
+    float pressureMultiplier;
+}
+constants;
+
+
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+    if (index >= constants.numParticles) return;
+
+    vec2 position = positions[index];
+    vec2 velocity = velocities[index];
+
+    // Update position using velocity
+    position += velocity * constants.deltaTime;
+
+    // Resolve collisions
+    if (position.x < 0.0) {
+        position.x = -position.x;
+        velocity *= -constants.collisionDampingFactor;
+    } else if (position.x > 1.0) {
+        position.x = 2 - position.x;
+        velocity *= -constants.collisionDampingFactor;
+    }
+    if (position.y < 0.0) {
+        position.y = -position.y;
+        velocity *= -constants.collisionDampingFactor;
+    } else if (position.y > 1.0) {
+        position.y = 2 - position.y;
+        velocity *= -constants.collisionDampingFactor;
+    }
+
+    // Write updated position to output buffer
+    positionsOutput[index] = position;
+
+    vec2 velocity_next = velocity + vec2(0.0, constants.gravity * constants.deltaTime);
+    velocities[index] = velocity_next;
+    predictions[index] = position + velocity_next;
+}

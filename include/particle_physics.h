@@ -41,11 +41,10 @@ private:
 
     vk::Pipeline computePipeline;
     vk::Pipeline densityPipeline;
+    vk::Pipeline positionUpdatePipeline;
     vk::PipelineLayout pipelineLayout;
 
     SimulationParameters simulationParameters;
 
     Buffer particleCoordinateBufferCopy;
-    Buffer particleVelocityBufferCopy;
-    Buffer particleDensityBufferCopy;
 };

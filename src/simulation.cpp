@@ -370,7 +370,6 @@ void Simulation::reset() {
 
     // the spatial-lookup needs to always run at least once before any run
     spatialLookup->updateCmd(*simulationState);
-    particlePhysics->updateCmd(*simulationState);
 
     auto cmd = spatialLookup->run(*simulationState);
     if (nullptr != cmd) {
@@ -379,6 +378,7 @@ void Simulation::reset() {
         resources.device.waitIdle();
     }
 
+    particlePhysics->updateCmd(*simulationState);
     prevTime = glfwGetTime();
 
     std::cout << "Simulation reset done" << std::endl;

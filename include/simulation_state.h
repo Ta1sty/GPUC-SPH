@@ -31,6 +31,7 @@ public:
 
     SimulationTime time;
     Buffer particleCoordinateBuffer;
+    Buffer particleCoordinatePredictionsBuffer;
     Buffer particleVelocityBuffer;
     Buffer particleDensityBuffer;
 

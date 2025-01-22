@@ -6,6 +6,7 @@ layout(binding = 0) buffer positionBuffer { vec2 positions[]; };
 layout(binding = 1) buffer velocityBuffer { vec2 velocities[]; };
 layout(binding = 2) buffer densityBuffer { float densities[]; };
 layout(binding = 5) buffer positionOutputBuffer { vec2 positionsOutput[]; };
+layout(binding = 6) buffer positionPredictions { vec2 predictions[]; };
 
 layout(push_constant) uniform PushStruct {
     float gravity;
@@ -22,7 +23,7 @@ constants;
 #define GRID_CELL_SIZE constants.spatialRadius
 #define GRID_BINDING_LOOKUP 3
 #define GRID_BINDING_INDEX 4
-#define COORDINATES_BUFFER_NAME positions
+#define COORDINATES_BUFFER_NAME predictions
 #include "spatial_lookup.glsl"
 
 const float PI = 3.14159265359;
@@ -45,6 +46,10 @@ float density2pressure(float density) {
     return constants.pressureMultiplier * (density - constants.targetDensity);
 }
 
+float calculateSharedPressure(float density, float neighbourDensity) {
+    return (density2pressure(density) + density2pressure(neighbourDensity)) / 2;
+}
+
 void addPressureForce(inout vec2 pressureForce, const vec2 pos, const float density, const float radius, const float mass, uint neighbourIndex, vec2 neighbourPosition, float neighbourDistance) {
     vec2 diff = pos - neighbourPosition;
     float dist = length(diff);
@@ -57,7 +62,8 @@ void addPressureForce(inout vec2 pressureForce, const vec2 pos, const float dens
         direction = diff / dist;
     }
     float slope = -smoothingKernelDerivative(radius, dist);
-    pressureForce += density2pressure(density) * direction * slope * mass / density;
+    float sharedPressure = calculateSharedPressure(density, densities[neighbourIndex]);
+    pressureForce += sharedPressure * direction * slope * mass / density;
 }
 
 vec2 calculatePressureForce(vec2 pos, const float density, float radius) {
@@ -72,7 +78,7 @@ void main() {
     uint index = gl_GlobalInvocationID.x;
     if (index >= constants.numParticles) return;
 
-    vec2 position = positions[index];
+    vec2 position = predictions[index];
     vec2 velocity = velocities[index];
     float density = densities[index];
 
@@ -80,30 +86,7 @@ void main() {
     vec2 pressureAcceleration = pressureForce / density;
 
     // Update velocity
-    velocity += vec2(0.0, constants.gravity) * constants.deltaTime;
-    velocity = pressureAcceleration * constants.deltaTime;
+    velocity += pressureAcceleration * constants.deltaTime;
 
-
-    // Update position
-    position += velocity * constants.deltaTime;
-
-    // Resolve collisions
-    if (position.x < 0.0) {
-        position.x = -position.x;
-        velocity *= -constants.collisionDampingFactor;
-    } else if (position.x > 1.0) {
-        position.x = 2 - position.x;
-        velocity *= -constants.collisionDampingFactor;
-    }
-    if (position.y < 0.0) {
-        position.y = -position.y;
-        velocity *= -constants.collisionDampingFactor;
-    } else if (position.y > 1.0) {
-        position.y = 2 - position.y;
-        velocity *= -constants.collisionDampingFactor;
-    }
-
-
-    positionsOutput[index] = position;
     velocities[index] = velocity;
 }

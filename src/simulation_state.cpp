@@ -75,11 +75,12 @@ SimulationState::SimulationState(const SimulationParameters &_parameters, std::s
     }
     // Particles
     particleCoordinateBuffer = createDeviceLocalBuffer("buffer-particles", coordinateBufferSize, vk::BufferUsageFlagBits::eVertexBuffer);
-    particleVelocityBuffer = createDeviceLocalBuffer("buffer-velocities", coordinateBufferSize);//just a storage buffer
+    particleCoordinatePredictionsBuffer = createDeviceLocalBuffer("buffer-predictions", coordinateBufferSize);
+    particleVelocityBuffer = createDeviceLocalBuffer("buffer-velocities", coordinateBufferSize);
     particleDensityBuffer = createDeviceLocalBuffer("buffer-densities", parameters.numParticles * sizeof(float));
     std::vector<float> coordinateValues;
-    std::vector<float> velocityValues(2 * parameters.numParticles, 0.0f);// initialize velocities to 0
-    std::vector<float> densityValues(parameters.numParticles, 0.0f);     // initialize densities to 0
+    std::vector<float> velocityValues;
+    std::vector<float> densityValues(parameters.numParticles, 0.0f);// initialize densities to 0
 
     switch (parameters.initializationFunction) {
         case InitializationFunction::UNIFORM:
@@ -89,9 +90,22 @@ SimulationState::SimulationState(const SimulationParameters &_parameters, std::s
             coordinateValues = initPoissonDisk(parameters.type, parameters.numParticles, random);
             break;
     }
+
+    float initial_velocity_y = parameters.gravity * parameters.deltaTime;
+    velocityValues.resize(2 * parameters.numParticles);
+    for (uint32_t i = 0; i < parameters.numParticles; i++) {
+        velocityValues.push_back(0.0f);              // x velocity = 0
+        velocityValues.push_back(initial_velocity_y);// y velocity from gravity
+    }
+
     fillDeviceWithStagingBuffer(particleCoordinateBuffer, coordinateValues);
     fillDeviceWithStagingBuffer(particleVelocityBuffer, velocityValues);
     fillDeviceWithStagingBuffer(particleDensityBuffer, densityValues);
+
+    for (size_t i = 0; i < coordinateValues.size(); i += 2) {
+        coordinateValues[i + 1] += initial_velocity_y;// Add gravity offset to y-coordinates
+    }
+    fillDeviceWithStagingBuffer(particleCoordinatePredictionsBuffer, coordinateValues);
 
     // Spatial Lookup
     uint32_t lookupSize = nextPowerOfTwo(parameters.numParticles);

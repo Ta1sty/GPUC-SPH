@@ -9,6 +9,7 @@ ParticleSimulation::ParticleSimulation(const SimulationParameters &parameters) :
     Cmn::addStorage(bindings, 3);// spatial lookup
     Cmn::addStorage(bindings, 4);// spatial indices
     Cmn::addStorage(bindings, 5);// particle coordinates copy output
+    Cmn::addStorage(bindings, 6);// particle coordinate predictions
 
     Cmn::createDescriptorSetLayout(resources.device, bindings, descriptorSetLayout);
     Cmn::createDescriptorPool(resources.device, bindings, descriptorPool);
@@ -21,8 +22,10 @@ ParticleSimulation::ParticleSimulation(const SimulationParameters &parameters) :
 
     vk::ShaderModule particleComputeSM;
     vk::ShaderModule densityComputeSM;
+    vk::ShaderModule positionUpdateSM;
     Cmn::createShader(resources.device, particleComputeSM, shaderPath("particle_simulation.comp"));
     Cmn::createShader(resources.device, densityComputeSM, shaderPath("density_update.comp"));
+    Cmn::createShader(resources.device, positionUpdateSM, shaderPath("position_update.comp"));
 
     std::array<vk::SpecializationMapEntry, 2> specEntries = std::array<vk::SpecializationMapEntry, 2> {
             vk::SpecializationMapEntry {0U, 0U, sizeof(workgroupSizeX)},
@@ -32,9 +35,11 @@ ParticleSimulation::ParticleSimulation(const SimulationParameters &parameters) :
 
     Cmn::createPipeline(resources.device, computePipeline, pipelineLayout, specInfo, particleComputeSM);
     Cmn::createPipeline(resources.device, densityPipeline, pipelineLayout, specInfo, densityComputeSM);
+    Cmn::createPipeline(resources.device, positionUpdatePipeline, pipelineLayout, specInfo, positionUpdateSM);
 
     resources.device.destroyShaderModule(particleComputeSM);
     resources.device.destroyShaderModule(densityComputeSM);
+    resources.device.destroyShaderModule(positionUpdateSM);
 }
 
 void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
@@ -62,6 +67,8 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
     Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 3);
     Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, descriptorSet, 4);
     Cmn::bindBuffers(resources.device, particleCoordinateBufferCopy.buf, descriptorSet, 5);
+    Cmn::bindBuffers(resources.device, simulationState.particleCoordinatePredictionsBuffer.buf, descriptorSet, 6);
+
     uint32_t dx = (simulationState.parameters.numParticles + workgroupSizeX - 1) / workgroupSizeX;
     uint32_t dy = 1;// TODO : make this dynamic
 
@@ -78,15 +85,22 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
 
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipelineLayout, 0, descriptorSet, {});
     cmd.pushConstants(pipelineLayout, {vk::ShaderStageFlagBits::eCompute}, 0, (pcr = pushConstants));
+
     // compute densities
     cmd.bindPipeline(vk::PipelineBindPoint::eCompute, densityPipeline);
     cmd.dispatch(dx, dy, 1);
     computeBarrier(cmd);
 
-    // compute physics
+    // compute forces
     cmd.bindPipeline(vk::PipelineBindPoint::eCompute, computePipeline);
     cmd.dispatch(dx, dy, 1);
     computeBarrier(cmd);
+
+    //update positions
+    cmd.bindPipeline(vk::PipelineBindPoint::eCompute, positionUpdatePipeline);
+    cmd.dispatch(dx, dy, 1);
+    computeBarrier(cmd);
+
     // copy particle coordinates
     cmd.copyBuffer(particleCoordinateBufferCopy.buf, simulationState.particleCoordinateBuffer.buf, vk::BufferCopy(0, 0, simulationState.parameters.numParticles * sizeof(glm::vec2)));
     cmd.pipelineBarrier(
@@ -133,9 +147,8 @@ ParticleSimulation::~ParticleSimulation() {
 
     resources.device.destroyPipeline(computePipeline);
     resources.device.destroyPipeline(densityPipeline);
-    //PipelineLayout should be destroyed before DescriptorPool
+    resources.device.destroyPipeline(positionUpdatePipeline);
     resources.device.destroyPipelineLayout(pipelineLayout);
-    //DescriptorPool should be destroyed before the DescriptorSetLayout
     resources.device.destroyDescriptorPool(descriptorPool);
     resources.device.destroyDescriptorSetLayout(descriptorSetLayout);
 }
