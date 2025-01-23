@@ -7,21 +7,21 @@ layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 #include "spatial_lookup.glsl"
 
 void writeIndex(uint index) {
-    if (index >= GRID_NUM_ELEMENTS) return;
+	if (index >= GRID_NUM_ELEMENTS) return;
 
-    uint currentKey = spatial_lookup[index].cellKey;
-    uint previousKey = uint(-1);
-    if (index > 0) previousKey = spatial_lookup[index - 1].cellKey;
+	uint currentKey = spatial_lookup[index].cellKey;
+	uint previousKey = uint(-1);
+	if (index > 0) previousKey = spatial_lookup[index - 1].cellKey;
 
-    if (currentKey != previousKey) {
-        spatial_indices[currentKey] = index;
-    }
+	if (currentKey != previousKey) {
+		spatial_indices[currentKey] = index;
+	}
 }
 
 void main() {
-    uint index = gl_WorkGroupID.x * gl_WorkGroupSize.x * 1 + gl_LocalInvocationID.x;
+	uint index = gl_WorkGroupID.x * gl_WorkGroupSize.x * 2 + gl_LocalInvocationID.x;
 
-    writeIndex(index);
-    //    index += gl_WorkGroupSize.x;
-    //    writeIndex(index);
+	writeIndex(index);
+	index += gl_WorkGroupSize.x;
+	writeIndex(index);
 }

@@ -7,27 +7,26 @@ layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 #include "spatial_lookup.glsl"
 
 void main() {
-    uint n = constants.sort_n;
-    uint j = constants.sort_j;
-    uint k = constants.sort_k;
+	uint n = constants.sort_n;
+	uint j = constants.sort_j;
+	uint k = constants.sort_k;
 
-    uint i = gl_GlobalInvocationID.x;
+	uint group_number = gl_GlobalInvocationID.x / j;
+	uint group_index = gl_GlobalInvocationID.x % j;
 
-    uint l = i ^ j;
-    // there are always 2-threads per pair. (for now)
-    // Only the thread where the i is the lower value should perform the swap operation
-    if (l <= i) return;
+	uint i = 2 * group_number * j + group_index;
+	uint l = i ^ j;
 
-    SpatialLookupEntry element_i = spatial_lookup[i];
-    SpatialLookupEntry element_l = spatial_lookup[l];
+	SpatialLookupEntry element_i = spatial_lookup[i];
+	SpatialLookupEntry element_l = spatial_lookup[l];
 
-    bool condition =
-    ((i & k) == 0 && element_i.cellKey > element_l.cellKey)
-    ||
-    ((i & k) != 0 && element_i.cellKey < element_l.cellKey);
+	bool condition =
+	((i & k) == 0 && element_i.cellKey > element_l.cellKey)
+	||
+	((i & k) != 0 && element_i.cellKey < element_l.cellKey);
 
-    if (!condition) return;
+	if (!condition) return;
 
-    spatial_lookup[i] = element_l;
-    spatial_lookup[l] = element_i;
+	spatial_lookup[i] = element_l;
+	spatial_lookup[l] = element_i;
 }

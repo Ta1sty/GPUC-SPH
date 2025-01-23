@@ -119,9 +119,17 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
 
                 if (stepCounter > stepBreak) continue;
 
+                //                uint32_t gl_GlobalInvocationID = 5;
+                //                uint32_t group_number = gl_GlobalInvocationID / j;
+                //                uint32_t group_index = gl_GlobalInvocationID % j;
+                //
+                //                uint32_t i = 2 * group_number * j + group_index;
+                //                uint32_t l = i ^ j;
+                //
                 //                std::cout << "n:" << pushConstants.sort_n << " ";
                 //                std::cout << "k:" << pushConstants.sort_k << " ";
                 //                std::cout << "j:" << pushConstants.sort_j << " ";
+                //                std::cout << "t:" << gl_GlobalInvocationID << ":(" << i << "," << l << ") ";
                 //                std::cout << std::endl;
 
 
@@ -162,8 +170,8 @@ bool SpatialLookup::update(const SimulationParameters &parameters) {
     uint32_t size, groupSize, groupNum;
 
     size = nextPowerOfTwo(parameters.numParticles);
-    groupSize = std::min<uint32_t>(128, size);
-    groupNum = size / groupSize;
+    groupSize = std::min<uint32_t>(128, size / 2);
+    groupNum = size / 2 / groupSize;
 
     if (size == workgroupSize && parameters.type == static_cast<SceneType>(currentPushConstants.type)) return false;
 
