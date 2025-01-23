@@ -512,18 +512,8 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState, const R
 
     /* ========== Particle Subpass ========== */
     commandBuffer.nextSubpass(vk::SubpassContents::eInline);
-    particleCirclePipeline->draw(commandBuffer, simulationState);
-
-    //    vk::ImageMemoryBarrier barrier(
-    //            vk::AccessFlagBits::eNoneKHR, vk::AccessFlagBits::eNoneKHR,
-    //            vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ImageLayout::eShaderReadOnlyOptimal,
-    //            VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-    //            depthImage,
-    //            vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1));
-    //    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eBottomOfPipe,
-    //                                  vk::PipelineStageFlagBits::eTopOfPipe,
-    //                                  {},
-    //                                  0, nullptr, 0, nullptr, 1, &barrier);
+    if (renderParameters.particleColor != RenderParticleColor::NONE)
+        particleCirclePipeline->draw(commandBuffer, simulationState);
 
     /* ========== Ray Marcher Subpass ========== */
     commandBuffer.nextSubpass(vk::SubpassContents::eInline);

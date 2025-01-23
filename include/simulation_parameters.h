@@ -67,6 +67,7 @@ enum class RenderBackgroundField {
 extern const Mappings<RenderBackgroundField> renderBackgroundFieldMappings;
 
 enum class RenderParticleColor {
+    NONE,
     WHITE,
     NUM_NEIGHBOURS,
     DENSITY,

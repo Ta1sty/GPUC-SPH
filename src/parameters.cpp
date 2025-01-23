@@ -53,6 +53,7 @@ const Mappings<RenderBackgroundField> renderBackgroundFieldMappings {
         {"density", RenderBackgroundField::DENSITY}};
 const Mappings<RenderParticleColor> renderParticleColorMappings {
         {"white", RenderParticleColor::WHITE},
+        {"none", RenderParticleColor::NONE},
         {"num_neighbours", RenderParticleColor::NUM_NEIGHBOURS},
         {"density", RenderParticleColor::DENSITY}};
 
