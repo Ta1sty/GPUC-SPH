@@ -3,6 +3,8 @@ simulation:
   initialization_function: uniform
   num_particles: 4096
   deltaTime: 0.008
+  pressureMultiplier: 8.0
+  viscosity: 0.002
 render:
   background_field: density
   particle_radius: 12
