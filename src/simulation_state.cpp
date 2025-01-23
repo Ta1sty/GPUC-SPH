@@ -68,6 +68,7 @@ SimulationState::SimulationState(const SimulationParameters &_parameters, std::s
             break;
         case SceneType::SPH_BOX_3D:
             coordinateBufferSize = sizeof(glm::vec4) * parameters.numParticles;
+            camera->reset();
             break;
         default:
             throw std::runtime_error("SimulationState cannot be initialized for this scene type");

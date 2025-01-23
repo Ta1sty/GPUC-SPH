@@ -3,6 +3,10 @@
 #include "utils.h"
 #include <string>
 
+namespace YAML {
+class Node;
+}
+
 template<typename T>
 using Mappings = std::initializer_list<std::pair<std::string, T>>;
 
@@ -43,7 +47,7 @@ public:
 public:
     SimulationParameters() = default;
     SimulationParameters(const SimulationParameters &other) = default;
-    explicit SimulationParameters(const std::string &file);
+    explicit SimulationParameters(const YAML::Node &yaml);
     [[nodiscard]] std::string printToYaml() const;
 };
 
@@ -80,4 +84,15 @@ struct RenderParameters {
     RenderParticleColor particleColor = RenderParticleColor::WHITE;
 
     float particleRadius = 12.0f;
+
+public:
+    RenderParameters() = default;
+    RenderParameters(const RenderParameters &other) = default;
+    explicit RenderParameters(const YAML::Node &yaml);
+    [[nodiscard]] std::string printToYaml() const;
+};
+
+class SceneParameters {
+public:
+    static std::pair<RenderParameters, SimulationParameters> loadParametersFromFile(const std::string sceneFile);
 };

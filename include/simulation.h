@@ -16,7 +16,8 @@
 class Simulation {
 public:
     Simulation() = delete;
-    explicit Simulation(const SimulationParameters &parameters, std::shared_ptr<Camera> camera);
+    explicit Simulation(const RenderParameters &renderParameters,
+                        const SimulationParameters &simulationParameters, std::shared_ptr<Camera> camera);
     ~Simulation();
 
     void reset();
@@ -28,10 +29,9 @@ private:
     void processUpdateFlags(const UiBindings::UpdateFlags &updateFlags);
     void updateCommandBuffers();
 
+    RenderParameters renderParameters;
     SimulationParameters simulationParameters;
     std::unique_ptr<SimulationState> simulationState;
-
-    RenderParameters renderParameters;
 
     std::unique_ptr<ImguiUi> imguiUi;
 

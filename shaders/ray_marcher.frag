@@ -67,7 +67,7 @@ void sampleVolume(in vec3 position, out float extinction, out vec3 emission) {
             density = 0.0f;
     }
     float scalar = 1 - exp(-density);
-    extinction = max(0, 20 * scalar - 10); // arbitrary constants that just hapen to look decent
+    extinction = max(0, 20 * scalar - 8); // arbitrary constants that just hapen to look decent
     emission = texture(colorscale, scalar).rgb;
 }
 
@@ -93,12 +93,13 @@ void main() {
 
         x += stepSize * direction;
 
-        float extinction;
+        float localExtinction;
         vec3 emissionColor;
-        sampleVolume(x, extinction, emissionColor);
-        vec3 emission = emissionColor * stepSize;
+        sampleVolume(x, localExtinction, emissionColor);
+        float stepTransmittance = exp(-localExtinction * stepSize);
+        transmittance *= stepTransmittance;
+        vec3 emission = emissionColor * (1 - stepTransmittance);
 
-        transmittance *= exp(-extinction * stepSize);
         color += transmittance * emission;
     } while (t < maxT && isInVolume(x)); // exiting segment will not get included, not a fun fix
 

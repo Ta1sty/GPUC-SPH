@@ -9,8 +9,10 @@
 #include "render.h"
 #include "spatial_lookup.h"
 
-Simulation::Simulation(const SimulationParameters &parameters, std::shared_ptr<Camera> camera)
-    : simulationParameters(parameters), simulationState(std::make_unique<SimulationState>(parameters, std::move(camera))) {
+Simulation::Simulation(const RenderParameters &_renderParameters,
+                       const SimulationParameters &_simulationParameters,
+                       std::shared_ptr<Camera> camera)
+    : renderParameters(_renderParameters), simulationParameters(_simulationParameters), simulationState(std::make_unique<SimulationState>(simulationParameters, std::move(camera))) {
 
     particlePhysics = std::make_unique<ParticleSimulation>(simulationParameters);
     spatialLookup = std::make_unique<SpatialLookup>(simulationParameters);

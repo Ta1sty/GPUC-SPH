@@ -93,6 +93,20 @@ private:
     } uniformBufferContent;
 };
 
+/**
+ * Compute pass that runs before the actual render pipeline.
+ */
+class RendererCompute {
+public:
+    RendererCompute();
+    RendererCompute(const RendererCompute &obj) = delete;
+    ~RendererCompute();
+    vk::CommandBuffer run(const SimulationState &simulationState, const RenderParameters &renderParameters);
+    void updateCmd(const SimulationState &simulationState, const RenderParameters &renderParameters);
+
+private:
+};
+
 class GraphicsPipeline {
 public:
     virtual ~GraphicsPipeline() {}

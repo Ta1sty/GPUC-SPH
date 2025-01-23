@@ -56,9 +56,7 @@ const Mappings<RenderParticleColor> renderParticleColorMappings {
         {"num_neighbours", RenderParticleColor::NUM_NEIGHBOURS},
         {"density", RenderParticleColor::DENSITY}};
 
-SimulationParameters::SimulationParameters(const std::string &file) {
-    YAML::Node yaml = YAML::LoadFile(file);
-
+SimulationParameters::SimulationParameters(const YAML::Node &yaml) {
     type = parseEnum<SceneType>(yaml, "type", sceneTypeMappings);
 
     initializationFunction = parseEnum<InitializationFunction>(yaml, "initialization_function",
@@ -86,4 +84,36 @@ std::string SimulationParameters::printToYaml() const {
     yaml["collision_damping_factor"] = collisionDampingFactor;
 
     return YAML::Dump(yaml);
+}
+
+RenderParameters::RenderParameters(const YAML::Node &yaml) {
+    selectedImage = parseEnum<SelectedImage>(yaml, "selected_image", selectedImageMappings);
+    backgroundField = parseEnum<RenderBackgroundField>(yaml, "background_field", renderBackgroundFieldMappings);
+    particleColor = parseEnum<RenderParticleColor>(yaml, "particle_color", renderParticleColorMappings);
+    particleRadius = parse<float>(yaml, "particle_radius", particleRadius);
+}
+
+std::string RenderParameters::printToYaml() const {
+    YAML::Node yaml;
+
+    yaml["selected_image"] = dumpEnum(selectedImage, selectedImageMappings);
+    yaml["background_field"] = dumpEnum(backgroundField, renderBackgroundFieldMappings);
+    yaml["particle_color"] = dumpEnum(particleColor, renderParticleColorMappings);
+    yaml["particle_radius"] = particleRadius;
+
+    return YAML::Dump(yaml);
+}
+
+std::pair<RenderParameters, SimulationParameters> SceneParameters::loadParametersFromFile(const std::string sceneFile) {
+    YAML::Node yaml = YAML::LoadFile(sceneFile);
+    RenderParameters renderParameters;
+    SimulationParameters simulationParameters;
+
+    if (yaml["render"])
+        renderParameters = RenderParameters(yaml["render"]);
+
+    if (yaml["simulation"])
+        simulationParameters = SimulationParameters(yaml["simulation"]);
+
+    return {renderParameters, simulationParameters};
 }

@@ -22,14 +22,9 @@ int width = 1200;
 int height = 1000;
 
 void render() {
-    // Since our application is now frame-based, renderdoc can find frame delimiters on its own
-    renderdoc::startCapture();
-
     Render render(resources, 2);
-    SimulationParameters parameters {"../scenes/default.yaml"};
-    Simulation simulation(parameters, render.camera);
-
-    renderdoc::endCapture();
+    auto [renderParameters, simulationParameters] = SceneParameters::loadParametersFromFile("../scenes/default.yaml");
+    Simulation simulation(renderParameters, simulationParameters, render.camera);
 
     // Loop until the user closes the window
     while (true) {
