@@ -5,17 +5,13 @@
 
 #ifdef GRID_PCR
 layout (push_constant) uniform PushStruct {
-    int sceneType;
-    float cellSize;
-    uint numElements;
-    uint sort_n;
-    uint sort_k;
-    uint sort_j;
+	int sceneType;
+	float cellSize;
+	uint numElements;
+	uint sort_n;
+	uint sort_k;
+	uint sort_j;
 } constants;
-#endif
-
-#ifndef GRID_READONLY
-#define GRID_READONLY readonly
 #endif
 
 #ifndef GRID_NUM_ELEMENTS
@@ -46,57 +42,94 @@ layout (push_constant) uniform PushStruct {
 #define COORDINATES_BUFFER_NAME particle_coordinates
 #endif
 
- struct SpatialLookupEntry {
-uint cellKey;
-uint particleIndex;
+struct SpatialLookupEntry {
+	uint cellKey;
+	uint cellClass;
+	uint particleIndex;
 };
 
-layout (set = GRID_SET, binding = GRID_BINDING_LOOKUP) buffer GRID_READONLY spatialLookupBuffer { SpatialLookupEntry spatial_lookup[]; };
-layout (set = GRID_SET, binding = GRID_BINDING_INDEX) buffer GRID_READONLY spatialIndexBuffer { uint spatial_indices[]; };
+#ifdef GRID_WRITEABLE
 
-#if GRID_BINDING_COORDINATES > - 1
- layout (set = GRID_SET, binding = GRID_BINDING_COORDINATES) buffer spatialParticleBuffer { VEC_T particle_coordinates[]; };
+layout (set = GRID_SET, binding = GRID_BINDING_LOOKUP) buffer spatialLookupBuffer { SpatialLookupEntry spatial_lookup[]; };
+layout (set = GRID_SET, binding = GRID_BINDING_INDEX) buffer spatialIndexBuffer { uint spatial_indices[]; };
+
+#if GRID_BINDING_COORDINATES > -1
+layout (set = GRID_SET, binding = GRID_BINDING_COORDINATES) buffer spatialParticleBuffer { VEC_T particle_coordinates[]; };
 #endif
 
+#else
+
+layout (set = GRID_SET, binding = GRID_BINDING_LOOKUP) buffer readonly spatialLookupBuffer { SpatialLookupEntry spatial_lookup[]; };
+layout (set = GRID_SET, binding = GRID_BINDING_INDEX) buffer readonly spatialIndexBuffer { uint spatial_indices[]; };
+
+#if GRID_BINDING_COORDINATES > -1
+layout (set = GRID_SET, binding = GRID_BINDING_COORDINATES) buffer readonly spatialParticleBuffer { VEC_T particle_coordinates[]; };
+#endif
+
+#endif
+
+
+
 IVEC_T cellCoord(VEC_T position) {
-return IVEC_T(position / GRID_CELL_SIZE);
+	return IVEC_T(position / GRID_CELL_SIZE);
 }
 
 uint cellHash(IVEC_T cell) {
 
-#ifdef DEF_2D
- return ((cell.x * 73856093) ^ (cell.y * 19349663));
-#endif
+	#ifdef DEF_2D
+    return ((cell.x * 73856093) ^ (cell.y * 19349663));
+	#endif
 
-#ifdef DEF_3D
- return ((cell.x * 73856093) ^ (cell.y * 19349663) ^ (cell.z * 83492791));
-#endif
+	#ifdef DEF_3D
+    return ((cell.x * 73856093) ^ (cell.y * 19349663) ^ (cell.z * 83492791));
+	#endif
 }
 
-uint cellKey(uint hash){
-return hash % GRID_NUM_ELEMENTS;
+uint cellClass(IVEC_T cell) {
+
+	#ifdef DEF_2D
+    return (3 * (cell.x % 3)) + (1 * (cell.y % 3));
+	#endif
+
+	#ifdef DEF_3D
+    return (9 * (cell.x % 3)) + (3 * (cell.y % 3)) + (1 * (cell.z % 3));
+	#endif
 }
 
-uint cellKey(IVEC_T cell){
-return cellKey(cellHash(cell));
+uint cellKey(uint hash) {
+	return hash % GRID_NUM_ELEMENTS;
 }
 
-uint cellKey(VEC_T position){
-return cellKey(cellHash(cellCoord(position)));
+uint cellKey(IVEC_T cell) {
+	return cellKey(cellHash(cell));
 }
 
-vec4 cellColor(uint cellKey) {
-return vec4(1.f * cellKey / GRID_NUM_ELEMENTS, 0, 0, 1);
+uint cellKey(VEC_T position) {
+	return cellKey(cellHash(cellCoord(position)));
+}
+
+vec4 keyColor(uint cellKey) {
+	return vec4(1.f * cellKey / GRID_NUM_ELEMENTS, 0, 0, 1);
+}
+
+vec4 classColor(uint classKey) {
+	uint a = classKey % 3;
+	classKey = classKey / 3;
+	uint b = classKey % 3;
+	classKey = classKey / 3;
+	uint c = classKey % 3;
+
+	return vec4(a / 3.0f, b / 3.0f, c / 3.0f, 1);
 }
 
 
 #ifdef DEF_2D
 #define NEIGHBOUR_OFFSET_COUNT 9
- const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] = {
+const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =          {
 IVEC_T(- 1, - 1),
 IVEC_T(- 1, 0),
-IVEC_T(-1, 1),
-IVEC_T(0, -1),
+IVEC_T(- 1, 1),
+IVEC_T(0, - 1),
 IVEC_T(0, 0),
 IVEC_T(0, 1),
 IVEC_T(1, - 1),
@@ -108,7 +141,7 @@ IVEC_T(1, 1),
 
 #ifdef DEF_3D
 #define NEIGHBOUR_OFFSET_COUNT 27
- const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] = {
+const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] = {
 IVEC_T(- 1, - 1, - 1),
 IVEC_T(- 1, - 1, 0),
 IVEC_T(- 1, - 1, 1),
@@ -148,16 +181,18 @@ IVEC_T(1, 1, 1),
 
 #define FOREACH_NEIGHBOUR(position, expression) { \
 IVEC_T center = cellCoord(position); \
-for (int i = 0; i < NEIGHBOUR_OFFSET_COUNT; i++) { \
-uint cellKey = cellKey(center + neighbourOffsets[i]); \
-for (uint j = spatial_indices[cellKey]; j < GRID_NUM_ELEMENTS; j++) { \
+ for (int i = 0; i < NEIGHBOUR_OFFSET_COUNT; i++) { \
+IVEC_T cellCoord = center + neighbourOffsets[i]; \
+uint cellKey = cellKey(cellCoord); \
+uint cellClass = cellClass(cellCoord); \
+ for (uint j = spatial_indices[cellKey]; j < GRID_NUM_ELEMENTS; j++) { \
 SpatialLookupEntry entry = spatial_lookup[j]; \
-if (entry.cellKey != cellKey) break; \
+ if (entry.cellKey != cellKey) break; \
 uint NEIGHBOUR_INDEX = entry.particleIndex; \
-if (NEIGHBOUR_INDEX == uint(- 1)) continue; \
+ if (NEIGHBOUR_INDEX == uint(- 1)) continue; \
 VEC_T NEIGHBOUR_POSITION = COORDINATES_BUFFER_NAME[NEIGHBOUR_INDEX]; \
 float NEIGHBOUR_DISTANCE = length(position - NEIGHBOUR_POSITION); \
-if (NEIGHBOUR_DISTANCE > GRID_CELL_SIZE) continue; \
+ if (NEIGHBOUR_DISTANCE > GRID_CELL_SIZE) continue; \
 expression; \
 } \
 } \

@@ -6,7 +6,7 @@ layout (location = 0) out vec4 outColor;
 #define EPSILON 0.0001
 #include "_defines.glsl"
 
-layout(push_constant) uniform PushStruct {
+layout (push_constant) uniform PushStruct {
     mat4 mvp;
     vec3 cameraPos;
     vec2 nearFar;
@@ -37,8 +37,8 @@ const float STEP_SIZE = 0.05;
 
 bool isInVolume(vec3 position) {
     return position.x >= 0.0f && position.x <= 1.0f
-        && position.y >= 0.0f && position.y <= 1.0f
-        && position.z >= 0.0f && position.z <= 1.0f;
+    && position.y >= 0.0f && position.y <= 1.0f
+    && position.z >= 0.0f && position.z <= 1.0f;
 }
 
 void addDensity(inout float density, uint neighbourIndex, VEC_T neighbourPosition, float neighbourDinstance) {
@@ -60,7 +60,7 @@ float evaluateDensity(VEC_T position) {
 void sampleVolume(in vec3 position, out float extinction, out vec3 emission) {
     float density;
     switch (backgroundField) {
-        case 2:
+        case 3:
             density = evaluateDensity(position) * 10;
             break;
         default:
