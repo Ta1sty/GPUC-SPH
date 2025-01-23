@@ -177,6 +177,7 @@ void ImguiUi::drawUi(UiBindings &bindings) {
         ImGui::ShowDemoWindow();
 
     ImGui::Begin("Settings");
+    ImGui::PushItemWidth(120);
 
     bool paused = !bindings.simulationState || bindings.simulationState->paused;
     updateFlags.togglePause = ImGui::Button(paused ? "Resume" : "Pause ");
@@ -191,10 +192,9 @@ void ImguiUi::drawUi(UiBindings &bindings) {
     ImGui::DragInt("Tick rate:", &bindings.simulationState->time.tickRate, 5, 5, 5000);
 
     if (ImGui::CollapsingHeader("Scene Actions", ImGuiTreeNodeFlags_DefaultOpen)) {
-        updateFlags.loadSceneFromFile = ImGui::Button("Load from File");
+        ImGui::Combo("##sceneFile", &currentSceneFile, sceneFilesCStr.data(), sceneFilesCStr.size());
         ImGui::SameLine();
-        ImGui::Combo("Scene File", &currentSceneFile, sceneFilesCStr.data(), sceneFilesCStr.size());
-        updateFlags.printRenderSettings = ImGui::Button("Print Render Settings");
+        updateFlags.loadSceneFromFile = ImGui::Button("Load File");
     }
 
     if (ImGui::CollapsingHeader("Render Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -208,7 +208,7 @@ void ImguiUi::drawUi(UiBindings &bindings) {
         ImGui::DragFloat("Spatial Radius", &bindings.simulationState->spatialRadius, 0.01, 0.01, 1.0, "%.2f");
 
         ImGui::Separator();
-        ImGui::Checkbox("ImGui demo window", &render.showDemoWindow);
+        updateFlags.printRenderSettings = ImGui::Button("Print Render Settings");
     }
 
     if (ImGui::CollapsingHeader("Simulation Parameters")) {
@@ -224,6 +224,11 @@ void ImguiUi::drawUi(UiBindings &bindings) {
         ImGui::DragFloat("Pressure Multiplier", &simulation.pressureMultiplier, 0.01f);
     }
 
+#ifdef _DEBUG
+    if (ImGui::CollapsingHeader("Debug")) {
+        ImGui::Checkbox("ImGui demo window", &bindings.renderParameters.showDemoWindow);
+    }
+#endif
     ImGui::End();
 }
 

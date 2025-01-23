@@ -57,7 +57,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     timelineSemaphore = initSemaphore();
 
     UiBindings uiBindings {imageIndex, simulationParameters, renderParameters, simulationState.get()};
-    std::array<std::tuple<vk::Queue, vk::CommandBuffer>, cmd_count> buffers;
+    std::array<std::tuple<vk::Queue, vk::CommandBuffer>, cmd_count> buffers {{{resources.transferQueue, nullptr}}};
 
     auto imguiCommandBuffer = imguiUi->updateCommandBuffer(imageIndex, uiBindings);
     lastUpdate = uiBindings.updateFlags;
@@ -111,6 +111,8 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
             submit.setWaitSemaphores(waitSemaphores);
             timeline.setWaitSemaphoreValues(waitSemaphoreValues);
             submit.setWaitDstStageMask(waitStageFlags);
+            queue.submit(submit);
+            continue;
         }
 
         if (wait == buffers.size() - 1) {// last submit signals submit-finished
