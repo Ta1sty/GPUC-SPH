@@ -82,6 +82,7 @@ struct RenderParameters {
     bool showDemoWindow = false;
     SelectedImage selectedImage = SelectedImage::RENDER;
 
+    bool backgroundEnvironment = true;
     RenderBackgroundField backgroundField = RenderBackgroundField::DENSITY;
     RenderParticleColor particleColor = RenderParticleColor::WHITE;
 

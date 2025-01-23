@@ -1,5 +1,6 @@
 #pragma once
 
+#include "camera.h"
 #include "initialization.h"
 
 struct SimulationParameters;

@@ -6,6 +6,7 @@
 class ParticleCirclePipeline;
 class Background2DPipeline;
 class RayMarcherPipeline;
+class BackgroundEnvironmentPipeline;
 
 struct Texture {
     vk::Image image;
@@ -33,6 +34,7 @@ struct Texture {
     ~Texture();
 
     static Texture createColormapTexture(const std::vector<colormaps::RGB_F32> &colormap);
+    static Texture createFromImage(const std::string &file);
 };
 
 class ParticleRenderer {
@@ -72,6 +74,7 @@ private:
     vk::Framebuffer framebuffer;
     vk::CommandBuffer commandBuffer;
 
+    std::unique_ptr<BackgroundEnvironmentPipeline> backgroundEnvironmentPipeline;
     std::unique_ptr<ParticleCirclePipeline> particleCirclePipeline;
     std::unique_ptr<Background2DPipeline> background2DPipeline;
     std::unique_ptr<RayMarcherPipeline> rayMarcherPipeline;
@@ -192,4 +195,24 @@ private:
     Cmn::DescriptorPool descriptorPool;
     vk::PipelineLayout pipelineLayout;
     vk::Pipeline pipeline;
+};
+
+class BackgroundEnvironmentPipeline : public GraphicsPipeline {
+public:
+    BackgroundEnvironmentPipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, SharedResources renderer);
+    ~BackgroundEnvironmentPipeline() override;
+    void draw(vk::CommandBuffer &cb, const SimulationState &simulationState) override;
+    void updateDescriptorSets(const SimulationState &simulationState) override;
+
+private:
+    struct PushStruct {
+        glm::mat4 mvpInv;
+        glm::vec4 cameraPos;
+    } pushStruct;
+
+    SharedResources sharedResources;
+    Cmn::DescriptorPool descriptorPool;
+    vk::PipelineLayout pipelineLayout;
+    vk::Pipeline pipeline;
+    Texture environmentTexture;
 };

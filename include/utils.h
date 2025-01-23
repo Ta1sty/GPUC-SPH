@@ -155,7 +155,7 @@ void fillImageWithStagingBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
 
     vk::BufferImageCopy bufferImageCopy {
             0,
-            0,
+            extent.width,
             0,
             {{vk::ImageAspectFlagBits::eColor}, 0, 0, 1},
             {0, 0, 0},
