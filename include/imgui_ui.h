@@ -23,6 +23,8 @@ struct UiBindings {
         bool togglePause = false;
         bool stepSimulation = false;
         bool runChecks = false;
+        bool loadSceneFromFile = false;
+        bool printRenderSettings = false;
     } updateFlags;
 
     /**
@@ -43,6 +45,9 @@ class ImguiUi {
     vk::CommandPool commandPool;
     std::vector<vk::CommandBuffer> commandBuffers;
     std::vector<vk::Framebuffer> frameBuffers;
+    std::vector<std::string> sceneFiles;
+    std::vector<const char *> sceneFilesCStr;// sceneFiles[].c_str()
+    int currentSceneFile = 0;
 
 public:
     explicit ImguiUi();
@@ -54,4 +59,6 @@ public:
     void destroyCommandBuffers();
 
     void drawUi(UiBindings &bindings);
+
+    std::string getSelectedSceneFile() const;
 };

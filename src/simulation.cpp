@@ -353,8 +353,14 @@ void Simulation::processUpdateFlags(const UiBindings::UpdateFlags &updateFlags) 
     if (updateFlags.resetSimulation) {
         auto newState = std::make_unique<SimulationState>(simulationParameters, simulationState->camera);
         simulationState = std::move(newState);
-        //simulationState->camera->reset();
+        reset();
+    } else if (updateFlags.loadSceneFromFile) {
+        auto [r, s] = SceneParameters::loadParametersFromFile(imguiUi->getSelectedSceneFile());
+        renderParameters = r;
+        simulationParameters = s;
 
+        auto newState = std::make_unique<SimulationState>(simulationParameters, simulationState->camera);
+        simulationState = std::move(newState);
         reset();
     }
 
@@ -365,6 +371,12 @@ void Simulation::processUpdateFlags(const UiBindings::UpdateFlags &updateFlags) 
     if (updateFlags.stepSimulation) {
         simulationState->paused = true;
         simulationState->step = true;
+    }
+
+    if (updateFlags.printRenderSettings) {
+        std::cout << "-------------------- Render Settings --------------------\n";
+        std::cout << renderParameters.printToYaml() << std::endl;
+        std::cout << "---------------------------------------------------------\n";
     }
 
     // moved here to update every frame, since MVP matrix is a push-constant

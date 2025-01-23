@@ -1,0 +1,8 @@
+simulation:
+  type: sph_box_3d
+  initialization_function: uniform
+  num_particles: 4096
+  deltaTime: 0.008
+render:
+  background_field: density
+  particle_radius: 12

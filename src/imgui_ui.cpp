@@ -1,7 +1,9 @@
-#include "imgui_ui.h"
+#include <filesystem>
+
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
+#include "imgui_ui.h"
 #include "simulation_parameters.h"
 #include "simulation_state.h"
 
@@ -80,6 +82,24 @@ ImguiUi::ImguiUi() {
     ImGui::StyleColorsDark();
 
     ImGui_ImplVulkan_CreateFontsTexture();
+
+    for (auto entry: std::filesystem::directory_iterator {"../scenes/"}) {
+        if (!entry.is_regular_file())
+            continue;
+        auto path = entry.path();
+        auto extension = path.extension().string();
+        if (extension == ".yaml" || extension == ".yml") {
+            auto i = sceneFiles.size();
+            sceneFiles.emplace_back(path.filename().string());
+
+            if (path.stem().string() == "default")
+                currentSceneFile = i;
+        }
+    }
+
+    for (size_t i = 0; i < sceneFiles.size(); i++) {
+        sceneFilesCStr.emplace_back(sceneFiles[i].c_str());
+    }
 }
 
 void ImguiUi::initCommandBuffers() {
@@ -170,6 +190,13 @@ void ImguiUi::drawUi(UiBindings &bindings) {
     ImGui::Text("Ticks: %d", bindings.simulationState->time.ticks);
     ImGui::DragInt("Tick rate:", &bindings.simulationState->time.tickRate, 5, 5, 5000);
 
+    if (ImGui::CollapsingHeader("Scene Actions", ImGuiTreeNodeFlags_DefaultOpen)) {
+        updateFlags.loadSceneFromFile = ImGui::Button("Load from File");
+        ImGui::SameLine();
+        ImGui::Combo("Scene File", &currentSceneFile, sceneFilesCStr.data(), sceneFilesCStr.size());
+        updateFlags.printRenderSettings = ImGui::Button("Print Render Settings");
+    }
+
     if (ImGui::CollapsingHeader("Render Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
         auto &render = bindings.renderParameters;
         EnumCombo("Selected Image", &render.selectedImage, selectedImageMappings);
@@ -222,4 +249,8 @@ ImguiUi::~ImguiUi() {
 
     resources.device.destroyRenderPass(renderPass);
     resources.device.destroyDescriptorPool(descriptorPool);
+}
+
+std::string ImguiUi::getSelectedSceneFile() const {
+    return "../scenes/" + sceneFiles[currentSceneFile];
 }
