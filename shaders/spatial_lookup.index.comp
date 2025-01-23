@@ -2,7 +2,7 @@
 
 layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
-#define GRID_READONLY
+#define GRID_WRITEABLE
 #define GRID_PCR
 #include "spatial_lookup.glsl"
 

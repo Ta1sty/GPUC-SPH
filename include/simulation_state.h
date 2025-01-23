@@ -8,6 +8,7 @@
 
 struct SpatialLookupEntry {
     uint32_t cellKey;
+    uint32_t cellClass;
     uint32_t particleIndex;
 };
 

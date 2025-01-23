@@ -21,9 +21,9 @@ inline std::string shaderPath(const char *file, std::optional<SceneType> type) {
 
     switch (type.value()) {
         case SceneType::SPH_BOX_2D:
-            return shaderDir + file + ".2d.spv";
+            return shaderDir + file + ".2D.spv";
         case SceneType::SPH_BOX_3D:
-            return shaderDir + file + ".3d.spv";
+            return shaderDir + file + ".3D.spv";
         default:
             throw std::runtime_error("unknown case");
     }

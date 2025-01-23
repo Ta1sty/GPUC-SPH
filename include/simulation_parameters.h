@@ -62,6 +62,7 @@ extern const Mappings<SelectedImage> selectedImageMappings;
 enum class RenderBackgroundField {
     NONE,
     CELL_HASH,
+    CELL_CLASS,
     DENSITY,
 };
 extern const Mappings<RenderBackgroundField> renderBackgroundFieldMappings;

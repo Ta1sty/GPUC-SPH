@@ -2,22 +2,25 @@
 
 layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
-#define GRID_READONLY
+#define GRID_WRITEABLE
 #define GRID_PCR
 #include "spatial_lookup.glsl"
 
 void fillIndex(uint index) {
     //    if (index >= constants.sort_n) return; // never happens because sort_n is a power of 2, and workgroup size is too
 
-    uint key = uint(-1);
+    uint cKey = uint(-1);
+    uint cClass = uint(-1);
     uint particle = index;
     if (index < GRID_NUM_ELEMENTS)
     {
-        key = cellKey(particle_coordinates[index]);
+        IVEC_T cell = cellCoord(particle_coordinates[index]);
+        cKey = cellKey(cell);
+        cClass = cellClass(cell);
     } else {
         particle = uint(-1);
     }
-    spatial_lookup[index] = SpatialLookupEntry(key, particle);
+    spatial_lookup[index] = SpatialLookupEntry(cKey, cClass, particle);
     spatial_indices[index] = uint(-1);
 }
 

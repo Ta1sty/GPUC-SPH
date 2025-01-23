@@ -2,7 +2,7 @@
 
 layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
-#define GRID_READONLY
+#define GRID_WRITEABLE
 #define GRID_PCR
 #include "spatial_lookup.glsl"
 
@@ -12,14 +12,14 @@ void load() {
     uint left = gl_LocalInvocationID.x;
 
     if (left >= GRID_NUM_ELEMENTS) {
-        entries[left] = SpatialLookupEntry(uint(-1), uint(-1));
+        entries[left] = SpatialLookupEntry(uint(-1), uint(-1), uint(-1));
     } else {
         entries[left] = spatial_lookup[left];
     }
 
     uint right = left + gl_WorkGroupSize.x;
     if (right >= GRID_NUM_ELEMENTS) {
-        entries[right] = SpatialLookupEntry(uint(-1), uint(-1));
+        entries[right] = SpatialLookupEntry(uint(-1), uint(-1), uint(-1));
     } else {
         entries[right] = spatial_lookup[right];
     }
