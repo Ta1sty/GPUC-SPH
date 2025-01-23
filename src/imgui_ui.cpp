@@ -146,6 +146,7 @@ vk::CommandBuffer ImguiUi::updateCommandBuffer(uint32_t index, UiBindings &bindi
     vk::CommandBufferBeginInfo cmdBeginInfo = {};
 
     cmd.begin(cmdBeginInfo);
+    writeTimestamp(cmd, UiBegin);
 
     vk::ClearValue color(std::array<float, 4> {0, 0, 0, 0});
 
@@ -158,6 +159,7 @@ vk::CommandBuffer ImguiUi::updateCommandBuffer(uint32_t index, UiBindings &bindi
 
     cmd.endRenderPass();
 
+    writeTimestamp(cmd, UiEnd);
     cmd.end();
 
     return cmd;
@@ -222,6 +224,15 @@ void ImguiUi::drawUi(UiBindings &bindings) {
         ImGui::DragFloat("Collision Damping", &simulation.collisionDampingFactor, 0.01f);
         ImGui::DragFloat("Target Density", &simulation.targetDensity, 0.01f);
         ImGui::DragFloat("Pressure Multiplier", &simulation.pressureMultiplier, 0.01f);
+    }
+
+    if (ImGui::CollapsingHeader("Performance")) {
+        ImGui::Text("Reset      : %.3f ms", bindings.queryTimes.reset);
+        ImGui::Text("Physics    : %.3f ms", bindings.queryTimes.physics);
+        ImGui::Text("Lookup     : %.3f ms", bindings.queryTimes.lookup);
+        ImGui::Text("Render     : %.3f ms", bindings.queryTimes.render);
+        ImGui::Text("Copy       : %.3f ms", bindings.queryTimes.copy);
+        ImGui::Text("UI         : %.3f ms", bindings.queryTimes.ui);
     }
 
 #ifdef _DEBUG

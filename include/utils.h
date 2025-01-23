@@ -13,10 +13,27 @@
 #include "helper.h"
 #include <vulkan/vulkan.hpp>
 
+enum Query {
+    ResetBegin = 0,
+    ResetEnd = 1,
+    PhysicsBegin = 2,
+    PhysicsEnd = 3,
+    LookupBegin = 4,
+    LookupEnd = 5,
+    RenderBegin = 6,
+    RenderEnd = 7,
+    CopyBegin = 8,
+    CopyEnd = 9,
+    UiBegin = 10,
+    UiEnd = 11,
+    COUNT = 12,
+};
+
 struct AppResources {
     vk::Instance instance;
     vk::DebugUtilsMessengerEXT dbgUtilsMgr;
     vk::PhysicalDevice pDevice;
+    float timestampPeriod;
 
     vk::Device device;
     vk::Queue graphicsQueue, computeQueue, transferQueue;
@@ -87,6 +104,7 @@ struct Buffer {
 std::vector<char> readFile(const std::string &filename);
 std::string formatSize(uint64_t size);
 uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties, vk::PhysicalDevice &pdevice);
+void writeTimestamp(vk::CommandBuffer cmd, Query value);
 void ownershipTransfer(vk::Device &device, vk::CommandPool &srcCommandPool, vk::Queue &srcQueue, uint32_t srcQueueFamilyIndex, vk::CommandPool &dstCommandPool, vk::Queue &dstQueue, uint32_t dstQueueFamilyIndex, vk::Image &image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
 void transitionImageLayout(vk::Device &device, vk::CommandPool &pool, vk::Queue &queue, vk::Image &image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
 void copyBufferToImage(vk::Device &device, vk::CommandPool &pool, vk::Queue &queue, vk::Buffer &buffer, vk::Image &image, uint32_t width, uint32_t height, uint32_t depth);

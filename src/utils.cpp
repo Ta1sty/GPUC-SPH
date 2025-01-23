@@ -119,6 +119,11 @@ void endSingleTimeCommands(vk::Device &device, vk::Queue &q,
     device.freeCommandBuffers(commandPool, 1, &commandBuffer);
 }
 
+void writeTimestamp(vk::CommandBuffer cmd, Query value) {
+    cmd.resetQueryPool(resources.queryPool, value, 1);
+    cmd.writeTimestamp(vk::PipelineStageFlagBits::eAllCommands, resources.queryPool, value);
+}
+
 void ownershipTransfer(vk::Device &device, vk::CommandPool &srcCommandPool, vk::Queue &srcQueue, uint32_t srcQueueFamilyIndex, vk::CommandPool &dstCommandPool, vk::Queue &dstQueue, uint32_t dstQueueFamilyIndex, vk::Image &image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout) {
     {
         vk::CommandBuffer commandBuffer = beginSingleTimeCommands(device, srcCommandPool);

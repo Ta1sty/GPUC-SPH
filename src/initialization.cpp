@@ -99,6 +99,7 @@ void initApp(AppResources &app, bool withWindow, const std::string &name, int wi
     }
 
     selectPhysicalDevice(app.instance, app.pDevice);
+    app.timestampPeriod = app.pDevice.getProperties().limits.timestampPeriod;
     // printDeviceCapabilities(app.pDevice);
     std::tie(app.gQ, app.cQ, app.tQ) = getGCTQueues(app.pDevice);
     app.tQ = -1;
@@ -124,7 +125,7 @@ void initApp(AppResources &app, bool withWindow, const std::string &name, int wi
         app.transferCommandPool = app.graphicsCommandPool;
     }
 
-    createTimestampQueryPool(app.device, app.queryPool, 2);
+    createTimestampQueryPool(app.device, app.queryPool, Query::COUNT);
 
     app.swapchain = VK_NULL_HANDLE;
     if (withWindow)

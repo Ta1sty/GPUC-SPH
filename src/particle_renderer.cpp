@@ -492,6 +492,8 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState, const R
 
 
     commandBuffer.begin(vk::CommandBufferBeginInfo {});
+    writeTimestamp(commandBuffer, RenderBegin);
+
     std::array<vk::ClearValue, 2> clearValues;
     clearValues[0].color.uint32 = {{0, 0, 0, 0}};
     clearValues[1].depthStencil.depth = 1.0f;
@@ -537,6 +539,8 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState, const R
     }
 
     commandBuffer.endRenderPass();
+
+    writeTimestamp(commandBuffer, RenderEnd);
     commandBuffer.end();
 }
 

@@ -96,6 +96,8 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
             << " radius: " << pushConstants.cellSize << std::endl;
 
     cmd.begin(vk::CommandBufferBeginInfo());
+    writeTimestamp(cmd, LookupBegin);
+
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipelineLayout, 0, descriptorSet, {});
 
     // write into spatial-lookup and reset spatial-indices
@@ -146,6 +148,7 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
     cmd.pushConstants(pipelineLayout, {vk::ShaderStageFlagBits::eCompute}, 0, (pcr = pushConstants));
     cmd.dispatch(workgroupNum, 1, 1);
 
+    writeTimestamp(cmd, LookupEnd);
     cmd.end();
 
     std::cout << "Spatial-lookup-Dispatches: " << (stepCounter + 2) << std::endl;

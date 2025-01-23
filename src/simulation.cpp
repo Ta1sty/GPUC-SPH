@@ -52,12 +52,17 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
         vk::detail::resultCheck(resources.device.waitSemaphores(waitInfo, -1), "Failed wait");
     }
 
+    auto results = resources.device.getQueryPoolResults<uint64_t>(resources.queryPool, 0, Query::COUNT, Query::COUNT * sizeof(uint64_t), sizeof(uint64_t)).value;
+    timestamps.clear();
+    for (int i = 0; i < Query::COUNT; ++i) {
+        timestamps.emplace(static_cast<Query>(i), static_cast<double>(results[i]) * resources.timestampPeriod);
+    }
+
     processUpdateFlags(lastUpdate);
 
     timelineSemaphore = initSemaphore();
 
-    UiBindings uiBindings {imageIndex, simulationParameters, renderParameters, simulationState.get()};
-    std::array<std::tuple<vk::Queue, vk::CommandBuffer>, cmd_count> buffers {{{resources.transferQueue, nullptr}}};
+    UiBindings uiBindings {imageIndex, simulationParameters, renderParameters, simulationState.get(), QueryTimes(timestamps)};
 
     auto imguiCommandBuffer = imguiUi->updateCommandBuffer(imageIndex, uiBindings);
     lastUpdate = uiBindings.updateFlags;
@@ -73,6 +78,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     bool doTick = simulationState->time.advance(delta);
 
+    std::array<std::tuple<vk::Queue, vk::CommandBuffer>, cmd_count> buffers;
     buffers[0] = {resources.transferQueue, cmdReset};
     buffers[1] = {resources.computeQueue, doTick ? particlePhysics->run(*simulationState) : nullptr};
     buffers[2] = {resources.computeQueue, spatialLookup->run(*simulationState)};
@@ -287,6 +293,7 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
     cmdCopy.reset();
 
     cmdCopy.begin(vk::CommandBufferBeginInfo());
+    writeTimestamp(cmdCopy, CopyBegin);
 
     // transition swapchain image
     barrier(
@@ -342,6 +349,7 @@ vk::CommandBuffer Simulation::copy(uint32_t imageIndex) {
             vk::PipelineStageFlagBits::eTransfer,
             vk::PipelineStageFlagBits::eBottomOfPipe);
 
+    writeTimestamp(cmdCopy, CopyEnd);
     cmdCopy.end();
 
     return cmdCopy;
@@ -351,7 +359,7 @@ Simulation::~Simulation() {
     resources.device.destroySemaphore(timelineSemaphore);
 }
 
-void Simulation::processUpdateFlags(const UiBindings::UpdateFlags &updateFlags) {
+void Simulation::processUpdateFlags(const UpdateFlags &updateFlags) {
     if (updateFlags.resetSimulation) {
         auto newState = std::make_unique<SimulationState>(simulationParameters, simulationState->camera);
         simulationState = std::move(newState);
@@ -391,11 +399,23 @@ void Simulation::updateCommandBuffers() {
 
 void Simulation::reset() {
     std::cout << "Simulation reset" << std::endl;
+
+    {
+        auto cmd = beginSingleTimeCommands(resources.device, resources.transferCommandPool);
+        cmd.resetQueryPool(resources.queryPool, 0, Query::COUNT);
+        endSingleTimeCommands(resources.device, resources.transferQueue, resources.transferCommandPool, cmd);
+    }
+    
     cmdReset.reset();
+
     cmdReset.begin(vk::CommandBufferBeginInfo());
+
+    writeTimestamp(cmdReset, ResetBegin);
     simulationState->debugImagePhysics->clear(cmdReset, {1, 0, 0, 1});
     simulationState->debugImageSort->clear(cmdReset, {0, 1, 0, 1});
     simulationState->debugImageRenderer->clear(cmdReset, {0, 0, 1, 1});
+    writeTimestamp(cmdReset, ResetEnd);
+
     cmdReset.end();
 
     cmdEmpty.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eSimultaneousUse));
@@ -404,6 +424,12 @@ void Simulation::reset() {
     // the spatial-lookup needs to always run at least once before any run
     spatialLookup->updateCmd(*simulationState);
     particlePhysics->updateCmd(*simulationState);
+
+    {
+        vk::SubmitInfo submit({}, {}, cmdReset);
+        resources.transferQueue.submit(submit);
+        resources.device.waitIdle();
+    }
 
     auto cmd = spatialLookup->run(*simulationState);
     if (nullptr != cmd) {

@@ -28,8 +28,7 @@ struct ProjectData {
      */
     SimulationParameters simulationParameters;
     RenderParameters renderParameters;
-    UiBindings uiBindings;
-    inline ProjectData() : uiBindings({}, simulationParameters, renderParameters, nullptr) {}
+    inline ProjectData() = default;
 
     struct PushConstant {
         glm::mat4 mvp;
@@ -325,7 +324,7 @@ public:
                     }
                 },
                 [&](uint32_t index) {
-                    return imguiUi->updateCommandBuffer(index, data.uiBindings);
+                    return nullptr;
                 });
     }
 };

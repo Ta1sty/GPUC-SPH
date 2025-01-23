@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <vulkan/vulkan.hpp>
 
@@ -24,9 +25,10 @@ public:
     void run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::Semaphore signalRenderFinished, vk::Fence signalSubmitFinished);
 
 private:
+    std::map<Query, double> timestamps;
     double prevTime = 0;
 
-    void processUpdateFlags(const UiBindings::UpdateFlags &updateFlags);
+    void processUpdateFlags(const UpdateFlags &updateFlags);
     void updateCommandBuffers();
 
     RenderParameters renderParameters;
@@ -52,7 +54,7 @@ private:
     vk::Semaphore initSemaphore();
     vk::CommandBuffer copy(uint32_t imageIndex);
 
-    UiBindings::UpdateFlags lastUpdate;
+    UpdateFlags lastUpdate;
 
     friend void Render::renderSimulationFrame(Simulation &simulation);// access stuff, kind of ugly to do it this way
 public:
