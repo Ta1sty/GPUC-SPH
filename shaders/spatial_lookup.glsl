@@ -188,6 +188,7 @@ uint cellClass = cellClass(cellCoord); \
  for (uint j = spatial_indices[cellKey]; j < GRID_NUM_ELEMENTS; j++) { \
 SpatialLookupEntry entry = spatial_lookup[j]; \
  if (entry.cellKey != cellKey) break; \
+ if (entry.cellClass != cellClass) continue; \
 uint NEIGHBOUR_INDEX = entry.particleIndex; \
  if (NEIGHBOUR_INDEX == uint(- 1)) continue; \
 VEC_T NEIGHBOUR_POSITION = COORDINATES_BUFFER_NAME[NEIGHBOUR_INDEX]; \
