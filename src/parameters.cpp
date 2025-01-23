@@ -71,6 +71,7 @@ SimulationParameters::SimulationParameters(const YAML::Node &yaml) {
     collisionDampingFactor = parse<float>(yaml, "collisionDampingFactor", collisionDampingFactor);
     targetDensity = parse<float>(yaml, "targetDensity", targetDensity);
     pressureMultiplier = parse<float>(yaml, "pressureMultiplier", pressureMultiplier);
+    viscosity = parse<float>(yaml, "viscosity", viscosity);
 }
 
 std::string SimulationParameters::printToYaml() const {

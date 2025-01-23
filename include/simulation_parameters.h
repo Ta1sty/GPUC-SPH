@@ -43,6 +43,7 @@ public:
     float collisionDampingFactor = 0.8f;// Default 20% energy loss
     float targetDensity = 2.75f;
     float pressureMultiplier = 0.5f;
+    float viscosity = 0.0f;
 
 public:
     SimulationParameters() = default;
