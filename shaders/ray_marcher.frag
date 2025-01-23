@@ -58,9 +58,16 @@ float evaluateDensity(VEC_T position) {
  * Decides the volume coefficients from our simulation data.
  */
 void sampleVolume(in vec3 position, out float extinction, out vec3 emission) {
-    float density = evaluateDensity(position) * 10;
+    float density;
+    switch (backgroundField) {
+        case 2:
+            density = evaluateDensity(position) * 10;
+            break;
+        default:
+            density = 0.0f;
+    }
     float scalar = 1 - exp(-density);
-    extinction = 5 * scalar; // arbitrary constants that just hapen to look decent
+    extinction = max(0, 20 * scalar - 10); // arbitrary constants that just hapen to look decent
     emission = texture(colorscale, scalar).rgb;
 }
 

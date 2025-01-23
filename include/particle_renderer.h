@@ -41,7 +41,7 @@ public:
     ParticleRenderer(const ParticleRenderer &particleRenderer) = delete;
     ~ParticleRenderer();
     vk::CommandBuffer run(const SimulationState &simulationState, const RenderParameters &renderParameters);
-    void updateCmd(const SimulationState &simulationState);
+    void updateCmd(const SimulationState &simulationState, const RenderParameters &renderParameters);
     [[nodiscard]] vk::Image getImage();
 
     struct SharedResources {

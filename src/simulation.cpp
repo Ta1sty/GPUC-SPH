@@ -370,7 +370,7 @@ void Simulation::processUpdateFlags(const UiBindings::UpdateFlags &updateFlags) 
 }
 
 void Simulation::updateCommandBuffers() {
-    particleRenderer->updateCmd(*simulationState);
+    particleRenderer->updateCmd(*simulationState, renderParameters);
 }
 
 void Simulation::reset() {

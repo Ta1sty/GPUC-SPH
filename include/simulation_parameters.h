@@ -56,6 +56,7 @@ enum class SelectedImage {
 extern const Mappings<SelectedImage> selectedImageMappings;
 
 enum class RenderBackgroundField {
+    NONE,
     CELL_HASH,
     DENSITY,
 };
@@ -75,7 +76,7 @@ struct RenderParameters {
     bool showDemoWindow = false;
     SelectedImage selectedImage = SelectedImage::RENDER;
 
-    RenderBackgroundField backgroundField = RenderBackgroundField::CELL_HASH;
+    RenderBackgroundField backgroundField = RenderBackgroundField::DENSITY;
     RenderParticleColor particleColor = RenderParticleColor::WHITE;
 
     float particleRadius = 12.0f;

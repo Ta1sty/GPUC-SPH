@@ -478,12 +478,12 @@ vk::CommandBuffer ParticleRenderer::run(const SimulationState &simulationState, 
     }
 
     if (commandBuffer == nullptr)
-        updateCmd(simulationState);
+        updateCmd(simulationState, renderParameters);
 
     return commandBuffer;
 }
 
-void ParticleRenderer::updateCmd(const SimulationState &simulationState) {
+void ParticleRenderer::updateCmd(const SimulationState &simulationState, const RenderParameters &renderParameters) {
     if (commandBuffer == nullptr)
         commandBuffer = resources.device.allocateCommandBuffers(
                 {resources.graphicsCommandPool, vk::CommandBufferLevel::ePrimary, 1U})[0];
@@ -503,7 +503,8 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState) {
     /* ========== Background Subpass ========== */
     switch (simulationState.parameters.type) {
         case SceneType::SPH_BOX_2D:
-            background2DPipeline->draw(commandBuffer, simulationState);
+            if (renderParameters.backgroundField != RenderBackgroundField::NONE)
+                background2DPipeline->draw(commandBuffer, simulationState);
             break;
         default:
             break;
@@ -528,7 +529,8 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState) {
     commandBuffer.nextSubpass(vk::SubpassContents::eInline);
     switch (simulationState.parameters.type) {
         case SceneType::SPH_BOX_3D:
-            rayMarcherPipeline->draw(commandBuffer, simulationState);
+            if (renderParameters.backgroundField != RenderBackgroundField::NONE)
+                rayMarcherPipeline->draw(commandBuffer, simulationState);
             break;
         default:
             break;
@@ -714,8 +716,8 @@ Background2DPipeline::Background2DPipeline(const vk::RenderPass &renderPass, uin
     pipelineLayout = createPipelineLayout<PushStruct>(descriptorPool);
     std::vector<GraphicsPipelineBuilder> builders;
     builders.emplace_back(GraphicsPipelineBuilder {
-            {{vk::ShaderStageFlagBits::eVertex, "background2d.vert"},
-             {vk::ShaderStageFlagBits::eFragment, "background2d.frag"}},
+            {{vk::ShaderStageFlagBits::eVertex, "background2d.vert.2D"},
+             {vk::ShaderStageFlagBits::eFragment, "background2d.frag.2D"}},
             pipelineLayout,
             renderPass,
             subpass});

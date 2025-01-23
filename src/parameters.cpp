@@ -48,6 +48,7 @@ const Mappings<SelectedImage> selectedImageMappings {
         {"debug_sort", SelectedImage::DEBUG_SORT},
         {"debug_renderer", SelectedImage::DEBUG_RENDERER}};
 const Mappings<RenderBackgroundField> renderBackgroundFieldMappings {
+        {"none", RenderBackgroundField::NONE},
         {"cell_hash", RenderBackgroundField::CELL_HASH},
         {"density", RenderBackgroundField::DENSITY}};
 const Mappings<RenderParticleColor> renderParticleColorMappings {

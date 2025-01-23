@@ -16,6 +16,7 @@ layout (binding = 2) uniform UniformBuffer {
 #define GRID_BINDING_INDEX 4
 #define GRID_NUM_ELEMENTS numParticles
 #define GRID_CELL_SIZE spatialRadius
+#define COORDINATES_BUFFER_NAME coordinates
 #include "spatial_lookup.glsl"
 
 layout (location = 0) in vec2 position;
@@ -40,15 +41,15 @@ void main() {
     float value = 0.0f;
     VEC_T position_t = SWIZZLE(vec3(position, 0));
     switch (backgroundField) {
-        case 0:
+        case 1:
             outColor = cellColor(cellKey(position_t));
             break;
-        case 1:
+        case 2:
             value = evaluateDensity(position_t);
             outColor = vec4(texture(colorscale, value).rgb, 1.0);
             break;
         default:
-            outColor = vec4(texture(colorscale, value).rgb, 1.0);
+            outColor = vec4(1.0f, 0.0f, 0.0f, 1.0);
             break;
     }
 }
