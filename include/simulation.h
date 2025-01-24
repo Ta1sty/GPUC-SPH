@@ -17,8 +17,7 @@
 class Simulation {
 public:
     Simulation() = delete;
-    explicit Simulation(const RenderParameters &renderParameters,
-                        const SimulationParameters &simulationParameters, std::shared_ptr<Camera> camera);
+    explicit Simulation(std::shared_ptr<Camera> camera);
     ~Simulation();
 
     void reset();

@@ -9,14 +9,17 @@
 #include "render.h"
 #include "spatial_lookup.h"
 
-Simulation::Simulation(const RenderParameters &_renderParameters,
-                       const SimulationParameters &_simulationParameters,
-                       std::shared_ptr<Camera> camera)
-    : renderParameters(_renderParameters), simulationParameters(_simulationParameters), simulationState(std::make_unique<SimulationState>(simulationParameters, std::move(camera))) {
+Simulation::Simulation(std::shared_ptr<Camera> camera) {
+    imguiUi = std::make_unique<ImguiUi>();
+
+    auto [rParams, sParams] = SceneParameters::loadParametersFromFile(imguiUi->getSelectedSceneFile());
+    simulationParameters = sParams;
+    renderParameters = rParams;
+
+    simulationState = std::make_unique<SimulationState>(simulationParameters, std::move(camera));
 
     particlePhysics = std::make_unique<ParticleSimulation>(simulationParameters);
     spatialLookup = std::make_unique<SpatialLookup>(simulationParameters);
-    imguiUi = std::make_unique<ImguiUi>();
     particleRenderer = std::make_unique<ParticleRenderer>();
 
     vk::CommandBufferAllocateInfo cmdAllocateInfo(resources.transferCommandPool, vk::CommandBufferLevel::ePrimary, 3);
@@ -55,7 +58,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     auto results = resources.device.getQueryPoolResults<uint64_t>(resources.queryPool, 0, Query::COUNT, Query::COUNT * sizeof(uint64_t), sizeof(uint64_t)).value;
     timestamps.clear();
     for (int i = 0; i < Query::COUNT; ++i) {
-        timestamps.emplace(static_cast<Query>(i), static_cast<double>(results[i]) * resources.timestampPeriod);
+        timestamps.emplace(static_cast<Query>(i), static_cast<double>(results[i]) * resources.pDeviceProperties2.properties.limits.timestampPeriod);
     }
 
     processUpdateFlags(lastUpdate);
@@ -405,7 +408,7 @@ void Simulation::reset() {
         cmd.resetQueryPool(resources.queryPool, 0, Query::COUNT);
         endSingleTimeCommands(resources.device, resources.transferQueue, resources.transferCommandPool, cmd);
     }
-    
+
     cmdReset.reset();
 
     cmdReset.begin(vk::CommandBufferBeginInfo());

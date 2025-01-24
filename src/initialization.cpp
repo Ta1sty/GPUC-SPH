@@ -75,8 +75,8 @@ void AppResources::destroy() {
     glfwDestroyWindow(this->window);
 }
 
-void initApp(AppResources &app, bool withWindow, const std::string &name, int width, int height) {
-    app.window = nullptr;
+void initApp(bool withWindow, const std::string &name, int width, int height) {
+    resources.window = nullptr;
     if (withWindow) {
         if (!glfwInit())
             throw std::runtime_error("GLFW initialization failed!");
@@ -85,53 +85,56 @@ void initApp(AppResources &app, bool withWindow, const std::string &name, int wi
                     "GLFW reports to have no Vulkan support! Maybe it couldn't find the Vulkan loader!");
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-        app.window = glfwCreateWindow(width, height, name.c_str(), nullptr, nullptr);
+        resources.window = glfwCreateWindow(width, height, name.c_str(), nullptr, nullptr);
     }
 
-    createInstance(app.instance, app.dbgUtilsMgr, "Assignment1, Task 1", "Idkwhattowrite", withWindow);
+    createInstance(resources.instance, resources.dbgUtilsMgr, "Assignment1, Task 1", "Idkwhattowrite", withWindow);
 
-    app.surface = VK_NULL_HANDLE;
+    resources.surface = VK_NULL_HANDLE;
     if (withWindow) {
         VkSurfaceKHR surface;
-        if (glfwCreateWindowSurface(app.instance, app.window, NULL, &surface))
+        if (glfwCreateWindowSurface(resources.instance, resources.window, NULL, &surface))
             throw std::runtime_error("Surface creation failed!");
-        app.surface = surface;
+        resources.surface = surface;
     }
 
-    selectPhysicalDevice(app.instance, app.pDevice);
-    app.timestampPeriod = app.pDevice.getProperties().limits.timestampPeriod;
+    selectPhysicalDevice(resources.instance, resources.pDevice);
+
+    resources.pDeviceProperties = resources.pDevice.getProperties();
+    resources.pDevice.getProperties2(&resources.pDeviceProperties2);
+
     // printDeviceCapabilities(app.pDevice);
-    std::tie(app.gQ, app.cQ, app.tQ) = getGCTQueues(app.pDevice);
-    app.tQ = -1;
-    createLogicalDevice(app.instance, app.pDevice, app.device, withWindow);
+    std::tie(resources.gQ, resources.cQ, resources.tQ) = getGCTQueues(resources.pDevice);
+    resources.tQ = -1;
+    createLogicalDevice(resources.instance, resources.pDevice, resources.device, withWindow);
 
-    app.device.getQueue(app.gQ, 0U, &app.graphicsQueue);
-    createCommandPool(app.device, app.graphicsCommandPool, app.gQ);
+    resources.device.getQueue(resources.gQ, 0U, &resources.graphicsQueue);
+    createCommandPool(resources.device, resources.graphicsCommandPool, resources.gQ);
 
 
-    if (app.cQ != -1) {
-        app.device.getQueue(app.cQ, 0U, &app.computeQueue);
-        createCommandPool(app.device, app.computeCommandPool, app.cQ);
+    if (resources.cQ != -1) {
+        resources.device.getQueue(resources.cQ, 0U, &resources.computeQueue);
+        createCommandPool(resources.device, resources.computeCommandPool, resources.cQ);
     } else {
-        app.computeQueue = app.graphicsQueue;
-        app.computeCommandPool = app.graphicsCommandPool;
+        resources.computeQueue = resources.graphicsQueue;
+        resources.computeCommandPool = resources.graphicsCommandPool;
     }
 
-    if (app.tQ != -1) {
-        app.device.getQueue(app.tQ, 0U, &app.transferQueue);
-        createCommandPool(app.device, app.transferCommandPool, app.tQ);
+    if (resources.tQ != -1) {
+        resources.device.getQueue(resources.tQ, 0U, &resources.transferQueue);
+        createCommandPool(resources.device, resources.transferCommandPool, resources.tQ);
     } else {
-        app.transferQueue = app.graphicsQueue;
-        app.transferCommandPool = app.graphicsCommandPool;
+        resources.transferQueue = resources.graphicsQueue;
+        resources.transferCommandPool = resources.graphicsCommandPool;
     }
 
-    createTimestampQueryPool(app.device, app.queryPool, Query::COUNT);
+    createTimestampQueryPool(resources.device, resources.queryPool, Query::COUNT);
 
-    app.swapchain = VK_NULL_HANDLE;
+    resources.swapchain = VK_NULL_HANDLE;
     if (withWindow)
-        createSwapchain(app);
+        createSwapchain(resources);
 
-    resources = app;
+    resources = resources;
 }
 
 /*
@@ -194,7 +197,8 @@ debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeveri
             }
         }
     }
-    std::cout << std::endl;
+    std::cout << "PRESS-ENTER to continue" << std::endl;
+    std::cin.get();
     return VK_TRUE;
 }
 

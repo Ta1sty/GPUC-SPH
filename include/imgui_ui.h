@@ -72,6 +72,10 @@ struct UiBindings {
 };
 
 class ImguiUi {
+    const std::string uiOffArg = "-ui-off";
+    const std::string sceneArg = "-scene-";
+
+    bool disabled;
     vk::DescriptorPool descriptorPool;
     vk::RenderPass renderPass;
 
@@ -82,16 +86,16 @@ class ImguiUi {
     std::vector<const char *> sceneFilesCStr;// sceneFiles[].c_str()
     int currentSceneFile = 0;
 
+
+    void drawUi(UiBindings &bindings);
+    void destroyCommandBuffers();
+    void initCommandBuffers();
+
 public:
     explicit ImguiUi();
     ~ImguiUi();
 
-    void initCommandBuffers();
-
     vk::CommandBuffer updateCommandBuffer(uint32_t index, UiBindings &bindings);
-    void destroyCommandBuffers();
 
-    void drawUi(UiBindings &bindings);
-
-    std::string getSelectedSceneFile() const;
+    [[nodiscard]] std::string getSelectedSceneFile() const;
 };

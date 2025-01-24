@@ -72,6 +72,7 @@ SimulationParameters::SimulationParameters(const YAML::Node &yaml) {
     collisionDampingFactor = parse<float>(yaml, "collisionDampingFactor", collisionDampingFactor);
     targetDensity = parse<float>(yaml, "targetDensity", targetDensity);
     pressureMultiplier = parse<float>(yaml, "pressureMultiplier", pressureMultiplier);
+    spatialRadius = parse<float>(yaml, "spatial_radius", spatialRadius);
 }
 
 std::string SimulationParameters::printToYaml() const {
@@ -84,6 +85,7 @@ std::string SimulationParameters::printToYaml() const {
     yaml["gravity"] = gravity;
     yaml["delta_time"] = deltaTime;
     yaml["collision_damping_factor"] = collisionDampingFactor;
+    yaml["spatial_radius"] = spatialRadius;
 
     return YAML::Dump(yaml);
 }

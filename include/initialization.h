@@ -32,4 +32,4 @@ void createSwapchain(AppResources &app);
 
 void printDeviceCapabilities(vk::PhysicalDevice &pDevice);
 
-void initApp(AppResources &app, bool withWindow = false, const std::string &name = "GPGPU/GPU-C", int width = 800, int height = 600);
+void initApp(bool withWindow = false, const std::string &name = "GPGPU/GPU-C", int width = 800, int height = 600);

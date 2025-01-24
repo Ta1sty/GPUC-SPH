@@ -18,14 +18,14 @@ function(add_shader TARGET SHADER)
 
     add_custom_command(
             OUTPUT ${current-output-path-2D}
-            COMMAND ${GLSLC} --target-env=vulkan1.1 -o ${current-output-path-2D} ${current-shader-path} -DDEF_2D
+            COMMAND ${GLSLC} --target-env=vulkan1.1 -g -o ${current-output-path-2D} ${current-shader-path} -DDEF_2D
             DEPENDS ${current-shader-path} shaders/spatial_lookup.glsl shaders/_defines.glsl
             IMPLICIT_DEPENDS CXX ${current-shader-path}
             VERBATIM)
 
     add_custom_command(
             OUTPUT ${current-output-path-3D}
-            COMMAND ${GLSLC} --target-env=vulkan1.1 -o ${current-output-path-3D} ${current-shader-path} -DDEF_3D
+            COMMAND ${GLSLC} --target-env=vulkan1.1 -g -o ${current-output-path-3D} ${current-shader-path} -DDEF_3D
             DEPENDS ${current-shader-path} shaders/spatial_lookup.glsl shaders/_defines.glsl
             IMPLICIT_DEPENDS CXX ${current-shader-path}
             VERBATIM)

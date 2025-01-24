@@ -244,8 +244,6 @@ public:
     }
 
     void prepare(ProjectData &data) {
-        imguiUi->initCommandBuffers();
-
         {
             // Opaque
             vk::PipelineColorBlendAttachmentState blendState = {false};

@@ -30,10 +30,14 @@ enum Query {
 };
 
 struct AppResources {
+    std::vector<std::string> args;
     vk::Instance instance;
     vk::DebugUtilsMessengerEXT dbgUtilsMgr;
     vk::PhysicalDevice pDevice;
-    float timestampPeriod;
+
+    vk::PhysicalDeviceProperties pDeviceProperties;
+    vk::PhysicalDeviceProperties2 pDeviceProperties2;
+    vk::PhysicalDeviceExternalMemoryHostPropertiesEXT pDeviceMemoryHostProperties;
 
     vk::Device device;
     vk::Queue graphicsQueue, computeQueue, transferQueue;
@@ -49,10 +53,14 @@ struct AppResources {
     std::vector<vk::Image> swapchainImages;
     std::vector<vk::ImageView> swapchainImageViews;
 
+    AppResources(AppResources &other) = delete;
+
+    AppResources() {// NOLINT(*-pro-type-member-init)
+        pDeviceProperties2.pNext = &pDeviceMemoryHostProperties;
+    }
+
     void destroy();
 };
-
-struct AppResources;
 
 extern AppResources &resources;
 
@@ -101,6 +109,7 @@ struct Buffer {
     }
 };
 
+vk::DeviceSize alignMemorySize(vk::DeviceSize size);
 std::vector<char> readFile(const std::string &filename);
 std::string formatSize(uint64_t size);
 uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties, vk::PhysicalDevice &pdevice);

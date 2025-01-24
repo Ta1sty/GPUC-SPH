@@ -9,9 +9,8 @@
 #include "utils.h"
 #include <stb_image_write.h>
 
-AppResources dontUse = AppResources();
-
-AppResources &resources = dontUse;
+AppResources resourcesValue = AppResources();
+AppResources &resources = resourcesValue;
 
 std::vector<char> readFile(const std::string &filename) {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
@@ -69,8 +68,7 @@ Buffer createBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
     setObjectName(device, buffer, name);
 
     vk::MemoryRequirements memReq = device.getBufferMemoryRequirements(buffer);
-    vk::MemoryAllocateInfo allocInfo(memReq.size,
-                                     findMemoryType(memReq.memoryTypeBits, properties, pDevice));
+    vk::MemoryAllocateInfo allocInfo(alignMemorySize(memReq.size), findMemoryType(memReq.memoryTypeBits, properties, pDevice));
 
     vk::DeviceMemory bufferMemory = device.allocateMemory(allocInfo);
     device.bindBufferMemory(buffer, bufferMemory, 0U);
@@ -93,7 +91,8 @@ void createImage(vk::PhysicalDevice &pDevice, vk::Device &device, vk::ImageCreat
     image = device.createImage(createInfo);
     setObjectName(device, image, name);
     auto memReq = device.getImageMemoryRequirements(image);
-    vk::MemoryAllocateInfo allocInfo(memReq.size, findMemoryType(memReq.memoryTypeBits, properties, pDevice));
+    vk::MemoryAllocateInfo allocInfo(alignMemorySize(memReq.size), findMemoryType(memReq.memoryTypeBits, properties, pDevice));
+
     imageMemory = device.allocateMemory(allocInfo);
     device.bindImageMemory(image, imageMemory, 0U);
 }
@@ -309,4 +308,9 @@ uint32_t nextPowerOfTwo(uint32_t n) {
     n |= n >> 16;
 
     return n + 1;
+}
+
+vk::DeviceSize alignMemorySize(vk::DeviceSize size) {
+    auto alignment = std::max<size_t>(1024, resources.pDeviceMemoryHostProperties.minImportedHostPointerAlignment);
+    return ((size + alignment - 1) / alignment) * alignment;
 }
