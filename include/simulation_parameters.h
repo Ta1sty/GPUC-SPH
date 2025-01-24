@@ -68,6 +68,7 @@ enum class RenderBackgroundField {
 extern const Mappings<RenderBackgroundField> renderBackgroundFieldMappings;
 
 enum class RenderParticleColor {
+    NONE,
     WHITE,
     NUM_NEIGHBOURS,
     DENSITY,
@@ -81,6 +82,7 @@ struct RenderParameters {
     bool showDemoWindow = false;
     SelectedImage selectedImage = SelectedImage::RENDER;
 
+    bool backgroundEnvironment = true;
     RenderBackgroundField backgroundField = RenderBackgroundField::DENSITY;
     RenderParticleColor particleColor = RenderParticleColor::WHITE;
 

@@ -41,6 +41,10 @@ void Camera::moveInTangentDir(float distance) {
     position += tangentDir() * distance;
 }
 
+void Camera::moveInUpDir(float distance) {
+    position.z += distance;
+}
+
 glm::mat4 Camera::viewMatrix() const {
     auto translationMatrix = glm::translate(glm::mat4(1.0), -position);
     auto rotationMatrixTheta = glm::rotate(glm::mat4(1.0), -theta, glm::vec3(1, 0, 0));

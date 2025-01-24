@@ -54,6 +54,7 @@ const Mappings<RenderBackgroundField> renderBackgroundFieldMappings {
         {"density", RenderBackgroundField::DENSITY}};
 const Mappings<RenderParticleColor> renderParticleColorMappings {
         {"white", RenderParticleColor::WHITE},
+        {"none", RenderParticleColor::NONE},
         {"num_neighbours", RenderParticleColor::NUM_NEIGHBOURS},
         {"density", RenderParticleColor::DENSITY}};
 
@@ -89,6 +90,7 @@ std::string SimulationParameters::printToYaml() const {
 
 RenderParameters::RenderParameters(const YAML::Node &yaml) {
     selectedImage = parseEnum<SelectedImage>(yaml, "selected_image", selectedImageMappings);
+    backgroundEnvironment = parse<bool>(yaml, "background_environment", backgroundEnvironment);
     backgroundField = parseEnum<RenderBackgroundField>(yaml, "background_field", renderBackgroundFieldMappings);
     particleColor = parseEnum<RenderParticleColor>(yaml, "particle_color", renderParticleColorMappings);
     particleRadius = parse<float>(yaml, "particle_radius", particleRadius);
@@ -98,6 +100,7 @@ std::string RenderParameters::printToYaml() const {
     YAML::Node yaml;
 
     yaml["selected_image"] = dumpEnum(selectedImage, selectedImageMappings);
+    yaml["background_environment"] = backgroundEnvironment;
     yaml["background_field"] = dumpEnum(backgroundField, renderBackgroundFieldMappings);
     yaml["particle_color"] = dumpEnum(particleColor, renderParticleColorMappings);
     yaml["particle_radius"] = particleRadius;

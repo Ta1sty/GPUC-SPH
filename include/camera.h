@@ -23,6 +23,8 @@ public:
 
     void moveInTangentDir(float distance);
 
+    void moveInUpDir(float distance);
+
     [[nodiscard]] glm::vec3 forwardDir() const;
 
     [[nodiscard]] glm::vec3 tangentDir() const;

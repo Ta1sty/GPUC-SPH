@@ -203,6 +203,7 @@ void ImguiUi::drawUi(UiBindings &bindings) {
         auto &render = bindings.renderParameters;
         EnumCombo("Selected Image", &render.selectedImage, selectedImageMappings);
 
+        ImGui::Checkbox("Background Environment", &render.backgroundEnvironment);
         EnumCombo("Background Field", &render.backgroundField, renderBackgroundFieldMappings);
         EnumCombo("Particle Color", &render.particleColor, renderParticleColorMappings);
 

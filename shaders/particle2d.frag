@@ -70,10 +70,10 @@ void main() {
 
     vec3 color = vec3(1.0f);
     switch (particleColor) {
-        case 1: // num_neighbours
+        case 2: // num_neighbours
             color = texture(colorscale, neighbourCountNormalized(center)).rgb;
             break;
-        case 2: // density
+        case 3: // density
             color = texture(colorscale, evaluateDensity(center)).rgb;
             break;
     }
