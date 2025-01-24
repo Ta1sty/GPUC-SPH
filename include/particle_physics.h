@@ -14,6 +14,7 @@ struct ParticleSimulationPushConstants {
     float spatialRadius;
     float targetDensity;
     float pressureMultiplier;
+    float viscosity;
 };
 
 
@@ -25,14 +26,16 @@ public:
     ~ParticleSimulation();
     vk::CommandBuffer run(const SimulationState &simulationState);
     void updateCmd(const SimulationState &state);
-    bool hasStateChanged(const SimulationState &state);
-    vk::CommandBuffer cmd;
+
 
 private:
     const uint32_t workgroupSizeX = 128;
     const uint32_t workgroupSizeY = 1;
 
     ParticleSimulationPushConstants currentPushConstants;
+    SceneType currentSceneType;
+
+    vk::CommandBuffer cmd;
 
     vk::DescriptorSetLayout descriptorSetLayout;
     std::vector<vk::DescriptorSetLayoutBinding> bindings;
@@ -41,11 +44,14 @@ private:
 
     vk::Pipeline computePipeline;
     vk::Pipeline densityPipeline;
+    vk::Pipeline positionUpdatePipeline;
     vk::PipelineLayout pipelineLayout;
 
     SimulationParameters simulationParameters;
 
-    Buffer particleCoordinateBufferCopy;
     Buffer particleVelocityBufferCopy;
-    Buffer particleDensityBufferCopy;
+
+
+    bool hasStateChanged(const SimulationState &state);
+    void createShaderPipelines(const SceneType newType);
 };

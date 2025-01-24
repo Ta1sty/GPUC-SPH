@@ -98,6 +98,7 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
 
 add_shader(${PROJECT_NAME} shaders/particle_simulation.comp)
 add_shader(${PROJECT_NAME} shaders/density_update.comp)
+add_shader(${PROJECT_NAME} shaders/position_update.comp)
 add_shader(${PROJECT_NAME} shaders/particles.comp)
 add_shader(${PROJECT_NAME} shaders/white.frag)
 add_shader(${PROJECT_NAME} shaders/soup.vert)

@@ -1,13 +1,13 @@
 #version 450
+#include "_defines.glsl"
 
+layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
-layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+layout(binding = 0) buffer positionBuffer { VEC_T positions[]; };
+layout(binding = 1) buffer velocityBuffer { VEC_T velocities[]; };
+layout(binding = 2) buffer densityBuffer { float densities[]; };
 
-layout (binding = 0) buffer positionBuffer { vec2 positions[]; };
-layout (binding = 1) buffer velocityBuffer { vec2 velocities[]; };
-layout (binding = 2) buffer densityBuffer { float densities[]; };
-
-layout (push_constant) uniform PushStruct {
+layout(push_constant) uniform PushStruct {
     float gravity;
     float deltaTime;
     uint numParticles;
@@ -15,6 +15,7 @@ layout (push_constant) uniform PushStruct {
     float spatialRadius;
     float targetDensity;
     float pressureMultiplier;
+    float viscosity;
 }
 constants;
 
@@ -30,46 +31,45 @@ const float particleMass = 1.0;
 
 float smoothingKernel(float radius, float dist) {
     if (dist >= radius) return 0.0;
+#ifdef DEF_2D
     float volume = (PI * pow(radius, 4)) / 6.0;
+#endif
+#ifdef DEF_3D
+    float volume = (2 * PI * pow(radius, 6)) / 15.0;
+#endif
     return (radius - dist) * (radius - dist) / volume;
 }
 
 float smoothingKernelDerivative(float radius, float dist) {
     if (dist >= radius) return 0.0;
-
+#ifdef DEF_2D
     float scale = 12.0 / (PI * pow(radius, 4));
+#endif
+#ifdef DEF_3D
+    float scale = 15.0 / (pow(radius, 5) * PI);
+#endif
     return (dist - radius) * scale;
 }
 
-void addDensity(inout float density, const float radius, const float mass, uint neighbourIndex, vec2 neighbourPosition, float neighbourDistance) {
+void addDensity(inout float density, const float radius, const float mass, uint neighbourIndex, VEC_T neighbourPosition, float neighbourDistance) {
     float influence = smoothingKernel(radius, neighbourDistance);
     float contribution = mass * influence;
     density += contribution;
 }
 
-float evaluateDensity(vec2 pos, float radius) {
+float evaluateDensity(VEC_T pos, float radius) {
     float density = 0.0;
-
-    #ifdef DEF_2D
     FOREACH_NEIGHBOUR(pos, {
-    //density += 1.0;
-    addDensity(density, radius, particleMass, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE);
-});
-#endif
-
- return density;
+        addDensity(density, radius, particleMass, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE);
+    });
+    return density;
 }
 
 void main() {
-uint index = gl_GlobalInvocationID.x;
-if (index >= constants.numParticles) return;
+    uint index = gl_GlobalInvocationID.x;
+    if (index >= constants.numParticles) return;
 
-vec2 position = positions[index];
-vec2 velocity = velocities[index];
-//apply gravity
-velocity += vec2(0.0, constants.gravity) * constants.deltaTime;
-
-float density = evaluateDensity(position, constants.spatialRadius);
-densities[index] = density;
-velocities[index] = velocity;
+    VEC_T position = positions[index];
+    float density = evaluateDensity(position, constants.spatialRadius);
+    densities[index] = density;
 }

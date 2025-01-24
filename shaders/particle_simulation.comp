@@ -1,13 +1,14 @@
 #version 450
+#include "_defines.glsl"
 
-layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
-layout (binding = 0) buffer positionBuffer { vec2 positions[]; };
-layout (binding = 1) buffer velocityBuffer { vec2 velocities[]; };
-layout (binding = 2) buffer densityBuffer { float densities[]; };
-layout (binding = 5) buffer positionOutputBuffer { vec2 positionsOutput[]; };
+layout(binding = 0) buffer positionBuffer { VEC_T positions[]; };
+layout(binding = 1) buffer velocityBuffer { VEC_T velocities[]; };
+layout(binding = 2) buffer densityBuffer { float densities[]; };
+layout(binding = 5) buffer velocityOutputBuffer { VEC_T velocitiesOutput[]; };
 
-layout (push_constant) uniform PushStruct {
+layout(push_constant) uniform PushStruct {
     float gravity;
     float deltaTime;
     uint numParticles;
@@ -15,6 +16,7 @@ layout (push_constant) uniform PushStruct {
     float spatialRadius;
     float targetDensity;
     float pressureMultiplier;
+    float viscosity;
 }
 constants;
 
@@ -28,16 +30,26 @@ constants;
 const float PI = 3.14159265359;
 const float particleMass = 1.0;
 
-float smoothingKernel(float radius, float dist) {
-    if (dist >= radius) return 0.0;
-    float volume = (PI * pow(radius, 4)) / 6.0;
-    return (radius - dist) * (radius - dist) / volume;
+float viscosityKernel(float radius, float dist) {
+    float value = max(0, radius * radius - dist * dist);
+    float volume;
+#ifdef DEF_2D
+    volume = 4 / (PI * pow(radius, 8));
+#endif
+#ifdef DEF_3D
+    volume = 315 / (64 * PI * pow(abs(radius), 9));
+#endif
+    return value * value * value * volume;
 }
 
 float smoothingKernelDerivative(float radius, float dist) {
     if (dist >= radius) return 0.0;
-
+#ifdef DEF_2D
     float scale = 12.0 / (PI * pow(radius, 4));
+#endif
+#ifdef DEF_3D
+    float scale = 15.0 / (pow(radius, 5) * PI);
+#endif
     return (dist - radius) * scale;
 }
 
@@ -45,67 +57,70 @@ float density2pressure(float density) {
     return constants.pressureMultiplier * (density - constants.targetDensity);
 }
 
-void addPressureForce(inout vec2 pressureForce, const vec2 pos, const float density, const float radius, const float mass, uint neighbourIndex, vec2 neighbourPosition, float neighbourDistance) {
-    vec2 diff = pos - neighbourPosition;
+float calculateSharedPressure(float density, float neighbourDensity) {
+    return (density2pressure(density) + density2pressure(neighbourDensity)) / 2;
+}
+
+void addPressureForce(inout VEC_T pressureForce, const VEC_T pos, const float density, const float radius, const float mass, uint neighbourIndex, VEC_T neighbourPosition, float neighbourDistance) {
+    VEC_T diff = pos - neighbourPosition;
     float dist = length(diff);
-    vec2 direction;
+    if (dist >= radius) return;
+    VEC_T direction;
     if (dist == 0.0) {
-        //pick a random direction
-        float angle = fract(sin(float(neighbourIndex) * 12.9898) * 43758.5453) * 2.0 * PI;
-        direction = vec2(cos(angle), sin(angle));
+        return;
     } else {
         direction = diff / dist;
     }
     float slope = -smoothingKernelDerivative(radius, dist);
-    pressureForce += density2pressure(density) * direction * slope * mass / density;
+    float sharedPressure = calculateSharedPressure(density, densities[neighbourIndex]);
+    pressureForce += sharedPressure * direction * slope * mass / density;
 }
 
-vec2 calculatePressureForce(vec2 pos, const float density, float radius) {
-    vec2 pressureForce = vec2(0.0, 0.0);
-    #ifdef DEF_2D
+void addViscosityForce(inout VEC_T viscosityForce, const VEC_T pos, const VEC_T velocity, const float radius, uint neighbourIndex, VEC_T neighbourPosition, float neighbourDistance) {
+    VEC_T diff = pos - neighbourPosition;
+    float dist = length(diff);
+    float influence = viscosityKernel(radius, dist);
+    viscosityForce += (velocities[neighbourIndex] - velocity) * influence;
+}
+
+VEC_T calculatePressureForce(VEC_T pos, const float density, float radius) {
+    VEC_T pressureForce = VEC_T(0.0);
     FOREACH_NEIGHBOUR(pos, {
-    addPressureForce(pressureForce, pos, density, radius, particleMass, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE);
+        addPressureForce(pressureForce, pos, density, radius, particleMass, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE);
     });
-    #endif
     return pressureForce;
+}
+
+VEC_T calculateViscosityForce(VEC_T position, VEC_T velocity, float radius) {
+    VEC_T viscosityForce = VEC_T(0.0);
+    FOREACH_NEIGHBOUR(position, {
+        addViscosityForce(viscosityForce, position, velocity, constants.spatialRadius, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE);
+    });
+    return viscosityForce * constants.viscosity;
 }
 
 void main() {
     uint index = gl_GlobalInvocationID.x;
     if (index >= constants.numParticles) return;
 
-    vec2 position = positions[index];
-    vec2 velocity = velocities[index];
+    VEC_T position = positions[index];
+    VEC_T velocity = velocities[index];
     float density = densities[index];
 
-    vec2 pressureForce = calculatePressureForce(position, density, constants.spatialRadius);
-    vec2 pressureAcceleration = pressureForce / density;
+    VEC_T pressureForce = calculatePressureForce(position, density, constants.spatialRadius);
+    VEC_T pressureAcceleration = pressureForce / density;
+
+    VEC_T viscosityForce = calculateViscosityForce(position, velocity, constants.spatialRadius);
 
     // Update velocity
-    velocity += vec2(0.0, constants.gravity) * constants.deltaTime;
-    velocity = pressureAcceleration * constants.deltaTime;
+    velocity += pressureAcceleration * constants.deltaTime;
+    velocity += viscosityForce * constants.deltaTime;
+#ifdef DEF_2D
+    velocity += VEC_T(0.0, constants.gravity * constants.deltaTime);
+#endif
+#ifdef DEF_3D
+    velocity += VEC_T(0.0, 0.0, -constants.gravity * constants.deltaTime);
+#endif
 
-
-    // Update position
-    position += velocity * constants.deltaTime;
-
-    // Resolve collisions
-    if (position.x < 0.0) {
-        position.x = -position.x;
-        velocity *= -constants.collisionDampingFactor;
-    } else if (position.x > 1.0) {
-        position.x = 2 - position.x;
-        velocity *= -constants.collisionDampingFactor;
-    }
-    if (position.y < 0.0) {
-        position.y = -position.y;
-        velocity *= -constants.collisionDampingFactor;
-    } else if (position.y > 1.0) {
-        position.y = 2 - position.y;
-        velocity *= -constants.collisionDampingFactor;
-    }
-
-
-    positionsOutput[index] = position;
-    velocities[index] = velocity;
+    velocitiesOutput[index] = velocity;
 }

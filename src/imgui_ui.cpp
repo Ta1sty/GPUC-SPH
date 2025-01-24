@@ -253,6 +253,7 @@ void ImguiUi::drawUi(UiBindings &bindings) {
         ImGui::DragFloat("Collision Damping", &simulation.collisionDampingFactor, 0.01f);
         ImGui::DragFloat("Target Density", &simulation.targetDensity, 0.01f);
         ImGui::DragFloat("Pressure Multiplier", &simulation.pressureMultiplier, 0.01f);
+        ImGui::DragFloat("Viscosity", &simulation.viscosity, 0.01f);
     }
 
     if (ImGui::CollapsingHeader("Performance")) {
