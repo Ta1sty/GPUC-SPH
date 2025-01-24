@@ -9,9 +9,8 @@
 #include "utils.h"
 #include <stb_image_write.h>
 
-AppResources dontUse = AppResources();
-
-AppResources &resources = dontUse;
+AppResources resourcesValue = AppResources();
+AppResources &resources = resourcesValue;
 
 std::vector<char> readFile(const std::string &filename) {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
@@ -69,8 +68,7 @@ Buffer createBuffer(vk::PhysicalDevice &pDevice, vk::Device &device,
     setObjectName(device, buffer, name);
 
     vk::MemoryRequirements memReq = device.getBufferMemoryRequirements(buffer);
-    vk::MemoryAllocateInfo allocInfo(memReq.size,
-                                     findMemoryType(memReq.memoryTypeBits, properties, pDevice));
+    vk::MemoryAllocateInfo allocInfo(alignMemorySize(memReq.size), findMemoryType(memReq.memoryTypeBits, properties, pDevice));
 
     vk::DeviceMemory bufferMemory = device.allocateMemory(allocInfo);
     device.bindBufferMemory(buffer, bufferMemory, 0U);
@@ -93,7 +91,8 @@ void createImage(vk::PhysicalDevice &pDevice, vk::Device &device, vk::ImageCreat
     image = device.createImage(createInfo);
     setObjectName(device, image, name);
     auto memReq = device.getImageMemoryRequirements(image);
-    vk::MemoryAllocateInfo allocInfo(memReq.size, findMemoryType(memReq.memoryTypeBits, properties, pDevice));
+    vk::MemoryAllocateInfo allocInfo(alignMemorySize(memReq.size), findMemoryType(memReq.memoryTypeBits, properties, pDevice));
+
     imageMemory = device.allocateMemory(allocInfo);
     device.bindImageMemory(image, imageMemory, 0U);
 }
@@ -117,6 +116,11 @@ void endSingleTimeCommands(vk::Device &device, vk::Queue &q,
     q.submit({submitInfo}, nullptr);
     q.waitIdle();
     device.freeCommandBuffers(commandPool, 1, &commandBuffer);
+}
+
+void writeTimestamp(vk::CommandBuffer cmd, Query value) {
+    cmd.resetQueryPool(resources.queryPool, value, 1);
+    cmd.writeTimestamp(vk::PipelineStageFlagBits::eAllCommands, resources.queryPool, value);
 }
 
 void ownershipTransfer(vk::Device &device, vk::CommandPool &srcCommandPool, vk::Queue &srcQueue, uint32_t srcQueueFamilyIndex, vk::CommandPool &dstCommandPool, vk::Queue &dstQueue, uint32_t dstQueueFamilyIndex, vk::Image &image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout) {
@@ -304,4 +308,9 @@ uint32_t nextPowerOfTwo(uint32_t n) {
     n |= n >> 16;
 
     return n + 1;
+}
+
+vk::DeviceSize alignMemorySize(vk::DeviceSize size) {
+    auto alignment = std::max<size_t>(1024, resources.pDeviceMemoryHostProperties.minImportedHostPointerAlignment);
+    return ((size + alignment - 1) / alignment) * alignment;
 }

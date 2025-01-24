@@ -28,6 +28,13 @@ enum class InitializationFunction {
 };
 extern const Mappings<InitializationFunction> initializationFunctionMappings;
 
+enum class RenderParticleColor {
+    NONE,
+    WHITE,
+    NUM_NEIGHBOURS,
+    DENSITY,
+};
+
 /**
  * Parameters that influence setup and execution of the simulation.
  * Changing parameters requires the simulation to be restarted.
@@ -44,6 +51,7 @@ public:
     float targetDensity = 2.75f;
     float pressureMultiplier = 0.5f;
     float viscosity = 0.0f;
+    float spatialRadius = 0.05f;
 
 public:
     SimulationParameters() = default;
@@ -68,11 +76,6 @@ enum class RenderBackgroundField {
 };
 extern const Mappings<RenderBackgroundField> renderBackgroundFieldMappings;
 
-enum class RenderParticleColor {
-    WHITE,
-    NUM_NEIGHBOURS,
-    DENSITY,
-};
 extern const Mappings<RenderParticleColor> renderParticleColorMappings;
 
 /**
@@ -82,6 +85,7 @@ struct RenderParameters {
     bool showDemoWindow = false;
     SelectedImage selectedImage = SelectedImage::RENDER;
 
+    bool backgroundEnvironment = true;
     RenderBackgroundField backgroundField = RenderBackgroundField::DENSITY;
     RenderParticleColor particleColor = RenderParticleColor::WHITE;
 

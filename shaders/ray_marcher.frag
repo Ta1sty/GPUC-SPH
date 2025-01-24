@@ -103,7 +103,7 @@ void main() {
         color += transmittance * emission;
     } while (t < maxT && isInVolume(x)); // exiting segment will not get included, not a fun fix
 
-    outColor = vec4(color, 1.0f - transmittance);
+    outColor = vec4(color, 1 - transmittance);
 }
 
 #else

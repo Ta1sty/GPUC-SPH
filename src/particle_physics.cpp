@@ -86,6 +86,7 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
     pushConstants.viscosity = simulationState.parameters.viscosity;
 
     cmd.begin(vk::CommandBufferBeginInfo());
+    writeTimestamp(cmd, PhysicsBegin);
 
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipelineLayout, 0, descriptorSet, {});
     cmd.pushConstants(pipelineLayout, {vk::ShaderStageFlagBits::eCompute}, 0, (pcr = pushConstants));
@@ -117,6 +118,7 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
             nullptr,
             nullptr);
 
+    writeTimestamp(cmd, PhysicsEnd);
     cmd.end();
     currentPushConstants = pushConstants;
 }

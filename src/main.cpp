@@ -23,8 +23,8 @@ int height = 1000;
 
 void render() {
     Render render(resources, 2);
-    auto [renderParameters, simulationParameters] = SceneParameters::loadParametersFromFile("../scenes/default.yaml");
-    Simulation simulation(renderParameters, simulationParameters, render.camera);
+
+    Simulation simulation(render.camera);
 
     // Loop until the user closes the window
     while (true) {
@@ -50,11 +50,16 @@ void render() {
     resources.device.waitIdle();
 }
 
-int main() {
-    try {
-        AppResources app;
+int main(int argc, char *argv[]) {
+    std::cout << "ARGS:" << std::endl;
+    resources.args.resize(argc);
+    for (int i = 0; i < argc; i++) {
+        std::cout << argv[i] << std::endl;
+        resources.args[i] = argv[i];
+    }
 
-        initApp(app, true, "Project", width, height);
+    try {
+        initApp(true, "Project", width, height);
         renderdoc::initialize();
 
         render();
@@ -62,14 +67,18 @@ int main() {
         resources.destroy();
     } catch (vk::SystemError &err) {
         std::cout << "vk::SystemError: " << err.what() << std::endl;
+        std::cin.get();
         exit(-1);
     } catch (std::exception &err) {
         std::cout << "std::exception: " << err.what() << std::endl;
+        std::cin.get();
         exit(-1);
     } catch (...) {
         std::cout << "unknown error/n";
+        std::cin.get();
         exit(-1);
     }
 
+    std::cin.get();
     return EXIT_SUCCESS;
 }

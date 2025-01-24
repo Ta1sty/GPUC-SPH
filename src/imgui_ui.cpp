@@ -8,6 +8,8 @@
 #include "simulation_state.h"
 
 ImguiUi::ImguiUi() {
+    disabled = std::any_of(resources.args.begin(), resources.args.end(), [&](std::string &s) { return s == uiOffArg; });
+
     const vk::DescriptorPoolSize pool_sizes[] =
             {
                     {vk::DescriptorType::eSampler, 10},
@@ -83,6 +85,12 @@ ImguiUi::ImguiUi() {
 
     ImGui_ImplVulkan_CreateFontsTexture();
 
+    auto selection = std::find_if(resources.args.begin(), resources.args.end(),
+                                  [&](std::string &s) { return s.size() > sceneArg.size() && s.substr(0, sceneArg.size()) == sceneArg; });
+    auto startingScene = selection == resources.args.end() ? "default" : selection[0].substr(sceneArg.size());
+
+    std::cout << "starting scene: " << startingScene << std::endl;
+
     for (auto entry: std::filesystem::directory_iterator {"../scenes/"}) {
         if (!entry.is_regular_file())
             continue;
@@ -91,10 +99,29 @@ ImguiUi::ImguiUi() {
         if (extension == ".yaml" || extension == ".yml") {
             auto i = sceneFiles.size();
             sceneFiles.emplace_back(path.filename().string());
-
-            if (path.stem().string() == "default")
-                currentSceneFile = i;
         }
+    }
+
+    currentSceneFile = -1;
+    for (uint32_t i = 0; i < sceneFiles.size(); i++) {
+        if (sceneFiles[i] == startingScene + ".yaml") {
+            currentSceneFile = i;
+            break;
+        }
+    }
+    if (currentSceneFile == -1) {
+        std::cout << "unable to find scene " << startingScene << std::endl;
+        startingScene = "default";
+        for (uint32_t i = 0; i < sceneFiles.size(); i++) {
+            if (sceneFiles[i] == startingScene + ".yaml") {
+                currentSceneFile = i;
+                break;
+            }
+        }
+    }
+
+    if (currentSceneFile == -1) {
+        throw std::runtime_error("unable to find default scene");
     }
 
     for (size_t i = 0; i < sceneFiles.size(); i++) {
@@ -103,7 +130,6 @@ ImguiUi::ImguiUi() {
 }
 
 void ImguiUi::initCommandBuffers() {
-
     if (!frameBuffers.empty() || commandPool || !commandBuffers.empty()) {
         destroyCommandBuffers();
     }
@@ -127,6 +153,8 @@ void ImguiUi::initCommandBuffers() {
 }
 
 vk::CommandBuffer ImguiUi::updateCommandBuffer(uint32_t index, UiBindings &bindings) {
+    if (disabled) return nullptr;
+
     if (commandBuffers.empty()) {
         initCommandBuffers();
     }
@@ -146,6 +174,7 @@ vk::CommandBuffer ImguiUi::updateCommandBuffer(uint32_t index, UiBindings &bindi
     vk::CommandBufferBeginInfo cmdBeginInfo = {};
 
     cmd.begin(cmdBeginInfo);
+    writeTimestamp(cmd, UiBegin);
 
     vk::ClearValue color(std::array<float, 4> {0, 0, 0, 0});
 
@@ -158,6 +187,7 @@ vk::CommandBuffer ImguiUi::updateCommandBuffer(uint32_t index, UiBindings &bindi
 
     cmd.endRenderPass();
 
+    writeTimestamp(cmd, UiEnd);
     cmd.end();
 
     return cmd;
@@ -201,6 +231,7 @@ void ImguiUi::drawUi(UiBindings &bindings) {
         auto &render = bindings.renderParameters;
         EnumCombo("Selected Image", &render.selectedImage, selectedImageMappings);
 
+        ImGui::Checkbox("Background Environment", &render.backgroundEnvironment);
         EnumCombo("Background Field", &render.backgroundField, renderBackgroundFieldMappings);
         EnumCombo("Particle Color", &render.particleColor, renderParticleColorMappings);
 
@@ -223,6 +254,15 @@ void ImguiUi::drawUi(UiBindings &bindings) {
         ImGui::DragFloat("Target Density", &simulation.targetDensity, 0.01f);
         ImGui::DragFloat("Pressure Multiplier", &simulation.pressureMultiplier, 0.01f);
         ImGui::DragFloat("Viscosity", &simulation.viscosity, 0.01f);
+    }
+
+    if (ImGui::CollapsingHeader("Performance")) {
+        ImGui::Text("Reset      : %.3f ms", bindings.queryTimes.reset);
+        ImGui::Text("Physics    : %.3f ms", bindings.queryTimes.physics);
+        ImGui::Text("Lookup     : %.3f ms", bindings.queryTimes.lookup);
+        ImGui::Text("Render     : %.3f ms", bindings.queryTimes.render);
+        ImGui::Text("Copy       : %.3f ms", bindings.queryTimes.copy);
+        ImGui::Text("UI         : %.3f ms", bindings.queryTimes.ui);
     }
 
 #ifdef _DEBUG

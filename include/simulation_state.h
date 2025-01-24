@@ -5,7 +5,6 @@
 #include "simulation_parameters.h"
 #include <random>
 
-
 struct SpatialLookupEntry {
     uint32_t cellKey;
     uint32_t cellClass;

@@ -47,7 +47,8 @@ std::vector<float> initPoissonDisk(SceneType sceneType, uint32_t numParticles, s
     }
 }
 
-SimulationState::SimulationState(const SimulationParameters &_parameters, std::shared_ptr<Camera> _camera) : parameters(_parameters), random(parameters.randomSeed), camera(std::move(_camera)) {
+SimulationState::SimulationState(const SimulationParameters &_parameters, std::shared_ptr<Camera> _camera)
+    : parameters(_parameters), spatialRadius(_parameters.spatialRadius), random(parameters.randomSeed), camera(std::move(_camera)) {
     std::cout << "------------- Initializing Simulation State -------------\n";
     std::cout << parameters.printToYaml() << std::endl;
     std::cout << "---------------------------------------------------------\n";

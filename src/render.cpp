@@ -42,6 +42,8 @@ void Render::input() {
         if (glfwGetKey(app.window, GLFW_KEY_A) == GLFW_PRESS) camera->moveInTangentDir(-timedelta);
         if (glfwGetKey(app.window, GLFW_KEY_S) == GLFW_PRESS) camera->moveInForwardDir(-timedelta);
         if (glfwGetKey(app.window, GLFW_KEY_D) == GLFW_PRESS) camera->moveInTangentDir(timedelta);
+        if (glfwGetKey(app.window, GLFW_KEY_E) == GLFW_PRESS) camera->moveInUpDir(timedelta);
+        if (glfwGetKey(app.window, GLFW_KEY_Q) == GLFW_PRESS) camera->moveInUpDir(-timedelta);
     }
     doRawMouseInput = false;
 }

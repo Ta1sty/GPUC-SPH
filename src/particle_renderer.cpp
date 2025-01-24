@@ -1,6 +1,9 @@
 #include "particle_renderer.h"
 #include "helper.h"
 
+#define STBI_ONLY_HDR
+#include <stb_image.h>
+
 /**
  * Convenience struct that initializes graphics pipeline parameters with sane values.
  * Create a graphics pipeline by using this struct and just overwriting any fields as you need.
@@ -274,6 +277,77 @@ Texture Texture::createColormapTexture(const std::vector<colormaps::RGB_F32> &co
     return std::move(r);
 }
 
+Texture Texture::createFromImage(const std::string &file) {
+    int sx, sy, num_channels;
+    float *image = stbi_loadf(file.c_str(), &sx, &sy, &num_channels, STBI_rgb_alpha);
+    std::vector<float> imageVector;
+    imageVector.resize(sx * sy * 4);
+    memcpy(imageVector.data(), image, imageVector.size() * sizeof(float));
+
+    Texture r;
+    vk::Format imageFormat = vk::Format::eR32G32B32A32Sfloat;
+    vk::Extent3D imageExtent = {static_cast<uint32_t>(sx), static_cast<uint32_t>(sy), 1};
+
+    vk::ImageCreateInfo imageCI {
+            {},
+            vk::ImageType::e2D,
+            imageFormat,
+            imageExtent,
+            1,
+            1,
+            vk::SampleCountFlagBits::e1,
+            vk::ImageTiling::eOptimal,
+            {vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst},
+            vk::SharingMode::eExclusive,
+            1,
+            &resources.gQ,
+            vk::ImageLayout::eUndefined,
+    };
+
+    createImage(
+            resources.pDevice,
+            resources.device,
+            imageCI,
+            {vk::MemoryPropertyFlagBits::eDeviceLocal},
+            "environmentTexture",
+            r.image,
+            r.memory);
+
+    vk::ImageViewCreateInfo viewCI {
+            {},
+            r.image,
+            vk::ImageViewType::e2D,
+            imageFormat,
+            {},
+            {{vk::ImageAspectFlagBits::eColor}, 0, 1, 0, 1}};
+
+    r.view = resources.device.createImageView(viewCI);
+
+    fillImageWithStagingBuffer(r.image, vk::ImageLayout::eShaderReadOnlyOptimal, imageExtent, imageVector);
+
+    vk::SamplerCreateInfo samplerCI {
+            {},
+            vk::Filter::eLinear,
+            vk::Filter::eLinear,
+            vk::SamplerMipmapMode::eNearest,
+            vk::SamplerAddressMode::eClampToEdge,
+            vk::SamplerAddressMode::eClampToEdge,
+            vk::SamplerAddressMode::eClampToEdge,
+            {},
+            vk::False,
+            {},
+            vk::False,
+            {},
+            0,
+            0,
+            vk::BorderColor::eFloatOpaqueBlack,
+            vk::False};
+
+    r.sampler = resources.device.createSampler(samplerCI);
+
+    return std::move(r);
+}
+
 ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resources.extent.height, 1) {
     sharedResources = std::make_shared<SharedResources>();
 
@@ -445,6 +519,7 @@ ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resourc
     const std::vector<UniformBufferStruct> uniformBufferVector {uniformBufferContent};
     fillDeviceWithStagingBuffer(sharedResources->uniformBuffer, uniformBufferVector);
 
+    backgroundEnvironmentPipeline = std::make_unique<BackgroundEnvironmentPipeline>(renderPass, 0, framebuffer, sharedResources);
     background2DPipeline = std::make_unique<Background2DPipeline>(renderPass, 0, framebuffer, sharedResources);
     particleCirclePipeline = std::make_unique<ParticleCirclePipeline>(renderPass, 1, framebuffer, sharedResources);
     rayMarcherPipeline = std::make_unique<RayMarcherPipeline>(renderPass, 2, framebuffer, sharedResources);
@@ -492,6 +567,8 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState, const R
 
 
     commandBuffer.begin(vk::CommandBufferBeginInfo {});
+    writeTimestamp(commandBuffer, RenderBegin);
+
     std::array<vk::ClearValue, 2> clearValues;
     clearValues[0].color.uint32 = {{0, 0, 0, 0}};
     clearValues[1].depthStencil.depth = 1.0f;
@@ -501,6 +578,9 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState, const R
 
 
     /* ========== Background Subpass ========== */
+    if (renderParameters.backgroundEnvironment)
+        backgroundEnvironmentPipeline->draw(commandBuffer, simulationState);
+
     switch (simulationState.parameters.type) {
         case SceneType::SPH_BOX_2D:
             if (renderParameters.backgroundField != RenderBackgroundField::NONE)
@@ -512,18 +592,8 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState, const R
 
     /* ========== Particle Subpass ========== */
     commandBuffer.nextSubpass(vk::SubpassContents::eInline);
-    particleCirclePipeline->draw(commandBuffer, simulationState);
-
-    //    vk::ImageMemoryBarrier barrier(
-    //            vk::AccessFlagBits::eNoneKHR, vk::AccessFlagBits::eNoneKHR,
-    //            vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ImageLayout::eShaderReadOnlyOptimal,
-    //            VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-    //            depthImage,
-    //            vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1));
-    //    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eBottomOfPipe,
-    //                                  vk::PipelineStageFlagBits::eTopOfPipe,
-    //                                  {},
-    //                                  0, nullptr, 0, nullptr, 1, &barrier);
+    if (renderParameters.particleColor != RenderParticleColor::NONE)
+        particleCirclePipeline->draw(commandBuffer, simulationState);
 
     /* ========== Ray Marcher Subpass ========== */
     commandBuffer.nextSubpass(vk::SubpassContents::eInline);
@@ -537,6 +607,8 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState, const R
     }
 
     commandBuffer.endRenderPass();
+
+    writeTimestamp(commandBuffer, RenderEnd);
     commandBuffer.end();
 }
 
@@ -824,4 +896,53 @@ void RayMarcherPipeline::updateDescriptorSets(const SimulationState &simulationS
     Cmn::bindBuffers(resources.device, simulationState.particleCoordinateBuffer.buf, descriptorSet, 3);
     Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 4);
     Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, descriptorSet, 5);
+}
+
+BackgroundEnvironmentPipeline::BackgroundEnvironmentPipeline(const vk::RenderPass &renderPass,
+                                                             uint32_t subpass,
+                                                             const vk::Framebuffer &framebuffer,
+                                                             GraphicsPipeline::SharedResources renderer) : sharedResources(renderer) {
+    descriptorPool.addSampler(0, 1, vk::ShaderStageFlagBits::eFragment);
+    descriptorPool.allocate();
+
+
+    pipelineLayout = createPipelineLayout<PushStruct>(descriptorPool);
+    std::vector<GraphicsPipelineBuilder> builders;
+    builders.emplace_back(GraphicsPipelineBuilder {
+            {{vk::ShaderStageFlagBits::eVertex, "background_quad.vert.2D"},
+             {vk::ShaderStageFlagBits::eFragment, "background_environment.frag.2D"}},
+            pipelineLayout,
+            renderPass,
+            subpass});
+
+    auto pipelines = GraphicsPipelineBuilder::createPipelines(builders);
+    pipeline = pipelines[0];
+
+    environmentTexture = Texture::createFromImage("../Assets/kloppenheim_06_puresky_4k.hdr");
+}
+
+BackgroundEnvironmentPipeline::~BackgroundEnvironmentPipeline() {
+    resources.device.destroyPipeline(pipeline);
+    resources.device.destroyPipelineLayout(pipelineLayout);
+}
+
+void BackgroundEnvironmentPipeline::draw(vk::CommandBuffer &cb, const SimulationState &simulationState) {
+    updateDescriptorSets(simulationState);
+    uint64_t offsets[] = {0UL};
+
+    pushStruct.mvpInv = glm::inverse(simulationState.camera->viewProjectionMatrix());
+    pushStruct.cameraPos = glm::vec4(simulationState.camera->position, 0.0f);
+
+    cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+    cb.bindVertexBuffers(0, 1, &sharedResources->quadVertexBuffer.buf, offsets);
+    cb.bindIndexBuffer(sharedResources->quadIndexBuffer.buf, 0UL, vk::IndexType::eUint16);
+    cb.pushConstants(pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
+    cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descriptorPool.sets[0],
+                          0, nullptr);
+    cb.drawIndexed(6, 1, 0, 0, 0);// draw quad
+}
+
+void BackgroundEnvironmentPipeline::updateDescriptorSets(const SimulationState &simulationState) {
+    auto &descriptorSet = descriptorPool.sets[0];
+    Cmn::bindCombinedImageSampler(resources.device, environmentTexture.view, environmentTexture.sampler, descriptorSet, 0);
 }

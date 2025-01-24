@@ -54,6 +54,7 @@ const Mappings<RenderBackgroundField> renderBackgroundFieldMappings {
         {"density", RenderBackgroundField::DENSITY}};
 const Mappings<RenderParticleColor> renderParticleColorMappings {
         {"white", RenderParticleColor::WHITE},
+        {"none", RenderParticleColor::NONE},
         {"num_neighbours", RenderParticleColor::NUM_NEIGHBOURS},
         {"density", RenderParticleColor::DENSITY}};
 
@@ -72,6 +73,7 @@ SimulationParameters::SimulationParameters(const YAML::Node &yaml) {
     targetDensity = parse<float>(yaml, "targetDensity", targetDensity);
     pressureMultiplier = parse<float>(yaml, "pressureMultiplier", pressureMultiplier);
     viscosity = parse<float>(yaml, "viscosity", viscosity);
+    spatialRadius = parse<float>(yaml, "spatial_radius", spatialRadius);
 }
 
 std::string SimulationParameters::printToYaml() const {
@@ -84,12 +86,14 @@ std::string SimulationParameters::printToYaml() const {
     yaml["gravity"] = gravity;
     yaml["delta_time"] = deltaTime;
     yaml["collision_damping_factor"] = collisionDampingFactor;
+    yaml["spatial_radius"] = spatialRadius;
 
     return YAML::Dump(yaml);
 }
 
 RenderParameters::RenderParameters(const YAML::Node &yaml) {
     selectedImage = parseEnum<SelectedImage>(yaml, "selected_image", selectedImageMappings);
+    backgroundEnvironment = parse<bool>(yaml, "background_environment", backgroundEnvironment);
     backgroundField = parseEnum<RenderBackgroundField>(yaml, "background_field", renderBackgroundFieldMappings);
     particleColor = parseEnum<RenderParticleColor>(yaml, "particle_color", renderParticleColorMappings);
     particleRadius = parse<float>(yaml, "particle_radius", particleRadius);
@@ -99,6 +103,7 @@ std::string RenderParameters::printToYaml() const {
     YAML::Node yaml;
 
     yaml["selected_image"] = dumpEnum(selectedImage, selectedImageMappings);
+    yaml["background_environment"] = backgroundEnvironment;
     yaml["background_field"] = dumpEnum(backgroundField, renderBackgroundFieldMappings);
     yaml["particle_color"] = dumpEnum(particleColor, renderParticleColorMappings);
     yaml["particle_radius"] = particleRadius;
