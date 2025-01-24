@@ -79,6 +79,7 @@ int main(int argc, char *argv[]) {
         exit(-1);
     }
 
+    std::cout << "PRESS ENTER TO EXIT" << std::endl;
     std::cin.get();
     return EXIT_SUCCESS;
 }

@@ -4,36 +4,32 @@ project(Project)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-
-function(add_shader TARGET SHADER)
+function(compileShader TARGET SHADER DIM)
     find_program(GLSLC glslc)
 
-    set(current-shader-path ${CMAKE_CURRENT_SOURCE_DIR}/${SHADER})
-    set(current-output-path-2D ${CMAKE_CURRENT_SOURCE_DIR}/build/${SHADER}.2D.spv)
-    set(current-output-path-3D ${CMAKE_CURRENT_SOURCE_DIR}/build/${SHADER}.3D.spv)
+    set(source ${CMAKE_CURRENT_SOURCE_DIR}/${SHADER})
+    set(output ${CMAKE_CURRENT_SOURCE_DIR}/build/${SHADER}.${DIM}.spv)
 
-    file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
-    get_filename_component(current-output-dir ${current-output-path-2D} DIRECTORY)
-    file(MAKE_DIRECTORY ${current-output-dir})
+    set(compile-script ${CMAKE_CURRENT_SOURCE_DIR}/compile_shader.cmake)
 
     add_custom_command(
-            OUTPUT ${current-output-path-2D}
-            COMMAND ${GLSLC} --target-env=vulkan1.1 -g -o ${current-output-path-2D} ${current-shader-path} -DDEF_2D
-            DEPENDS ${current-shader-path} shaders/spatial_lookup.glsl shaders/_defines.glsl
-            IMPLICIT_DEPENDS CXX ${current-shader-path}
-            VERBATIM)
+            OUTPUT ${output}
+            COMMAND ${CMAKE_COMMAND} -DSOURCE=${source} -DOUTPUT=${output} -DDIM=${DIM} -P ${compile-script}
+            DEPENDS ${source}
+            VERBATIM
+    )
 
-    add_custom_command(
-            OUTPUT ${current-output-path-3D}
-            COMMAND ${GLSLC} --target-env=vulkan1.1 -g -o ${current-output-path-3D} ${current-shader-path} -DDEF_3D
-            DEPENDS ${current-shader-path} shaders/spatial_lookup.glsl shaders/_defines.glsl
-            IMPLICIT_DEPENDS CXX ${current-shader-path}
-            VERBATIM)
+    set_source_files_properties(${output} PROPERTIES GENERATED TRUE)
 
-    # Make sure our build depends on this output.
-    set_source_files_properties(${current-output-path} PROPERTIES GENERATED TRUE)
-    target_sources(${TARGET} PRIVATE ${current-output-path-2D})
-    target_sources(${TARGET} PRIVATE ${current-output-path-3D})
+    target_sources(${TARGET} PRIVATE ${output})
+
+endfunction(compileShader)
+
+function(add_shader TARGET SHADER)
+
+    compileShader(${TARGET} ${SHADER} 2D)
+    compileShader(${TARGET} ${SHADER} 3D)
+
 endfunction(add_shader)
 
 add_subdirectory(libs)
@@ -98,9 +94,10 @@ add_compile_definitions(WORKING_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
+
 add_shader(${PROJECT_NAME} shaders/particle_simulation.comp)
 add_shader(${PROJECT_NAME} shaders/density_update.comp)
-
 add_shader(${PROJECT_NAME} shaders/particles.comp)
 add_shader(${PROJECT_NAME} shaders/white.frag)
 add_shader(${PROJECT_NAME} shaders/soup.vert)
