@@ -8,8 +8,7 @@ ParticleSimulation::ParticleSimulation(const SimulationParameters &parameters) :
     Cmn::addStorage(bindings, 2);// particle densities
     Cmn::addStorage(bindings, 3);// spatial lookup
     Cmn::addStorage(bindings, 4);// spatial indices
-    Cmn::addStorage(bindings, 5);// particle coordinates copy output
-    Cmn::addStorage(bindings, 6);// particle coordinate predictions
+    Cmn::addStorage(bindings, 5);// particle velocities copy output
 
     Cmn::createDescriptorSetLayout(resources.device, bindings, descriptorSetLayout);
     Cmn::createDescriptorPool(resources.device, bindings, descriptorPool);
@@ -20,43 +19,34 @@ ParticleSimulation::ParticleSimulation(const SimulationParameters &parameters) :
 
     pipelineLayout = resources.device.createPipelineLayout(pipelineLayoutInfo);
 
-    vk::ShaderModule particleComputeSM;
-    vk::ShaderModule densityComputeSM;
-    vk::ShaderModule positionUpdateSM;
-    Cmn::createShader(resources.device, particleComputeSM, shaderPath("particle_simulation.comp", parameters.type));
-    Cmn::createShader(resources.device, densityComputeSM, shaderPath("density_update.comp", parameters.type));
-    Cmn::createShader(resources.device, positionUpdateSM, shaderPath("position_update.comp", parameters.type));
-
-    std::array<vk::SpecializationMapEntry, 2> specEntries = std::array<vk::SpecializationMapEntry, 2> {
-            vk::SpecializationMapEntry {0U, 0U, sizeof(workgroupSizeX)},
-            vk::SpecializationMapEntry {1U, sizeof(workgroupSizeX), sizeof(workgroupSizeY)}};
-    std::array<const uint32_t, 2> specValues = {workgroupSizeX, workgroupSizeY};
-    vk::SpecializationInfo specInfo(specEntries, vk::ArrayProxyNoTemporaries<const uint32_t>(specValues));
-
-    Cmn::createPipeline(resources.device, computePipeline, pipelineLayout, specInfo, particleComputeSM);
-    Cmn::createPipeline(resources.device, densityPipeline, pipelineLayout, specInfo, densityComputeSM);
-    Cmn::createPipeline(resources.device, positionUpdatePipeline, pipelineLayout, specInfo, positionUpdateSM);
-
-    resources.device.destroyShaderModule(particleComputeSM);
-    resources.device.destroyShaderModule(densityComputeSM);
-    resources.device.destroyShaderModule(positionUpdateSM);
+    createShaderPipelines(parameters.type);
 }
 
 void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
+    if (currentSceneType != simulationState.parameters.type) {
+        // Destroy old pipelines and shader modules
+        resources.device.destroyPipeline(computePipeline);
+        resources.device.destroyPipeline(densityPipeline);
+        resources.device.destroyPipeline(positionUpdatePipeline);
+        createShaderPipelines(simulationState.parameters.type);
+    }
     vk::ArrayProxy<const ParticleSimulationPushConstants> pcr;
-    // set up copy buffers
+    // Set up copy buffers based on dimension
     vk::DeviceSize velocityBufferSize;
     switch (simulationState.parameters.type) {
         case SceneType::SPH_BOX_2D:
             velocityBufferSize = sizeof(glm::vec2) * simulationState.parameters.numParticles;
             break;
         case SceneType::SPH_BOX_3D:
+            velocityBufferSize = sizeof(glm::vec4) * simulationState.parameters.numParticles;
+            break;
+        default:
             resources.device.freeCommandBuffers(resources.computeCommandPool, cmd);
             cmd = nullptr;
             return;
     }
 
-    particleVelocityBufferCopy = createDeviceLocalBuffer("buffer-velocity-copy", velocityBufferSize, vk::BufferUsageFlagBits::eVertexBuffer);
+    particleVelocityBufferCopy = createDeviceLocalBuffer("buffer-velocity-copy", velocityBufferSize);
     if (cmd == nullptr) {
         std::cout << "ParticleSimulation command buffer is null, allocating new one" << std::endl;
         vk::CommandBufferAllocateInfo cmdInfo(resources.computeCommandPool, vk::CommandBufferLevel::ePrimary, 1);
@@ -105,9 +95,9 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
     cmd.bindPipeline(vk::PipelineBindPoint::eCompute, positionUpdatePipeline);
     cmd.dispatch(dx, dy, 1);
     computeBarrier(cmd);
-
+    size_t vectorSize = (simulationState.parameters.type == SceneType::SPH_BOX_2D) ? sizeof(glm::vec2) : sizeof(glm::vec4);
     // copy particle coordinates
-    cmd.copyBuffer(particleVelocityBufferCopy.buf, simulationState.particleVelocityBuffer.buf, vk::BufferCopy(0, 0, simulationState.parameters.numParticles * sizeof(glm::vec2)));
+    cmd.copyBuffer(particleVelocityBufferCopy.buf, simulationState.particleVelocityBuffer.buf, vk::BufferCopy(0, 0, simulationState.parameters.numParticles * vectorSize));
     cmd.pipelineBarrier(
             vk::PipelineStageFlagBits::eComputeShader,
             vk::PipelineStageFlagBits::eTransfer,
@@ -124,10 +114,6 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
 }
 
 vk::CommandBuffer ParticleSimulation::run(const SimulationState &simulationState) {
-    // TODO implement 3D!
-    if (simulationState.parameters.type != SceneType::SPH_BOX_2D)
-        return nullptr;
-
     if (nullptr == cmd || hasStateChanged(simulationState)) {
         updateCmd(simulationState);
     }
@@ -152,17 +138,47 @@ vk::CommandBuffer ParticleSimulation::run(const SimulationState &simulationState
 }
 
 bool ParticleSimulation::hasStateChanged(const SimulationState &state) {
-    if (currentPushConstants.spatialRadius == state.spatialRadius &&
-        currentPushConstants.gravity == state.parameters.gravity &&
-        currentPushConstants.deltaTime == state.parameters.deltaTime &&
-        currentPushConstants.numParticles == state.parameters.numParticles &&
-        currentPushConstants.collisionDamping == state.parameters.collisionDampingFactor &&
-        currentPushConstants.targetDensity == state.parameters.targetDensity &&
-        currentPushConstants.pressureMultiplier == state.parameters.pressureMultiplier) {
-        return false;
-    } else {
+    if (currentSceneType != state.parameters.type ||
+        currentPushConstants.spatialRadius != state.spatialRadius ||
+        currentPushConstants.gravity != state.parameters.gravity ||
+        currentPushConstants.deltaTime != state.parameters.deltaTime ||
+        currentPushConstants.numParticles != state.parameters.numParticles ||
+        currentPushConstants.collisionDamping != state.parameters.collisionDampingFactor ||
+        currentPushConstants.targetDensity != state.parameters.targetDensity ||
+        currentPushConstants.pressureMultiplier != state.parameters.pressureMultiplier) {
         return true;
+    } else {
+        return false;
     }
+}
+
+void ParticleSimulation::createShaderPipelines(const SceneType newType) {
+    // Create new shader modules
+    vk::ShaderModule particleComputeSM;
+    vk::ShaderModule densityComputeSM;
+    vk::ShaderModule positionUpdateSM;
+
+    Cmn::createShader(resources.device, particleComputeSM, shaderPath("particle_simulation.comp", newType));
+    Cmn::createShader(resources.device, densityComputeSM, shaderPath("density_update.comp", newType));
+    Cmn::createShader(resources.device, positionUpdateSM, shaderPath("position_update.comp", newType));
+
+    // Recreate pipelines
+    std::array<vk::SpecializationMapEntry, 2> specEntries = {
+            vk::SpecializationMapEntry {0U, 0U, sizeof(workgroupSizeX)},
+            vk::SpecializationMapEntry {1U, sizeof(workgroupSizeX), sizeof(workgroupSizeY)}};
+    std::array<const uint32_t, 2> specValues = {workgroupSizeX, workgroupSizeY};
+    vk::SpecializationInfo specInfo(specEntries, vk::ArrayProxyNoTemporaries<const uint32_t>(specValues));
+
+    Cmn::createPipeline(resources.device, computePipeline, pipelineLayout, specInfo, particleComputeSM);
+    Cmn::createPipeline(resources.device, densityPipeline, pipelineLayout, specInfo, densityComputeSM);
+    Cmn::createPipeline(resources.device, positionUpdatePipeline, pipelineLayout, specInfo, positionUpdateSM);
+
+    // Cleanup shader modules
+    resources.device.destroyShaderModule(particleComputeSM);
+    resources.device.destroyShaderModule(densityComputeSM);
+    resources.device.destroyShaderModule(positionUpdateSM);
+
+    currentSceneType = newType;
 }
 
 

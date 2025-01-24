@@ -1,9 +1,10 @@
 #version 450
+#include "_defines.glsl"
 
 layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0) buffer positionBuffer { vec2 positions[]; };
-layout(binding = 5) buffer velocityBuffer { vec2 velocities[]; };
+layout(binding = 0) buffer positionBuffer { VEC_T positions[]; };
+layout(binding = 5) buffer velocityBuffer { VEC_T velocities[]; };
 
 layout(push_constant) uniform PushStruct {
     float gravity;
@@ -22,13 +23,13 @@ void main() {
     uint index = gl_GlobalInvocationID.x;
     if (index >= constants.numParticles) return;
 
-    vec2 position = positions[index];
-    vec2 velocity = velocities[index];
+    VEC_T position = positions[index];
+    VEC_T velocity = velocities[index];
 
     // Update position using velocity
     position += velocity * constants.deltaTime;
 
-    // Resolve collisions
+    // Resolve collisions - handle both 2D and 3D cases
     if (position.x < 0.0) {
         position.x = -position.x;
         velocity *= -constants.collisionDampingFactor;
@@ -43,6 +44,16 @@ void main() {
         position.y = 2 - position.y;
         velocity *= -constants.collisionDampingFactor;
     }
+#ifdef DEF_3D
+    // Handle 3D collisions
+    if (position.z < 0.0) {
+        position.z = -position.z;
+        velocity *= -constants.collisionDampingFactor;
+    } else if (position.z > 1.0) {
+        position.z = 2 - position.z;
+        velocity *= -constants.collisionDampingFactor;
+    }
+#endif
 
     // Write updated position to output buffer
     positions[index] = position;

@@ -26,14 +26,16 @@ public:
     ~ParticleSimulation();
     vk::CommandBuffer run(const SimulationState &simulationState);
     void updateCmd(const SimulationState &state);
-    bool hasStateChanged(const SimulationState &state);
-    vk::CommandBuffer cmd;
+
 
 private:
     const uint32_t workgroupSizeX = 128;
     const uint32_t workgroupSizeY = 1;
 
     ParticleSimulationPushConstants currentPushConstants;
+    SceneType currentSceneType;
+
+    vk::CommandBuffer cmd;
 
     vk::DescriptorSetLayout descriptorSetLayout;
     std::vector<vk::DescriptorSetLayoutBinding> bindings;
@@ -48,4 +50,8 @@ private:
     SimulationParameters simulationParameters;
 
     Buffer particleVelocityBufferCopy;
+
+
+    bool hasStateChanged(const SimulationState &state);
+    void createShaderPipelines(const SceneType newType);
 };

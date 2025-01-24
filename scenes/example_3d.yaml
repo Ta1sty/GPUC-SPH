@@ -1,8 +1,11 @@
 simulation:
   type: sph_box_3d
   initialization_function: uniform
-  num_particles: 4096
+  num_particles: 8192
   deltaTime: 0.008
+  targetDensity: 15000.0
+  pressureMultiplier: 15.0
+  viscosity: 0.002
 render:
   background_field: density
   particle_radius: 12

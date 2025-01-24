@@ -1,11 +1,12 @@
 #version 450
+#include "_defines.glsl"
 
 layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 0) buffer positionBuffer { vec2 positions[]; };
-layout(binding = 1) buffer velocityBuffer { vec2 velocities[]; };
+layout(binding = 0) buffer positionBuffer { VEC_T positions[]; };
+layout(binding = 1) buffer velocityBuffer { VEC_T velocities[]; };
 layout(binding = 2) buffer densityBuffer { float densities[]; };
-layout(binding = 5) buffer velocityOutputBuffer { vec2 velocitiesOutput[]; };
+layout(binding = 5) buffer velocityOutputBuffer { VEC_T velocitiesOutput[]; };
 
 layout(push_constant) uniform PushStruct {
     float gravity;
@@ -30,21 +31,25 @@ const float PI = 3.14159265359;
 const float particleMass = 1.0;
 
 float viscosityKernel(float radius, float dist) {
-    float volume = PI * pow(radius, 8) / 4;
     float value = max(0, radius * radius - dist * dist);
-    return value * value * value / volume;
-}
-
-float smoothingKernel(float radius, float dist) {
-    if (dist >= radius) return 0.0;
-    float volume = (PI * pow(radius, 4)) / 6.0;
-    return (radius - dist) * (radius - dist) / volume;
+    float volume;
+#ifdef DEF_2D
+    volume = 4 / (PI * pow(radius, 8));
+#endif
+#ifdef DEF_3D
+    volume = 315 / (64 * PI * pow(abs(radius), 9));
+#endif
+    return value * value * value * volume;
 }
 
 float smoothingKernelDerivative(float radius, float dist) {
     if (dist >= radius) return 0.0;
-
+#ifdef DEF_2D
     float scale = 12.0 / (PI * pow(radius, 4));
+#endif
+#ifdef DEF_3D
+    float scale = 15.0 / (pow(radius, 5) * PI);
+#endif
     return (dist - radius) * scale;
 }
 
@@ -56,11 +61,11 @@ float calculateSharedPressure(float density, float neighbourDensity) {
     return (density2pressure(density) + density2pressure(neighbourDensity)) / 2;
 }
 
-void addPressureForce(inout vec2 pressureForce, const vec2 pos, const float density, const float radius, const float mass, uint neighbourIndex, vec2 neighbourPosition, float neighbourDistance) {
-    vec2 diff = pos - neighbourPosition;
+void addPressureForce(inout VEC_T pressureForce, const VEC_T pos, const float density, const float radius, const float mass, uint neighbourIndex, VEC_T neighbourPosition, float neighbourDistance) {
+    VEC_T diff = pos - neighbourPosition;
     float dist = length(diff);
     if (dist >= radius) return;
-    vec2 direction;
+    VEC_T direction;
     if (dist == 0.0) {
         return;
     } else {
@@ -71,30 +76,26 @@ void addPressureForce(inout vec2 pressureForce, const vec2 pos, const float dens
     pressureForce += sharedPressure * direction * slope * mass / density;
 }
 
-void addViscosityForce(inout vec2 viscosityForce, const vec2 pos, const vec2 velocity, const float radius, uint neighbourIndex, vec2 neighbourPosition, float neighbourDistance) {
-    vec2 diff = pos - neighbourPosition;
+void addViscosityForce(inout VEC_T viscosityForce, const VEC_T pos, const VEC_T velocity, const float radius, uint neighbourIndex, VEC_T neighbourPosition, float neighbourDistance) {
+    VEC_T diff = pos - neighbourPosition;
     float dist = length(diff);
     float influence = viscosityKernel(radius, dist);
     viscosityForce += (velocities[neighbourIndex] - velocity) * influence;
 }
 
-vec2 calculatePressureForce(vec2 pos, const float density, float radius) {
-    vec2 pressureForce = vec2(0.0, 0.0);
-#ifdef DEF_2D
+VEC_T calculatePressureForce(VEC_T pos, const float density, float radius) {
+    VEC_T pressureForce = VEC_T(0.0);
     FOREACH_NEIGHBOUR(pos, {
         addPressureForce(pressureForce, pos, density, radius, particleMass, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE);
     });
-#endif
     return pressureForce;
 }
 
-vec2 calculateViscosityForce(vec2 position, vec2 velocity, float radius) {
-    vec2 viscosityForce = vec2(0.0, 0.0);
-#ifdef DEF_2D
+VEC_T calculateViscosityForce(VEC_T position, VEC_T velocity, float radius) {
+    VEC_T viscosityForce = VEC_T(0.0);
     FOREACH_NEIGHBOUR(position, {
         addViscosityForce(viscosityForce, position, velocity, constants.spatialRadius, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE);
     });
-#endif
     return viscosityForce * constants.viscosity;
 }
 
@@ -102,19 +103,24 @@ void main() {
     uint index = gl_GlobalInvocationID.x;
     if (index >= constants.numParticles) return;
 
-    vec2 position = positions[index];
-    vec2 velocity = velocities[index];
+    VEC_T position = positions[index];
+    VEC_T velocity = velocities[index];
     float density = densities[index];
 
-    vec2 pressureForce = calculatePressureForce(position, density, constants.spatialRadius);
-    vec2 pressureAcceleration = pressureForce / density;
+    VEC_T pressureForce = calculatePressureForce(position, density, constants.spatialRadius);
+    VEC_T pressureAcceleration = pressureForce / density;
 
-    vec2 viscosityForce = calculateViscosityForce(position, velocity, constants.spatialRadius);
+    VEC_T viscosityForce = calculateViscosityForce(position, velocity, constants.spatialRadius);
 
     // Update velocity
     velocity += pressureAcceleration * constants.deltaTime;
     velocity += viscosityForce * constants.deltaTime;
-    velocity += vec2(0.0, constants.gravity * constants.deltaTime);
+#ifdef DEF_2D
+    velocity += VEC_T(0.0, constants.gravity * constants.deltaTime);
+#endif
+#ifdef DEF_3D
+    velocity += VEC_T(0.0, 0.0, -constants.gravity * constants.deltaTime);
+#endif
 
     velocitiesOutput[index] = velocity;
 }
