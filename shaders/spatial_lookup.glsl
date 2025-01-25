@@ -214,7 +214,7 @@ uint cellKey(uint64_t data) {
 #define NEIGHBOUR_OFFSET_COUNT 9
 
 
-const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =             {
+const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =                  {
 IVEC_T(- 1, - 1),
 IVEC_T(- 1, 0),
 IVEC_T(- 1, 1),
@@ -270,6 +270,7 @@ IVEC_T(1, 1, 1),
 #define NEIGHBOUR_DISTANCE_SQUARED n_distance_squared
 
 #define FOREACH_NEIGHBOUR(position, expression) { \
+position = dequantize_position(quantize_position(position)); \
 float radiusSquared = GRID_CELL_SIZE * GRID_CELL_SIZE; \
 IVEC_T center = cellCoord(position); \
  for (int i = 0; i < NEIGHBOUR_OFFSET_COUNT; i++) { \
