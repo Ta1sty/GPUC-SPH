@@ -50,7 +50,7 @@ float evaluateDensity(VEC_T position) {
 	float density = 0.0f;
 
 	position = dequantize_position(quantize_position(position));
-	float radiusSquared = GRID_CELL_SIZE * GRID_CELL_SIZE;
+	const float radiusSquared = GRID_CELL_SIZE * GRID_CELL_SIZE;
 	IVEC_T center = cellCoord(position);
 	for (int i = 0; i < NEIGHBOUR_OFFSET_COUNT; i++) {
 		IVEC_T pCell = center + neighbourOffsets[i];
