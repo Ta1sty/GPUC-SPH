@@ -77,9 +77,7 @@ void addPressureForce(inout VEC_T pressureForce, const VEC_T pos, const float de
 }
 
 void addViscosityForce(inout VEC_T viscosityForce, const VEC_T pos, const VEC_T velocity, const float radius, uint neighbourIndex, VEC_T neighbourPosition, float neighbourDistance) {
-    VEC_T diff = pos - neighbourPosition;
-    float dist = length(diff);
-    float influence = viscosityKernel(radius, dist);
+    float influence = (particleMass / densities[neighbourIndex]) * viscosityKernel(radius, neighbourDistance);
     viscosityForce += (velocities[neighbourIndex] - velocity) * influence;
 }
 
