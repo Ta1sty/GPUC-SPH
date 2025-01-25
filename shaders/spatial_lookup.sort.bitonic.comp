@@ -17,35 +17,21 @@ void main() {
 	uint i = 2 * group_number * j + group_index;
 	uint l = i ^ j;
 
-	uint64_t lookup_i = spatial_lookup[i], lookup_l = spatial_lookup[l];
+	SpatialCacheEntry cache_i = spatial_cache[i];
+	uint64_t key_i = (uint64_t(cache_i.cellKey) << 32) + cache_i.cellClass;
 
-	uint key_i = cellKey(lookup_i), key_l = cellKey(lookup_l);
+	SpatialCacheEntry cache_l = spatial_cache[l];
+	uint64_t key_l = (uint64_t(cache_l.cellKey) << 32) + cache_l.cellClass;
 
-	bool condition =
-	((i & k) == 0 && key_i > key_l)
-	||
-	((i & k) != 0 && key_i < key_l);
+	if (!(((i & k) == 0 && key_i > key_l) || ((i & k) != 0 && key_i < key_l))) return;
 
-	if (!condition) return;
+	uint64_t value_i = spatial_lookup[i];
+	uint64_t value_l = spatial_lookup[l];
 
-	spatial_lookup[i] = lookup_l;
-	spatial_lookup[l] = lookup_i;
+	spatial_cache[i] = cache_l;
+	spatial_lookup[i] = value_l;
 
-	//	SpatialCacheEntry cache_i = spatial_cache[i];
-	//	uint64_t key_i = (uint64_t(cache_i.cellKey) << 32) + cache_i.cellClass;
-	//
-	//	SpatialCacheEntry cache_l = spatial_cache[l];
-	//	uint64_t key_l = (uint64_t(cache_l.cellKey) << 32) + cache_l.cellClass;
-	//
-	//	if (((i & k) == 0 && key_i > key_l) || ((i & k) != 0 && key_i < key_l)) {
-	//
-	//		uint64_t value_i = spatial_lookup[i];
-	//		uint64_t value_l = spatial_lookup[l];
-	//
-	//		spatial_cache[i] = cache_l;
-	//		spatial_lookup[i] = value_l;
-	//
-	//		spatial_cache[l] = cache_i;
-	//		spatial_lookup[l] = value_i;
-	//	}
+	spatial_cache[l] = cache_i;
+	spatial_lookup[l] = value_i;
+
 }

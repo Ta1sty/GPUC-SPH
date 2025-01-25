@@ -7,30 +7,22 @@ layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 #include "spatial_lookup.glsl"
 
 void fillIndex(uint index) {
-	uint particle = index;
-	VEC_T position;
 	if (index < GRID_NUM_ELEMENTS)
 	{
-		position = particle_coordinates[index];
-	} else {
-		particle = uint(-1);
-		position = SWIZZLE(vec3(0));
-	}
-	spatial_lookup[index] = quanitize(particle, position);
-	spatial_indices[index] = uint(-1);
+		VEC_T position = dequantize_position(quantize_position(particle_coordinates[index]));
+		IVEC_T cell = cellCoord(position);
 
-	//	if (index < GRID_NUM_ELEMENTS)
-	//	{
-	//		VEC_T position = particle_coordinates[index];
-	//		IVEC_T cell = cellCoord(position);
-	//
-	//		spatial_cache[index] = SpatialCacheEntry(cellKey(cell), cellClass(cell));
-	//		spatial_lookup[index] = quanitize(index, position);
-	//	} else {
-	//		spatial_cache[index] = SpatialCacheEntry(-1, -1);
-	//		spatial_lookup[index] = quanitize(uint(-1), SWIZZLE(vec3(0)));
-	//	}
-	//	spatial_indices[index] = uint(-1);
+		SpatialCacheEntry entry;
+		entry.cellKey = cellKey(cell);
+		entry.cellClass = cellClass(cell);
+
+		spatial_cache[index] = entry;
+		spatial_lookup[index] = quanitize(index, position);
+	} else {
+		spatial_cache[index] = SpatialCacheEntry(-1, -1);
+		spatial_lookup[index] = quanitize(uint(-1), SWIZZLE(vec3(0)));
+	}
+	spatial_indices[index] = uint(-1);
 }
 
 void main() {

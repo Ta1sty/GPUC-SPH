@@ -214,20 +214,11 @@ void dequantize(uint64_t data, out uint index, out VEC_T position) {
 	position = dequantize_position(data);
 }
 
-uint cellKey(uint64_t data) {
-	uint index = dequantize_index(data);
-	if (index == -1) {
-		return -1;
-	}
-	return cellKey(dequantize_position(data));
-}
-
-
 #ifdef DEF_2D
 #define NEIGHBOUR_OFFSET_COUNT 9
 
 
-const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =                        {
+const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =   {
 IVEC_T(- 1, - 1),
 IVEC_T(- 1, 0),
 IVEC_T(- 1, 1),

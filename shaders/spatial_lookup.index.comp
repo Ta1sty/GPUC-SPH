@@ -9,23 +9,13 @@ layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 void writeIndex(uint index) {
 	if (index >= GRID_NUM_ELEMENTS) return;
 
-	uint currentKey = cellKey(spatial_lookup[index]);
+	uint currentKey = spatial_cache[index].cellKey;
 	uint previousKey = uint(-1);
-	if (index > 0) previousKey = cellKey(spatial_lookup[index - 1]);
+	if (index > 0) previousKey = spatial_cache[index - 1].cellKey;
 
-	if (currentKey != previousKey) {
+	if (currentKey != previousKey && currentKey != -1) {
 		spatial_indices[currentKey] = index;
 	}
-
-	//	if (index >= GRID_NUM_ELEMENTS) return;
-	//
-	//	uint currentKey = spatial_cache[index].cellKey;
-	//	uint previousKey = uint(-1);
-	//	if (index > 0) previousKey = spatial_cache[index - 1].cellKey;
-	//
-	//	if (currentKey != previousKey) {
-	//		spatial_indices[currentKey] = index;
-	//	}
 }
 
 void main() {
