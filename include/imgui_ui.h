@@ -10,33 +10,42 @@ struct SimulationState;
 
 struct QueryTimes {
 private:
-    const std::map<Query, double> &timestamps;
+    std::map<Query, double> timestamps;
 
     double diff(Query start, Query end) {
         return (timestamps.at(end) - timestamps.at(start)) / 1000 / 1000;
     }
 
 public:
-    QueryTimes() = delete;
-    explicit QueryTimes(const std::map<Query, double> &timestamps) : timestamps(timestamps) {
+    explicit QueryTimes(const std::map<Query, double> &timestamps, const QueryTimes &previous) : timestamps(timestamps) {
+        if (timestamps.empty()) {
+            return;
+        }
+
         reset = diff(ResetBegin, ResetEnd);
-        physics = diff(PhysicsBegin, PhysicsEnd);
+
+        if (timestamps.at(Query::PhysicsBegin) != 0) {
+            physics = diff(Query::PhysicsBegin, Query::PhysicsEnd);
+        } else {
+            physics = previous.physics;
+        }
+
         lookup = diff(LookupBegin, LookupEnd);
         render = diff(RenderBegin, RenderEnd);
         copy = diff(CopyBegin, CopyEnd);
         ui = diff(UiBegin, UiEnd);
-        total = diff(ResetBegin, UiEnd);
+        total = reset + physics + lookup + render + copy + ui;
         fps = 1000 / total;
     }
 
-    double fps;
-    double total;
-    double reset;
-    double physics;
-    double lookup;
-    double render;
-    double copy;
-    double ui;
+    double fps = 0;
+    double total = 0;
+    double reset = 0;
+    double physics = 0;
+    double lookup = 0;
+    double render = 0;
+    double copy = 0;
+    double ui = 0;
 };
 
 struct UpdateFlags {

@@ -65,7 +65,10 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     timelineSemaphore = initSemaphore();
 
-    UiBindings uiBindings {imageIndex, simulationParameters, renderParameters, simulationState.get(), QueryTimes(timestamps)};
+    auto previousTimes = queryTimes;
+    queryTimes = QueryTimes(timestamps, previousTimes);
+
+    UiBindings uiBindings {imageIndex, simulationParameters, renderParameters, simulationState.get(), queryTimes};
 
     auto imguiCommandBuffer = imguiUi->updateCommandBuffer(imageIndex, uiBindings);
     lastUpdate = uiBindings.updateFlags;

@@ -54,6 +54,7 @@ private:
     vk::CommandBuffer copy(uint32_t imageIndex);
 
     UpdateFlags lastUpdate;
+    QueryTimes queryTimes = QueryTimes(timestamps, queryTimes);
 
     friend void Render::renderSimulationFrame(Simulation &simulation);// access stuff, kind of ugly to do it this way
 public:
