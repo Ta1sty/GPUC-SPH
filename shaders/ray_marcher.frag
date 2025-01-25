@@ -74,10 +74,11 @@ float evaluateDensity(VEC_T position) {
 		}
 	}
 
+	//    FOREACH_NEIGHBOUR(position, addDensity(density, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE));
+
 	return min(density / (sqrt(numParticles) * spatialRadius * 0.5), 1);
 }
 
-//    FOREACH_NEIGHBOUR(position, addDensity(density, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE));
 
 /**
  * Decides the volume coefficients from our simulation data.
