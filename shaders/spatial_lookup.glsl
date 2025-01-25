@@ -124,7 +124,7 @@ vec4 classColor(uint classKey) {
 	return vec4(a / 3.0f, b / 3.0f, c / 3.0f, 1);
 }
 
-#define QUANTIZATION_BOUNDS 8
+#define QUANTIZATION_BOUNDS 2
 #define QUANTIZATION_INDEX_BITS 25
 #define QUANTIZATION_POSITION_BITS  13
 
@@ -214,7 +214,7 @@ uint cellKey(uint64_t data) {
 #define NEIGHBOUR_OFFSET_COUNT 9
 
 
-const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =                  {
+const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =                   {
 IVEC_T(- 1, - 1),
 IVEC_T(- 1, 0),
 IVEC_T(- 1, 1),
