@@ -7,6 +7,7 @@ SpatialLookup::SpatialLookup(const SimulationParameters &parameters) {
     Cmn::addStorage(descriptorBindings, 0);
     Cmn::addStorage(descriptorBindings, 1);
     Cmn::addStorage(descriptorBindings, 2);
+    Cmn::addStorage(descriptorBindings, 3);
 
     Cmn::createDescriptorSetLayout(resources.device, descriptorBindings, descriptorLayout);
 
@@ -87,6 +88,7 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
     Cmn::bindBuffers(resources.device, state.spatialLookup.buf, descriptorSet, 0);
     Cmn::bindBuffers(resources.device, state.spatialIndices.buf, descriptorSet, 1);
     Cmn::bindBuffers(resources.device, state.particleCoordinateBuffer.buf, descriptorSet, 2);
+    Cmn::bindBuffers(resources.device, state.spatialCache.buf, descriptorSet, 3);
 
     std::cout
             << "Spatial-Lookup-Record"

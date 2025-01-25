@@ -30,4 +30,22 @@ void main() {
 
 	spatial_lookup[i] = lookup_l;
 	spatial_lookup[l] = lookup_i;
+
+	//	SpatialCacheEntry cache_i = spatial_cache[i];
+	//	uint64_t key_i = (uint64_t(cache_i.cellKey) << 32) + cache_i.cellClass;
+	//
+	//	SpatialCacheEntry cache_l = spatial_cache[l];
+	//	uint64_t key_l = (uint64_t(cache_l.cellKey) << 32) + cache_l.cellClass;
+	//
+	//	if (((i & k) == 0 && key_i > key_l) || ((i & k) != 0 && key_i < key_l)) {
+	//
+	//		uint64_t value_i = spatial_lookup[i];
+	//		uint64_t value_l = spatial_lookup[l];
+	//
+	//		spatial_cache[i] = cache_l;
+	//		spatial_lookup[i] = value_l;
+	//
+	//		spatial_cache[l] = cache_i;
+	//		spatial_lookup[l] = value_i;
+	//	}
 }

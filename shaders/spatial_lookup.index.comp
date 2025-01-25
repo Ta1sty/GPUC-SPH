@@ -16,6 +16,16 @@ void writeIndex(uint index) {
 	if (currentKey != previousKey) {
 		spatial_indices[currentKey] = index;
 	}
+
+	//	if (index >= GRID_NUM_ELEMENTS) return;
+	//
+	//	uint currentKey = spatial_cache[index].cellKey;
+	//	uint previousKey = uint(-1);
+	//	if (index > 0) previousKey = spatial_cache[index - 1].cellKey;
+	//
+	//	if (currentKey != previousKey) {
+	//		spatial_indices[currentKey] = index;
+	//	}
 }
 
 void main() {

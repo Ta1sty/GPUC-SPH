@@ -29,7 +29,7 @@ using std::clamp;
 #define SWIZZLE(x) (x)
 
 
-#define QUANTIZATION_BOUNDS 8.0f
+#define QUANTIZATION_BOUNDS 2.0f
 #define QUANTIZATION_INDEX_BITS 25
 #define QUANTIZATION_POSITION_BITS 13
 

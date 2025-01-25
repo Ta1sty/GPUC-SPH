@@ -13,17 +13,6 @@
 #define SWIZZLE(v) ((v).xyz)
 #endif
 
-#ifdef GRID_PCR
- layout (push_constant) uniform PushStruct {
-	int sceneType;
-	float cellSize;
-	uint numElements;
-	uint sort_n;
-	uint sort_k;
-	uint sort_j;
-} constants;
-#endif
-
 #ifndef GRID_NUM_ELEMENTS
 #define GRID_NUM_ELEMENTS uint(constants.numElements)
 #endif
@@ -48,8 +37,31 @@
 #define GRID_BINDING_COORDINATES 2
 #endif
 
+#ifndef GRID_BINDING_CACHE
+#define GRID_BINDING_CACHE 3
+#endif
+
 #ifndef COORDINATES_BUFFER_NAME
 #define COORDINATES_BUFFER_NAME particle_coordinates
+#endif
+
+#ifdef GRID_PCR
+ layout (push_constant) uniform PushStruct {
+	int sceneType;
+	float cellSize;
+	uint numElements;
+	uint sort_n;
+	uint sort_k;
+	uint sort_j;
+} constants;
+
+struct SpatialCacheEntry {
+	uint cellKey;
+	uint cellClass;
+};
+
+layout (set = GRID_SET, binding = GRID_BINDING_CACHE) buffer spatialCacheBuffer { SpatialCacheEntry spatial_cache[]; };
+
 #endif
 
 #ifdef GRID_WRITEABLE
@@ -69,6 +81,7 @@ layout (set = GRID_SET, binding = GRID_BINDING_INDEX) buffer readonly spatialInd
 #if GRID_BINDING_COORDINATES > -1
  layout (set = GRID_SET, binding = GRID_BINDING_COORDINATES) buffer readonly spatialParticleBuffer { VEC_T particle_coordinates[]; };
 #endif
+
 
 #endif
 
@@ -214,7 +227,7 @@ uint cellKey(uint64_t data) {
 #define NEIGHBOUR_OFFSET_COUNT 9
 
 
-const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =                   {
+const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =                        {
 IVEC_T(- 1, - 1),
 IVEC_T(- 1, 0),
 IVEC_T(- 1, 1),

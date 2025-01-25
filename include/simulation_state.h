@@ -9,6 +9,11 @@ struct SpatialLookupEntry {
     uint64_t data;
 };
 
+struct SpatialLookupCache {
+    uint32_t cellKey;
+    uint32_t cellClass;
+};
+
 struct SimulationTime {
     double time = 0.0;
     long ticks = 0;
@@ -44,6 +49,7 @@ public:
     float spatialRadius = 0.05f;
     Buffer spatialLookup;
     Buffer spatialIndices;
+    Buffer spatialCache;
 
     std::mt19937 random;
     bool paused = true;
