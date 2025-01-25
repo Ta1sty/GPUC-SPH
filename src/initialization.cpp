@@ -412,6 +412,7 @@ void createLogicalDevice(vk::Instance &instance, vk::PhysicalDevice &pDevice, vk
     deviceFeatures.fillModeNonSolid = 1;
     deviceFeatures.vertexPipelineStoresAndAtomics = 1;
     deviceFeatures.geometryShader = 1;
+    deviceFeatures.shaderInt64 = 1;
 
 
     vk::DeviceCreateInfo dci(
