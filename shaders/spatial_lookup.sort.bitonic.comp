@@ -17,16 +17,17 @@ void main() {
 	uint i = 2 * group_number * j + group_index;
 	uint l = i ^ j;
 
-	SpatialLookupEntry element_i = spatial_lookup[i];
-	SpatialLookupEntry element_l = spatial_lookup[l];
+	uint64_t lookup_i = spatial_lookup[i], lookup_l = spatial_lookup[l];
+
+	uint key_i = cellKey(lookup_i), key_l = cellKey(lookup_l);
 
 	bool condition =
-	((i & k) == 0 && element_i.cellKey > element_l.cellKey)
+	((i & k) == 0 && key_i > key_l)
 	||
-	((i & k) != 0 && element_i.cellKey < element_l.cellKey);
+	((i & k) != 0 && key_i < key_l);
 
 	if (!condition) return;
 
-	spatial_lookup[i] = element_l;
-	spatial_lookup[l] = element_i;
+	spatial_lookup[i] = lookup_l;
+	spatial_lookup[l] = lookup_i;
 }

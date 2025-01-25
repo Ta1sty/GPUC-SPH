@@ -9,72 +9,72 @@ layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 shared SpatialLookupEntry[gl_WorkGroupSize.x * 2] entries;
 
 void load() {
-    uint left = gl_LocalInvocationID.x;
+	uint left = gl_LocalInvocationID.x;
 
-    if (left >= GRID_NUM_ELEMENTS) {
-        entries[left] = SpatialLookupEntry(uint(-1), uint(-1), uint(-1));
-    } else {
-        entries[left] = spatial_lookup[left];
-    }
+	if (left >= GRID_NUM_ELEMENTS) {
+		entries[left] = SpatialLookupEntry(uint(-1), uint(-1), uint(-1), 0);
+	} else {
+		entries[left] = spatial_lookup[left];
+	}
 
-    uint right = left + gl_WorkGroupSize.x;
-    if (right >= GRID_NUM_ELEMENTS) {
-        entries[right] = SpatialLookupEntry(uint(-1), uint(-1), uint(-1));
-    } else {
-        entries[right] = spatial_lookup[right];
-    }
+	uint right = left + gl_WorkGroupSize.x;
+	if (right >= GRID_NUM_ELEMENTS) {
+		entries[right] = SpatialLookupEntry(uint(-1), uint(-1), uint(-1), 0);
+	} else {
+		entries[right] = spatial_lookup[right];
+	}
 }
 
 void store() {
-    uint left = gl_LocalInvocationID.x;
+	uint left = gl_LocalInvocationID.x;
 
-    if (left < GRID_NUM_ELEMENTS) {
-        spatial_lookup[left] = entries[left];
-    }
+	if (left < GRID_NUM_ELEMENTS) {
+		spatial_lookup[left] = entries[left];
+	}
 
-    uint right = left + gl_WorkGroupSize.x;
-    if (right < GRID_NUM_ELEMENTS) {
-        spatial_lookup[right] = entries[right];
-    }
+	uint right = left + gl_WorkGroupSize.x;
+	if (right < GRID_NUM_ELEMENTS) {
+		spatial_lookup[right] = entries[right];
+	}
 }
 
 void main() {
-    uint local_index = gl_LocalInvocationID.x * 2;
+	uint local_index = gl_LocalInvocationID.x * 2;
 
-    load();
+	load();
 
-    SpatialLookupEntry left, right;
+	SpatialLookupEntry left, right;
 
-    for (uint i = 0; i < GRID_NUM_ELEMENTS; ++i) {
+	for (uint i = 0; i < GRID_NUM_ELEMENTS; ++i) {
 
-        barrier();
+		barrier();
 
-        // swap (0,1);(2,3)...
+		// swap (0,1);(2,3)...
 
-        left = entries[local_index];
-        right = entries[local_index + 1];
+		left = entries[local_index];
+		right = entries[local_index + 1];
 
-        if (left.cellKey > right.cellKey) {
-            entries[local_index] = right;
-            entries[local_index + 1] = left;
-        }
+		if (left.cellKey > right.cellKey) {
+			entries[local_index] = right;
+			entries[local_index + 1] = left;
+		}
 
-        barrier();
+		barrier();
 
-        if (local_index == 0) continue;
+		if (local_index == 0) continue;
 
-        // swap (1,2);(3,4)...
+		// swap (1,2);(3,4)...
 
-        left = entries[local_index - 1];
-        right = entries[local_index];
+		left = entries[local_index - 1];
+		right = entries[local_index];
 
-        if (left.cellKey > right.cellKey) {
-            entries[local_index - 1] = right;
-            entries[local_index] = left;
-        }
-    }
+		if (left.cellKey > right.cellKey) {
+			entries[local_index - 1] = right;
+			entries[local_index] = left;
+		}
+	}
 
-    barrier();
+	barrier();
 
-    store();
+	store();
 }

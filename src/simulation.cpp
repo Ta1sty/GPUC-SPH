@@ -2,7 +2,7 @@
 #include <map>
 #include <set>
 
-#include "debug.h"
+#include "debug.cpp"
 #include "debug_image.h"
 #include "particle_physics.h"
 #include "particle_renderer.h"
@@ -161,59 +161,80 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     uint32_t lookupSize = nextPowerOfTwo(simulationParameters.numParticles);
     std::vector<SpatialLookupEntry> spatial_lookup(lookupSize);
     fillHostWithStagingBuffer(simulationState->spatialLookup, spatial_lookup);
-    std::vector<uint32_t> spatial_lookup_keys(lookupSize);
-    for (int i = 0; i < spatial_lookup.size(); ++i) spatial_lookup_keys[i] = spatial_lookup[i].cellKey;
-
-    std::vector<uint32_t> spatial_indices(lookupSize);
-    fillHostWithStagingBuffer(simulationState->spatialIndices, spatial_indices);
-
-    std::vector<SpatialLookupEntry> spatial_lookup_sorted(spatial_lookup.begin(), spatial_lookup.end());
-    std::sort(spatial_lookup_sorted.begin(), spatial_lookup_sorted.end(),
-              [](SpatialLookupEntry left, SpatialLookupEntry right) -> bool { return left.cellKey < right.cellKey; });
+    //    std::vector<uint32_t> spatial_lookup_keys(lookupSize);
+    //    for (int i = 0; i < spatial_lookup.size(); ++i) spatial_lookup_keys[i] = spatial_lookup[i].cellKey;
+    //
+    //    std::vector<uint32_t> spatial_indices(lookupSize);
+    //    fillHostWithStagingBuffer(simulationState->spatialIndices, spatial_indices);
+    //
+    //    std::vector<SpatialLookupEntry> spatial_lookup_sorted(spatial_lookup.begin(), spatial_lookup.end());
+    //    std::sort(spatial_lookup_sorted.begin(), spatial_lookup_sorted.end(),
+    //              [](SpatialLookupEntry left, SpatialLookupEntry right) -> bool { return left.cellKey < right.cellKey; });
 
     std::set<uint32_t> keys;
     std::vector<SpatialHashResult> hashes;
+
+    auto dimensions = simulationParameters.type == SceneType::SPH_BOX_3D ? 3 : 2;
     for (uint32_t i = 0; i < lookupSize; i++) {
         SpatialLookupEntry lookup = spatial_lookup[i];
-
-        keys.insert(lookup.cellKey);
-
-        if (lookup.particleIndex == -1) continue;
-
-        glm::vec3 position;
-        switch (simulationParameters.type) {
-            case SceneType::SPH_BOX_2D:
-                position = glm::vec3(particles[lookup.particleIndex * 2], particles[lookup.particleIndex * 2 + 1], 0);
-                break;
-            case SceneType::SPH_BOX_3D:
-                position = glm::vec3(particles[lookup.particleIndex * 4], particles[lookup.particleIndex * 4 + 1], particles[lookup.particleIndex * 4 + 2]);
-                break;
-        }
-
-        glm::ivec3 cell = cellCoord(position, spatialRadius);
-        uint32_t testKey = cellKey(cellHash(cell), simulationParameters.numParticles);
-
-        SpatialHashResult result {
-                lookup.cellKey,
-                testKey,
-                position.x,
-                position.y,
-                position.z,
-                cell.x,
-                cell.y,
-                cell.z,
-        };
-
-        keys.emplace(lookup.cellKey);
-        hashes.emplace_back(result);
-
-        if (result.lookupKey != result.testKey) {
-            throw std::runtime_error("key differs");
-        }
-
-        if (spatial_lookup[i].cellKey != spatial_lookup_sorted[i].cellKey) {
-            throw std::runtime_error("spatial lookup not sorted");
-        }
+        //
+        //        keys.insert(lookup.cellKey);
+        //
+        //        auto dequantizeIndex = dequantize_index(lookup.data);
+        //        auto dequantizePosition = dequantize_position(lookup.data);
+        //
+        //        if (lookup.particleIndex == -1) {
+        //            if (dequantizeIndex != -1) {
+        //                throw std::runtime_error("Dequantized index must be invalid as well");
+        //            }
+        //            continue;
+        //        }
+        //
+        //        if (dequantizeIndex == -1) {
+        //            throw std::runtime_error("Dequanitized index is invalid while real index is valid");
+        //        }
+        //
+        //        glm::vec3 position;
+        //        switch (simulationParameters.type) {
+        //            case SceneType::SPH_BOX_2D:
+        //                position = glm::vec3(particles[lookup.particleIndex * 2], particles[lookup.particleIndex * 2 + 1], 0);
+        //                break;
+        //            case SceneType::SPH_BOX_3D:
+        //                position = glm::vec3(particles[lookup.particleIndex * 4], particles[lookup.particleIndex * 4 + 1], particles[lookup.particleIndex * 4 + 2]);
+        //                break;
+        //        }
+        //
+        //        for (int d = 0; d < dimensions; d++) {
+        //            auto difference = std::abs(dequantizePosition[d] - position[d]);
+        //            if (difference > 0.002) {
+        //                throw std::runtime_error("quantization is to different from the actual position");
+        //            }
+        //        }
+        //
+        //        glm::ivec3 cell = cellCoord(position, spatialRadius);
+        //        uint32_t testKey = cellKey(cellHash(cell), simulationParameters.numParticles);
+        //
+        //        SpatialHashResult result {
+        //                lookup.cellKey,
+        //                testKey,
+        //                position.x,
+        //                position.y,
+        //                position.z,
+        //                cell.x,
+        //                cell.y,
+        //                cell.z,
+        //        };
+        //
+        //        keys.emplace(lookup.cellKey);
+        //        hashes.emplace_back(result);
+        //
+        //        if (result.lookupKey != result.testKey) {
+        //            throw std::runtime_error("key differs");
+        //        }
+        //
+        //        if (spatial_lookup[i].cellKey != spatial_lookup_sorted[i].cellKey) {
+        //            throw std::runtime_error("spatial lookup not sorted");
+        //        }
     }
 
     std::map<uint32_t, std::vector<SpatialHashResult>> groupedResults;

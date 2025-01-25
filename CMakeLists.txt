@@ -87,7 +87,6 @@ set(SOURCES
         src/colormaps.cpp
         src/render.cpp
         src/camera.cpp
-        src/debug.cpp
 )
 
 add_compile_definitions(WORKING_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
@@ -118,7 +117,6 @@ add_shader(${PROJECT_NAME} shaders/background_environment.frag)
 add_shader(${PROJECT_NAME} shaders/density_grid.comp)
 
 add_shader(${PROJECT_NAME} shaders/spatial_lookup.write.comp)
-add_shader(${PROJECT_NAME} shaders/spatial_lookup.sort.bubble.comp)
 add_shader(${PROJECT_NAME} shaders/spatial_lookup.sort.bitonic.comp)
 add_shader(${PROJECT_NAME} shaders/spatial_lookup.index.comp)
 

@@ -9,18 +9,16 @@ layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 void fillIndex(uint index) {
 	//    if (index >= constants.sort_n) return; // never happens because sort_n is a power of 2, and workgroup size is too
 
-	uint cKey = uint(-1);
-	uint cClass = uint(-1);
 	uint particle = index;
+	VEC_T position;
 	if (index < GRID_NUM_ELEMENTS)
 	{
-		IVEC_T cell = cellCoord(particle_coordinates[index]);
-		cKey = cellKey(cell);
-		cClass = cellClass(cell);
+		position = particle_coordinates[index];
 	} else {
 		particle = uint(-1);
+		position = SWIZZLE(vec3(0));
 	}
-	spatial_lookup[index] = SpatialLookupEntry(cKey, cClass, particle);
+	spatial_lookup[index] = quanitize(particle, position);
 	spatial_indices[index] = uint(-1);
 }
 
