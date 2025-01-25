@@ -25,8 +25,12 @@ public:
         render = diff(RenderBegin, RenderEnd);
         copy = diff(CopyBegin, CopyEnd);
         ui = diff(UiBegin, UiEnd);
+        total = diff(ResetBegin, UiEnd);
+        fps = 1000 / total;
     }
 
+    double fps;
+    double total;
     double reset;
     double physics;
     double lookup;

@@ -74,6 +74,10 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     double delta = (simulationState->paused ? 0 : currentTime - prevTime) * 1000;
     prevTime = currentTime;
 
+    if (simulationState->paused) {
+        simulationState->time.pause();
+    }
+
     if (simulationState->step) {
         simulationState->step = false;
         delta = simulationState->time.tickRate;

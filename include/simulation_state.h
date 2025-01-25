@@ -16,6 +16,7 @@ struct SimulationTime {
     long ticks = 0;
     int tickRate = 25;
     double lastUpdate = 0.0;
+    void pause();
     bool advance(double add);
 };
 

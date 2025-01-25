@@ -257,6 +257,8 @@ void ImguiUi::drawUi(UiBindings &bindings) {
     }
 
     if (ImGui::CollapsingHeader("Performance")) {
+        ImGui::Text("FPS        : %.1f/s", bindings.queryTimes.fps);
+        ImGui::Text("Total      : %.3f ms", bindings.queryTimes.total);
         ImGui::Text("Reset      : %.3f ms", bindings.queryTimes.reset);
         ImGui::Text("Physics    : %.3f ms", bindings.queryTimes.physics);
         ImGui::Text("Lookup     : %.3f ms", bindings.queryTimes.lookup);

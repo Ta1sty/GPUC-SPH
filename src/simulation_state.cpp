@@ -107,6 +107,10 @@ SimulationState::~SimulationState() {
     // cleaning up all by itself via destructor magic ~ v ~
 }
 
+void SimulationTime::pause() {
+    lastUpdate = time;
+}
+
 bool SimulationTime::advance(double add) {
     time += add;
 

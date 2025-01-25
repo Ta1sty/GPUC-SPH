@@ -125,7 +125,7 @@ vec4 classColor(uint classKey) {
 
 #ifdef DEF_2D
 #define NEIGHBOUR_OFFSET_COUNT 9
-const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =          {
+const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =             {
 IVEC_T(- 1, - 1),
 IVEC_T(- 1, 0),
 IVEC_T(- 1, 1),
@@ -178,8 +178,10 @@ IVEC_T(1, 1, 1),
 #define NEIGHBOUR_INDEX n_index
 #define NEIGHBOUR_POSITION n_position
 #define NEIGHBOUR_DISTANCE n_distance
+#define NEIGHBOUR_DISTANCE_SQUARED n_distance_squared
 
 #define FOREACH_NEIGHBOUR(position, expression) { \
+float radiusSquared = GRID_CELL_SIZE * GRID_CELL_SIZE; \
 IVEC_T center = cellCoord(position); \
  for (int i = 0; i < NEIGHBOUR_OFFSET_COUNT; i++) { \
 IVEC_T cellCoord = center + neighbourOffsets[i]; \
@@ -192,8 +194,10 @@ SpatialLookupEntry entry = spatial_lookup[j]; \
 uint NEIGHBOUR_INDEX = entry.particleIndex; \
  if (NEIGHBOUR_INDEX == uint(- 1)) continue; \
 VEC_T NEIGHBOUR_POSITION = COORDINATES_BUFFER_NAME[NEIGHBOUR_INDEX]; \
-float NEIGHBOUR_DISTANCE = length(position - NEIGHBOUR_POSITION); \
- if (NEIGHBOUR_DISTANCE > GRID_CELL_SIZE) continue; \
+VEC_T difference = position - NEIGHBOUR_POSITION; \
+float NEIGHBOUR_DISTANCE_SQUARED = dot(difference, difference); \
+ if (NEIGHBOUR_DISTANCE_SQUARED > radiusSquared) continue; \
+float NEIGHBOUR_DISTANCE = sqrt(NEIGHBOUR_DISTANCE_SQUARED); \
 expression; \
 } \
 } \

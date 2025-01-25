@@ -15,7 +15,7 @@ function(compileShader TARGET SHADER DIM)
     add_custom_command(
             OUTPUT ${output}
             COMMAND ${CMAKE_COMMAND} -DSOURCE=${source} -DOUTPUT=${output} -DDIM=${DIM} -P ${compile-script}
-            DEPENDS ${source}
+            DEPENDS ${source} shaders/_defines.glsl shaders/spatial_lookup.glsl
             VERBATIM
     )
 
