@@ -35,6 +35,9 @@ public:
     Buffer particleVelocityBuffer;
     Buffer particleDensityBuffer;
 
+    // precomputed density grid for the volume renderer
+    Buffer densityGrid;
+
     const SimulationParameters parameters;
     std::shared_ptr<Camera> camera;
 

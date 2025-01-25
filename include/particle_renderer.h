@@ -108,6 +108,14 @@ public:
     void updateCmd(const SimulationState &simulationState, const RenderParameters &renderParameters);
 
 private:
+    struct PushStruct {
+        uint32_t numParticles;
+    } pushStruct;
+    Cmn::DescriptorPool densityGridDescriptorPool;
+
+    vk::PipelineLayout densityGridPipelineLayout;
+    vk::Pipeline densityGridPipeline;
+    vk::CommandBuffer commandBuffer;
 };
 
 class GraphicsPipeline {

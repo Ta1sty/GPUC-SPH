@@ -101,6 +101,9 @@ SimulationState::SimulationState(const SimulationParameters &_parameters, std::s
     uint32_t lookupSize = nextPowerOfTwo(parameters.numParticles);
     spatialLookup = createDeviceLocalBuffer("spatialLookup", lookupSize * sizeof(SpatialLookupEntry));
     spatialIndices = createDeviceLocalBuffer("startIndices", lookupSize * sizeof(uint32_t));
+
+    // procomputed render stuff
+    densityGrid = createDeviceLocalBuffer("density-grid", 256 * 256 * 256 * sizeof(float));
 }
 
 SimulationState::~SimulationState() {
