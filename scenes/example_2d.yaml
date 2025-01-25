@@ -3,6 +3,11 @@ simulation:
   initialization_function: uniform
   num_particles: 4096
   deltaTime: 0.008
+  gravity: 9.81
+  collisionDampingFactor: 0.8
+  targetDensity: 15000
+  pressureMultiplier: 15.0
+  viscosity: 60.0
 
 render:
   background_field: density

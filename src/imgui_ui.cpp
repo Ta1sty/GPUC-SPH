@@ -257,14 +257,15 @@ void ImguiUi::drawUi(UiBindings &bindings) {
     }
 
     if (ImGui::CollapsingHeader("Performance")) {
-        ImGui::Text("FPS        : %.1f/s", bindings.queryTimes.fps);
-        ImGui::Text("Total      : %.3f ms", bindings.queryTimes.total);
-        ImGui::Text("Reset      : %.3f ms", bindings.queryTimes.reset);
-        ImGui::Text("Physics    : %.3f ms", bindings.queryTimes.physics);
-        ImGui::Text("Lookup     : %.3f ms", bindings.queryTimes.lookup);
-        ImGui::Text("Render     : %.3f ms", bindings.queryTimes.render);
-        ImGui::Text("Copy       : %.3f ms", bindings.queryTimes.copy);
-        ImGui::Text("UI         : %.3f ms", bindings.queryTimes.ui);
+        ImGui::Text("FPS             : %.1f/s", bindings.queryTimes.fps);
+        ImGui::Text("Total           : %.3f ms", bindings.queryTimes.total);
+        ImGui::Text("Reset           : %.3f ms", bindings.queryTimes.reset);
+        ImGui::Text("Physics         : %.3f ms", bindings.queryTimes.physics);
+        ImGui::Text("Lookup          : %.3f ms", bindings.queryTimes.lookup);
+        ImGui::Text("Render Compute  : %.3f ms", bindings.queryTimes.renderCompute);
+        ImGui::Text("Render          : %.3f ms", bindings.queryTimes.render);
+        ImGui::Text("Copy            : %.3f ms", bindings.queryTimes.copy);
+        ImGui::Text("UI              : %.3f ms", bindings.queryTimes.ui);
     }
 
 #ifdef _DEBUG

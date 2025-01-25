@@ -24,11 +24,16 @@ public:
 
         reset = diff(ResetBegin, ResetEnd);
 
-        if (timestamps.at(Query::PhysicsBegin) != 0) {
-            physics = diff(Query::PhysicsBegin, Query::PhysicsEnd);
-        } else {
+        if (timestamps.at(PhysicsBegin) != 0)
+            physics = diff(PhysicsBegin, PhysicsEnd);
+        else
             physics = previous.physics;
-        }
+
+        if (timestamps.at(RenderComputeBegin))
+            renderCompute = diff(RenderComputeBegin, RenderComputeEnd);
+        else
+            renderCompute = 0.0f;
+
 
         lookup = diff(LookupBegin, LookupEnd);
         render = diff(RenderBegin, RenderEnd);
@@ -43,6 +48,7 @@ public:
     double reset = 0;
     double physics = 0;
     double lookup = 0;
+    double renderCompute = 0;
     double render = 0;
     double copy = 0;
     double ui = 0;

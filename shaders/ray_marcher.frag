@@ -10,6 +10,7 @@ layout (push_constant) uniform PushStruct {
     mat4 mvp;
     vec3 cameraPos;
     vec2 nearFar;
+    float targetDensity;
 } p;
 
 layout (location = 0) in vec3 worldPosition;
@@ -23,35 +24,14 @@ layout (binding = 0) uniform UniformBuffer {
 };
 layout (input_attachment_index = 0, binding = 1) uniform subpassInput depthImage;
 layout (binding = 2) uniform sampler1D colorscale;
-layout (binding = 3) readonly buffer particleBuffer { VEC_T particleCoordinates[]; };
+layout (binding = 3) uniform sampler3D densityVolume;
 
-#define GRID_BINDING_LOOKUP 4
-#define GRID_BINDING_INDEX 5
-#define GRID_BINDING_COORDINATES -1
-#define COORDINATES_BUFFER_NAME particleCoordinates
-#define GRID_NUM_ELEMENTS numParticles
-#define GRID_CELL_SIZE spatialRadius
-#include "spatial_lookup.glsl"
-
-const float STEP_SIZE = 0.05;
+const float STEP_SIZE = 0.001;
 
 bool isInVolume(vec3 position) {
     return position.x >= 0.0f && position.x <= 1.0f
     && position.y >= 0.0f && position.y <= 1.0f
     && position.z >= 0.0f && position.z <= 1.0f;
-}
-
-void addDensity(inout float density, uint neighbourIndex, VEC_T neighbourPosition, float neighbourDinstance) {
-    float normalized = neighbourDinstance / spatialRadius;
-    density += 1 - normalized;
-}
-
-float evaluateDensity(VEC_T position) {
-    float density = 0.0f;
-
-    FOREACH_NEIGHBOUR(position, addDensity(density, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE));
-
-    return min(density / (numParticles * spatialRadius * spatialRadius * 2), 1);
 }
 
 /**
@@ -61,14 +41,15 @@ void sampleVolume(in vec3 position, out float extinction, out vec3 emission) {
     float density;
     switch (backgroundField) {
         case 3:
-            density = evaluateDensity(position) * 10;
+            density = clamp(texture(densityVolume, position).r / (2.0f * p.targetDensity), 0, 1);
             break;
         default:
             density = 0.0f;
     }
-    float scalar = 1 - exp(-density);
-    extinction = max(0, 20 * scalar - 8); // arbitrary constants that just hapen to look decent
-    emission = texture(colorscale, scalar).rgb;
+
+    float diff = abs(density - 0.5);
+    extinction = sqrt(density) * 2 + 20 * exp(-2000 * diff * diff);
+    emission = texture(colorscale, sqrt(density)).rgb;
 }
 
 void main() {

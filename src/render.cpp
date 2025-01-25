@@ -36,14 +36,17 @@ void Render::input() {
         doingRawMouseInput = doRawMouseInput;
     }
     if (glfwGetKey(app.window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-        camera->rotatePhi(xdiff * timedelta);
-        camera->rotateTheta(-ydiff * timedelta);
-        if (glfwGetKey(app.window, GLFW_KEY_W) == GLFW_PRESS) camera->moveInForwardDir(timedelta);
-        if (glfwGetKey(app.window, GLFW_KEY_A) == GLFW_PRESS) camera->moveInTangentDir(-timedelta);
-        if (glfwGetKey(app.window, GLFW_KEY_S) == GLFW_PRESS) camera->moveInForwardDir(-timedelta);
-        if (glfwGetKey(app.window, GLFW_KEY_D) == GLFW_PRESS) camera->moveInTangentDir(timedelta);
-        if (glfwGetKey(app.window, GLFW_KEY_E) == GLFW_PRESS) camera->moveInUpDir(timedelta);
-        if (glfwGetKey(app.window, GLFW_KEY_Q) == GLFW_PRESS) camera->moveInUpDir(-timedelta);
+        // limit camera movement to 20 fps equivalent
+        auto moveDistance = std::min(timedelta, 1.0 / 20.0f);
+        constexpr float MOUSE_SENSITIVITY = 0.002;
+        camera->rotatePhi(xdiff * MOUSE_SENSITIVITY);
+        camera->rotateTheta(-ydiff * MOUSE_SENSITIVITY);
+        if (glfwGetKey(app.window, GLFW_KEY_W) == GLFW_PRESS) camera->moveInForwardDir(moveDistance);
+        if (glfwGetKey(app.window, GLFW_KEY_A) == GLFW_PRESS) camera->moveInTangentDir(-moveDistance);
+        if (glfwGetKey(app.window, GLFW_KEY_S) == GLFW_PRESS) camera->moveInForwardDir(-moveDistance);
+        if (glfwGetKey(app.window, GLFW_KEY_D) == GLFW_PRESS) camera->moveInTangentDir(moveDistance);
+        if (glfwGetKey(app.window, GLFW_KEY_E) == GLFW_PRESS) camera->moveInUpDir(moveDistance);
+        if (glfwGetKey(app.window, GLFW_KEY_Q) == GLFW_PRESS) camera->moveInUpDir(-moveDistance);
     }
     doRawMouseInput = false;
 }

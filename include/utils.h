@@ -20,13 +20,15 @@ enum Query {
     PhysicsEnd = 3,
     LookupBegin = 4,
     LookupEnd = 5,
-    RenderBegin = 6,
-    RenderEnd = 7,
-    CopyBegin = 8,
-    CopyEnd = 9,
-    UiBegin = 10,
-    UiEnd = 11,
-    COUNT = 12,
+    RenderComputeBegin = 6,
+    RenderComputeEnd = 7,
+    RenderBegin = 8,
+    RenderEnd = 9,
+    CopyBegin = 10,
+    CopyEnd = 11,
+    UiBegin = 12,
+    UiEnd = 13,
+    COUNT = 14,
 };
 
 struct AppResources {

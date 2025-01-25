@@ -20,6 +20,7 @@ Simulation::Simulation(std::shared_ptr<Camera> camera) {
 
     particlePhysics = std::make_unique<ParticleSimulation>(simulationParameters);
     spatialLookup = std::make_unique<SpatialLookup>(simulationParameters);
+    rendererCompute = std::make_unique<RendererCompute>();
     particleRenderer = std::make_unique<ParticleRenderer>();
 
     vk::CommandBufferAllocateInfo cmdAllocateInfo(resources.transferCommandPool, vk::CommandBufferLevel::ePrimary, 3);
@@ -48,10 +49,10 @@ vk::Semaphore Simulation::initSemaphore() {
 void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::Semaphore signalRenderFinished, vk::Fence signalSubmitFinished) {
     float spatialRadius = simulationState->spatialRadius;
 
-    const size_t cmd_count = 6;
+    constexpr size_t CMD_COUNT = 7;
 
     if (nullptr != timelineSemaphore) {
-        vk::SemaphoreWaitInfo waitInfo({}, timelineSemaphore, cmd_count);
+        vk::SemaphoreWaitInfo waitInfo({}, timelineSemaphore, CMD_COUNT);
         vk::detail::resultCheck(resources.device.waitSemaphores(waitInfo, -1), "Failed wait");
     }
 
@@ -88,13 +89,14 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
 
     bool doTick = simulationState->time.advance(delta);
 
-    std::array<std::tuple<vk::Queue, vk::CommandBuffer>, cmd_count> buffers;
+    std::array<std::tuple<vk::Queue, vk::CommandBuffer>, CMD_COUNT> buffers;
     buffers[0] = {resources.transferQueue, cmdReset};
     buffers[1] = {resources.computeQueue, doTick ? particlePhysics->run(*simulationState) : nullptr};
     buffers[2] = {resources.computeQueue, spatialLookup->run(*simulationState)};
-    buffers[3] = {resources.graphicsQueue, particleRenderer->run(*simulationState, renderParameters)};
-    buffers[4] = {resources.graphicsQueue, copy(imageIndex)};
-    buffers[5] = {resources.graphicsQueue, imguiCommandBuffer};
+    buffers[3] = {resources.computeQueue, rendererCompute->run(*simulationState, renderParameters)};
+    buffers[4] = {resources.graphicsQueue, particleRenderer->run(*simulationState, renderParameters)};
+    buffers[5] = {resources.graphicsQueue, copy(imageIndex)};
+    buffers[6] = {resources.graphicsQueue, imguiCommandBuffer};
 
     for (uint64_t wait = 0, signal = 1; wait < buffers.size(); ++wait, ++signal) {
         auto queue = std::get<0>(buffers[wait]);
@@ -448,6 +450,7 @@ void Simulation::reset() {
     }
 
     particlePhysics->updateCmd(*simulationState);
+    rendererCompute->updateCmd(*simulationState, renderParameters);
     prevTime = glfwGetTime();
 
     std::cout << "Simulation reset done" << std::endl;

@@ -4,6 +4,11 @@ simulation:
   num_particles: 65536
   deltaTime: 0.008
   spatial_radius: 0.05
+  targetDensity: 4000000.0
+  pressureMultiplier: 15.0
+  viscosity: 60.0
 render:
   background_field: density
+  background_environment: false
   particle_radius: 6
+  particle_color: none

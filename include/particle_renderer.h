@@ -110,6 +110,7 @@ public:
 private:
     struct PushStruct {
         uint32_t numParticles;
+        float spatialRadius;
     } pushStruct;
     Cmn::DescriptorPool densityGridDescriptorPool;
 
@@ -131,7 +132,7 @@ public:
                 vk::ShaderStageFlagBits::eAll, 0, sizeof(T)};
 
         vk::PipelineLayoutCreateInfo pipelineLayoutCI {
-                vk::PipelineLayoutCreateFlags(),
+                {},
                 1U,
                 &descriptorPool.layout,
                 1U,
@@ -192,18 +193,22 @@ public:
     ~RayMarcherPipeline() override;
     void draw(vk::CommandBuffer &cb, const SimulationState &simulationState) override;
     void updateDescriptorSets(const SimulationState &simulationState) override;
+    void copyDensityGridToTexture(vk::CommandBuffer &cb, const SimulationState &simulationState);
 
 private:
     struct PushStruct {
         glm::mat4 mvp;
         glm::vec4 cameraPos;// pad to vec4 for explicit alignment
         glm::vec2 nearFar;
+        float targetDensity = 0.0f;
     } pushStruct;
 
     SharedResources sharedResources;
     Cmn::DescriptorPool descriptorPool;
     vk::PipelineLayout pipelineLayout;
     vk::Pipeline pipeline;
+
+    Texture densityGridTexture;
 };
 
 class BackgroundEnvironmentPipeline : public GraphicsPipeline {
