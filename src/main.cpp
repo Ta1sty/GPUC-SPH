@@ -80,6 +80,6 @@ int main(int argc, char *argv[]) {
     }
 
     std::cout << "PRESS ENTER TO EXIT" << std::endl;
-    std::cin.get();
+    //std::cin.get();
     return EXIT_SUCCESS;
 }

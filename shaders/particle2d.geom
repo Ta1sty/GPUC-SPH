@@ -8,6 +8,7 @@ layout (location = 0) in vec3 inParticleCoordinate[];
 layout(push_constant) uniform PushStruct {
     mat4 mvp;
     uvec2 windowSize;
+    float targetDensity;
 } p;
 
 layout(binding = 2) uniform UniformBuffer {
@@ -28,6 +29,7 @@ layout (location = 1) out vec3 outParticleCoordinate;
     gl_Position = centerPosition + vec4(vec2(x, y) * scaleFactor, 0.0f, 0.0f); \
     particleRelativePosition = vec2(x, y); \
     outParticleCoordinate = inParticleCoordinate[0]; \
+    gl_PrimitiveID = gl_PrimitiveIDIn; \
     EmitVertex()
 
 void main() {

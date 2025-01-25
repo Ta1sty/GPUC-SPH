@@ -148,6 +148,7 @@ private:
         glm::mat4 mvp;
         uint32_t width = 0;
         uint32_t height = 0;
+        float targetDensity = 0.0f;
     } pushStruct;
 
     SharedResources sharedResources;

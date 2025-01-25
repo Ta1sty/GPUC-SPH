@@ -3,6 +3,7 @@
 layout(push_constant) uniform PushStruct {
     mat4 mvp;
     uvec2 windowSize;
+    float targetDensity;
 } p;
 
 layout (location = 0) in vec3 inPos;

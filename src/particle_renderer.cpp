@@ -700,6 +700,8 @@ ParticleCirclePipeline::ParticleCirclePipeline(const vk::RenderPass &renderPass,
     descriptorPool.addUniform(2, 1, vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eGeometry);
     descriptorPool.addStorage(3, 1, vk::ShaderStageFlagBits::eFragment);// spatial-lookup
     descriptorPool.addStorage(4, 1, vk::ShaderStageFlagBits::eFragment);// spatial-indices
+    descriptorPool.addStorage(5, 1, vk::ShaderStageFlagBits::eFragment);// particle velocities
+    descriptorPool.addStorage(6, 1, vk::ShaderStageFlagBits::eFragment);// particle pressures
     descriptorPool.allocate();
 
     pipelineLayout = createPipelineLayout<PushStruct>(descriptorPool);
@@ -745,6 +747,8 @@ void ParticleCirclePipeline::updateDescriptorSets(const SimulationState &simulat
     Cmn::bindBuffers(resources.device, sharedResources->uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
     Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 3);
     Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, descriptorSet, 4);
+    Cmn::bindBuffers(resources.device, simulationState.particleVelocityBuffer.buf, descriptorSet, 5);
+    Cmn::bindBuffers(resources.device, simulationState.particleDensityBuffer.buf, descriptorSet, 6);
 }
 
 void ParticleCirclePipeline::draw(vk::CommandBuffer &cb, const SimulationState &simulationState) {
@@ -766,6 +770,7 @@ void ParticleCirclePipeline::draw(vk::CommandBuffer &cb, const SimulationState &
     pushStruct.width = resources.extent.width;
     pushStruct.height = resources.extent.height;
     pushStruct.mvp = simulationState.camera->viewProjectionMatrix();
+    pushStruct.targetDensity = simulationState.parameters.targetDensity;
 
     uint64_t offsets[] = {0UL};
     cb.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline);

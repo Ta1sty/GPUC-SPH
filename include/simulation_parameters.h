@@ -33,6 +33,7 @@ enum class RenderParticleColor {
     WHITE,
     NUM_NEIGHBOURS,
     DENSITY,
+    VELOCITY,
 };
 
 /**

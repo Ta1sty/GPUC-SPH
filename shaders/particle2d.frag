@@ -8,6 +8,8 @@ layout (location = 1) in vec3 particleCenter;
 layout (location = 0) out vec4 outColor;
 
 layout (binding = 0) readonly buffer particleBuffer { VEC_T coordinates[]; };
+layout (binding = 5) readonly buffer velocityBuffer { VEC_T velocities[]; };
+layout (binding = 6) readonly buffer densityBuffer { float densities[]; };
 layout (binding = 1) uniform sampler1D colorscale;
 
 layout (binding = 2) uniform UniformBuffer {
@@ -17,6 +19,12 @@ layout (binding = 2) uniform UniformBuffer {
     float particleRadius;
     float spatialRadius;
 };
+
+layout(push_constant) uniform PushStruct {
+    mat4 mvp;
+    uvec2 windowSize;
+    float targetDensity;
+} p;
 
 #define GRID_BINDING_LOOKUP 3
 #define GRID_BINDING_INDEX 4
@@ -31,19 +39,6 @@ float circle(in vec2 dist, in float _radius) {
     return 1.0 - smoothstep(_radius - (_radius / particleRadius * 4), // these radius bounds are arbitrary
                             _radius + (_radius / particleRadius * 4), // picked by what seems to look good
                             dot(dist, dist));
-}
-
-void addDensity(inout float density, uint neighbourIndex, VEC_T neighbourPosition, float neighbourDinstance) {
-    float normalized = neighbourDinstance / spatialRadius;
-    density += 1 - normalized;
-}
-
-float evaluateDensity(VEC_T position) {
-    float density = 0.0f;
-
-    FOREACH_NEIGHBOUR(position, addDensity(density, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE));
-
-    return min(density / (numParticles * spatialRadius * spatialRadius * 2), 1);
 }
 
 uint countNeighbours(VEC_T position) {
@@ -74,7 +69,10 @@ void main() {
             color = texture(colorscale, neighbourCountNormalized(center)).rgb;
             break;
         case 3: // density
-            color = texture(colorscale, evaluateDensity(center)).rgb;
+            color = texture(colorscale, min(densities[gl_PrimitiveID] / (2.0f * p.targetDensity), 1.0)).rgb;
+            break;
+        case 4: // velocity
+            color = texture(colorscale, length(velocities[gl_PrimitiveID])).rgb;
             break;
     }
 
