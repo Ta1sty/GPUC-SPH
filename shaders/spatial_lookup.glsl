@@ -146,7 +146,7 @@ vec4 classColor(uint classKey) {
 	return vec4(a / 3.0f, b / 3.0f, c / 3.0f, 1);
 }
 
-#define QUANTIZATION_BOUNDS 2
+#define QUANTIZATION_BOUNDS 2.0f
 #define QUANTIZATION_INDEX_BITS 23
 #define QUANTIZATION_CLASS_BITS 5
 #define QUANTIZATION_POSITION_BITS 12
@@ -182,9 +182,9 @@ uint64_t quantize_class(uint cellClass) {
 
 uint64_t quantize_position(VEC_T position) {
 	// [-bounds,bounds]
-	VEC_T normalized = ((position / QUANTIZATION_BOUNDS) + 1.0) * 0.5;
+	VEC_T normalized = ((position / QUANTIZATION_BOUNDS) + 1.0f) * 0.5f;
 	// [0,1]
-	UVEC_T quanitized = clamp(UVEC_T(normalized * quantizationRange), 0, quantizationRange);
+	UVEC_T quanitized = clamp(UVEC_T(normalized * float(quantizationRange)), 0, quantizationRange);
 	// [0,range]
 
 	uint64_t value = uint64_t(0);
@@ -249,11 +249,10 @@ VEC_T dequantize_position(uint64_t data) {
 	return position;
 }
 
+
 #ifdef DEF_2D
 #define NEIGHBOUR_OFFSET_COUNT 9
-
-
-const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =                        {
+const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =    {
 IVEC_T(- 1, - 1),
 IVEC_T(- 1, 0),
 IVEC_T(- 1, 1),
@@ -302,42 +301,6 @@ IVEC_T(1, 1, 1),
 };
 #endif
 
-
-#define NEIGHBOUR_INDEX n_index
-#define NEIGHBOUR_POSITION n_position
-#define NEIGHBOUR_DISTANCE n_distance
-#define NEIGHBOUR_DISTANCE_SQUARED n_distance_squared
-
-#define FOREACH_NEIGHBOUR(position, expression) { \
-position = dequantize_position(quantize_position(position)); \
-float radiusSquared = GRID_CELL_SIZE * GRID_CELL_SIZE; \
-IVEC_T center = cellCoord(position); \
- for (int i = 0; i < NEIGHBOUR_OFFSET_COUNT; i++) { \
-IVEC_T pCell = center + neighbourOffsets[i]; \
-uint pKey = cellKey(pCell); \
-uint pClass = cellClass(pCell); \
- for (uint j = spatial_indices[pKey].start; j < GRID_NUM_ELEMENTS; j++) { \
-uint64_t lookup = spatial_lookup[j].data; \
-uint NEIGHBOUR_INDEX = dequantize_index(lookup); \
- if (NEIGHBOUR_INDEX == uint(- 1)) continue; \
- \
-VEC_T NEIGHBOUR_POSITION = dequantize_position(lookup); \
- \
-IVEC_T nCell = cellCoord(NEIGHBOUR_POSITION); \
-uint nKey = cellKey(nCell); \
-uint nClass = cellClass(nCell); \
- \
- if (pKey != nKey) break; \
- if (pClass != nClass) continue; \
- \
-VEC_T difference = position - NEIGHBOUR_POSITION; \
-float NEIGHBOUR_DISTANCE_SQUARED = dot(difference, difference); \
- if (NEIGHBOUR_DISTANCE_SQUARED > radiusSquared) continue; \
- \
-float NEIGHBOUR_DISTANCE = sqrt(NEIGHBOUR_DISTANCE_SQUARED); \
-expression; \
-} \
-} \
-}
+#include "spatial_lookup.traversal.glsl"
 
 #endif

@@ -21,6 +21,8 @@ public:
     ~Simulation();
 
     void reset();
+    void updateTimestamps();
+    bool updateTime();
     void run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::Semaphore signalRenderFinished, vk::Fence signalSubmitFinished);
 
 private:
@@ -56,7 +58,8 @@ private:
     UpdateFlags lastUpdate;
     QueryTimes queryTimes = QueryTimes(timestamps, queryTimes);
 
-    friend void Render::renderSimulationFrame(Simulation &simulation);// access stuff, kind of ugly to do it this way
+    void check();
+
 public:
     std::unique_ptr<ParticleSimulation> particleSimulation;
 };

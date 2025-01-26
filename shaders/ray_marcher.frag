@@ -49,34 +49,7 @@ void addDensity(inout float density, uint neighbourIndex, VEC_T neighbourPositio
 float evaluateDensity(VEC_T position) {
 	float density = 0.0f;
 
-	position = dequantize_position(quantize_position(position));
-	float radiusSquared = GRID_CELL_SIZE * GRID_CELL_SIZE;
-	IVEC_T center = cellCoord(position);
-	for (int i = 0; i < NEIGHBOUR_OFFSET_COUNT; i++) {
-		IVEC_T pCell = center + neighbourOffsets[i];
-		uint pKey = cellKey(pCell);
-		uint pClass = cellClass(pCell);
-		// loop until class is found
-
-		SpatialIndexEntry spatial_index = spatial_indices[pKey];
-		for (uint j = spatial_index.start; j < spatial_index.end; j++) {
-			uint64_t lookup = spatial_lookup[j].data;
-			VEC_T NEIGHBOUR_POSITION = dequantize_position(lookup);
-			IVEC_T nCell = cellCoord(NEIGHBOUR_POSITION);
-			uint nClass = cellClass(nCell);
-			nClass = dequantize_class(lookup);
-			if (pClass != nClass) continue;
-			VEC_T difference = position - NEIGHBOUR_POSITION;
-			float NEIGHBOUR_DISTANCE_SQUARED = dot(difference, difference);
-			if (NEIGHBOUR_DISTANCE_SQUARED > radiusSquared) continue;
-			float NEIGHBOUR_DISTANCE = sqrt(NEIGHBOUR_DISTANCE_SQUARED);
-
-			uint NEIGHBOUR_INDEX = dequantize_index(lookup);
-			addDensity(density, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE);
-		}
-	}
-
-	//    FOREACH_NEIGHBOUR(position, addDensity(density, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE));
+	FOREACH_NEIGHBOUR(position, addDensity(density, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE));
 
 	return min(density / (sqrt(numParticles) * spatialRadius * 0.5), 1);
 }
