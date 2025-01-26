@@ -12,8 +12,14 @@ struct QueryTimes {
 private:
     std::map<Query, double> timestamps;
 
-    double diff(Query start, Query end) {
-        return (timestamps.at(end) - timestamps.at(start)) / 1000 / 1000;
+    double diff(Query start, Query end, double previous) {
+        double t_start = timestamps.at(start);
+        double t_end = timestamps.at(end);
+
+        if (std::abs(t_start - t_end) < 0.0001) {
+            return previous;
+        }
+        return (t_end - t_start) / 1000 / 1000;
     }
 
 public:
@@ -22,24 +28,14 @@ public:
             return;
         }
 
-        reset = diff(ResetBegin, ResetEnd);
-
-        if (timestamps.at(PhysicsBegin) != 0)
-            physics = diff(PhysicsBegin, PhysicsEnd);
-        else
-            physics = previous.physics;
-
-        if (timestamps.at(RenderComputeBegin))
-            renderCompute = diff(RenderComputeBegin, RenderComputeEnd);
-        else
-            renderCompute = 0.0f;
-
-
-        lookup = diff(LookupBegin, LookupEnd);
-        render = diff(RenderBegin, RenderEnd);
-        copy = diff(CopyBegin, CopyEnd);
-        ui = diff(UiBegin, UiEnd);
-        total = reset + physics + lookup + render + copy + ui;
+        reset = diff(ResetBegin, ResetEnd, previous.reset);
+        physics = diff(PhysicsBegin, PhysicsEnd, previous.physics);
+        renderCompute = diff(RenderComputeBegin, RenderComputeEnd, previous.renderCompute);
+        lookup = diff(LookupBegin, LookupEnd, previous.lookup);
+        render = diff(RenderBegin, RenderEnd, previous.render);
+        copy = diff(CopyBegin, CopyEnd, previous.copy);
+        ui = diff(UiBegin, UiEnd, previous.ui);
+        total = reset + physics + renderCompute + lookup + render + copy + ui;
         fps = 1000 / total;
     }
 
