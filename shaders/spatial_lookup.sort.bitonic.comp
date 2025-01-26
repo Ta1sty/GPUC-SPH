@@ -25,8 +25,8 @@ void main() {
 
 	if (!(((i & k) == 0 && key_i > key_l) || ((i & k) != 0 && key_i < key_l))) return;
 
-	uint64_t value_i = spatial_lookup[i];
-	uint64_t value_l = spatial_lookup[l];
+	SpatialLookupEntry value_i = spatial_lookup[i];
+	SpatialLookupEntry value_l = spatial_lookup[l];
 
 	spatial_cache[i] = cache_l;
 	spatial_lookup[i] = value_l;

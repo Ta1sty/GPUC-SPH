@@ -45,6 +45,20 @@
 #define COORDINATES_BUFFER_NAME particle_coordinates
 #endif
 
+struct SpatialLookupEntry {
+	uint64_t data;
+};
+
+struct SpatialIndexEntry {
+	uint start;
+	uint end;
+};
+
+struct SpatialCacheEntry {
+	uint cellKey;
+	uint cellClass;
+};
+
 #ifdef GRID_PCR
  layout (push_constant) uniform PushStruct {
 	int sceneType;
@@ -55,19 +69,14 @@
 	uint sort_j;
 } constants;
 
-struct SpatialCacheEntry {
-	uint cellKey;
-	uint cellClass;
-};
-
 layout (set = GRID_SET, binding = GRID_BINDING_CACHE) buffer spatialCacheBuffer { SpatialCacheEntry spatial_cache[]; };
 
 #endif
 
 #ifdef GRID_WRITEABLE
 
-layout (set = GRID_SET, binding = GRID_BINDING_LOOKUP) buffer spatialLookupBuffer { uint64_t spatial_lookup[]; };
-layout (set = GRID_SET, binding = GRID_BINDING_INDEX) buffer spatialIndexBuffer { uint spatial_indices[]; };
+layout (set = GRID_SET, binding = GRID_BINDING_LOOKUP) buffer spatialLookupBuffer { SpatialLookupEntry spatial_lookup[]; };
+layout (set = GRID_SET, binding = GRID_BINDING_INDEX) buffer spatialIndexBuffer { SpatialIndexEntry spatial_indices[]; };
 
 #if GRID_BINDING_COORDINATES > -1
  layout (set = GRID_SET, binding = GRID_BINDING_COORDINATES) buffer spatialParticleBuffer { VEC_T particle_coordinates[]; };
@@ -75,8 +84,8 @@ layout (set = GRID_SET, binding = GRID_BINDING_INDEX) buffer spatialIndexBuffer 
 
 #else
 
-layout (set = GRID_SET, binding = GRID_BINDING_LOOKUP) buffer readonly spatialLookupBuffer { uint64_t spatial_lookup[]; };
-layout (set = GRID_SET, binding = GRID_BINDING_INDEX) buffer readonly spatialIndexBuffer { uint spatial_indices[]; };
+layout (set = GRID_SET, binding = GRID_BINDING_LOOKUP) buffer readonly spatialLookupBuffer { SpatialLookupEntry spatial_lookup[]; };
+layout (set = GRID_SET, binding = GRID_BINDING_INDEX) buffer readonly spatialIndexBuffer { SpatialIndexEntry spatial_indices[]; };
 
 #if GRID_BINDING_COORDINATES > -1
  layout (set = GRID_SET, binding = GRID_BINDING_COORDINATES) buffer readonly spatialParticleBuffer { VEC_T particle_coordinates[]; };
@@ -138,18 +147,37 @@ vec4 classColor(uint classKey) {
 }
 
 #define QUANTIZATION_BOUNDS 2
-#define QUANTIZATION_INDEX_BITS 25
-#define QUANTIZATION_POSITION_BITS  13
+#define QUANTIZATION_INDEX_BITS 23
+#define QUANTIZATION_CLASS_BITS 5
+#define QUANTIZATION_POSITION_BITS 12
 
 const uint indexMask = (uint(1) << QUANTIZATION_INDEX_BITS) - 1;
+const uint classMask = (uint(1) << QUANTIZATION_CLASS_BITS) - 1;
 const uint positionMask = (uint(1) << QUANTIZATION_POSITION_BITS) - 1;
 const uint quantizationRange = positionMask;
 
 uint64_t quantize_index(uint index) {
+	uint64_t value;
+
 	if (index == -1) {
-		return indexMask;
+		value = indexMask;
+	} else {
+		value = (index & indexMask);
 	}
-	return (index & indexMask);
+
+	return value << 0;
+}
+
+uint64_t quantize_class(uint cellClass) {
+	uint64_t value;
+
+	if (cellClass == -1) {
+		value = classMask;
+	} else {
+		value = (cellClass & classMask);
+	}
+
+	return value << QUANTIZATION_INDEX_BITS;
 }
 
 uint64_t quantize_position(VEC_T position) {
@@ -168,16 +196,17 @@ uint64_t quantize_position(VEC_T position) {
 	value = value << QUANTIZATION_POSITION_BITS;
 
 	value = (value | quanitized.x);
-	value = value << QUANTIZATION_INDEX_BITS;
 
-	return value;
+	return value << (QUANTIZATION_CLASS_BITS + QUANTIZATION_INDEX_BITS);
 }
 
-uint64_t quanitize(uint index, VEC_T position) {
-	return quantize_position(position) | quantize_index(index);
+uint64_t quanitize(uint index, uint cellClass, VEC_T position) {
+	return quantize_position(position) | quantize_class(cellClass) | quantize_index(index);
 }
 
 uint dequantize_index(uint64_t data) {
+	data = data >> 0;
+
 	uint value = uint(data & indexMask);
 	if (value == indexMask) {
 		return -1;
@@ -185,8 +214,19 @@ uint dequantize_index(uint64_t data) {
 	return value;
 }
 
-VEC_T dequantize_position(uint64_t data) {
+uint dequantize_class(uint64_t data) {
 	data = data >> QUANTIZATION_INDEX_BITS;
+
+	uint value = uint(data & classMask);
+	if (value == classMask) {
+		return -1;
+	}
+	return value;
+}
+
+VEC_T dequantize_position(uint64_t data) {
+	data = data >> (QUANTIZATION_CLASS_BITS + QUANTIZATION_INDEX_BITS);
+
 	uint x = uint(data & positionMask);
 	data = data >> QUANTIZATION_POSITION_BITS;
 	uint y = uint(data & positionMask);
@@ -209,16 +249,11 @@ VEC_T dequantize_position(uint64_t data) {
 	return position;
 }
 
-void dequantize(uint64_t data, out uint index, out VEC_T position) {
-	index = dequantize_index(data);
-	position = dequantize_position(data);
-}
-
 #ifdef DEF_2D
 #define NEIGHBOUR_OFFSET_COUNT 9
 
 
-const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =   {
+const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =                        {
 IVEC_T(- 1, - 1),
 IVEC_T(- 1, 0),
 IVEC_T(- 1, 1),
@@ -281,8 +316,8 @@ IVEC_T center = cellCoord(position); \
 IVEC_T pCell = center + neighbourOffsets[i]; \
 uint pKey = cellKey(pCell); \
 uint pClass = cellClass(pCell); \
- for (uint j = spatial_indices[pKey]; j < GRID_NUM_ELEMENTS; j++) { \
-uint64_t lookup = spatial_lookup[j]; \
+ for (uint j = spatial_indices[pKey].start; j < GRID_NUM_ELEMENTS; j++) { \
+uint64_t lookup = spatial_lookup[j].data; \
 uint NEIGHBOUR_INDEX = dequantize_index(lookup); \
  if (NEIGHBOUR_INDEX == uint(- 1)) continue; \
  \

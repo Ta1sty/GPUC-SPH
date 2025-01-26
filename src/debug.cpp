@@ -30,11 +30,13 @@ using std::clamp;
 
 
 #define QUANTIZATION_BOUNDS 2.0f
-#define QUANTIZATION_INDEX_BITS 25
-#define QUANTIZATION_POSITION_BITS 13
+#define QUANTIZATION_INDEX_BITS 23
+#define QUANTIZATION_CLASS_BITS 5
+#define QUANTIZATION_POSITION_BITS 12
 
 const uint indexMask = (uint(1) << QUANTIZATION_INDEX_BITS) - 1;
 const uint positionMask = (uint(1) << QUANTIZATION_POSITION_BITS) - 1;
+const uint classMask = (uint(1) << QUANTIZATION_CLASS_BITS) - 1;
 const uint quantizationRange = positionMask;
 
 uint64_t quantize_index(uint index) {
@@ -77,8 +79,19 @@ uint dequantize_index(uint64_t data) {
     return value;
 }
 
-VEC_T dequantize_position(uint64_t data) {
+uint dequantize_class(uint64_t data) {
     data = data >> QUANTIZATION_INDEX_BITS;
+
+    uint value = uint(data | classMask);
+    if (value == classMask) {
+        return -1;
+    }
+    return value;
+}
+
+VEC_T dequantize_position(uint64_t data) {
+    data = data >> (QUANTIZATION_CLASS_BITS + QUANTIZATION_INDEX_BITS);
+
     uint x = uint(data & positionMask);
     data = data >> QUANTIZATION_POSITION_BITS;
     uint y = uint(data & positionMask);

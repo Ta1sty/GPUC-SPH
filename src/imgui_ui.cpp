@@ -247,7 +247,8 @@ void ImguiUi::drawUi(UiBindings &bindings) {
 
         auto &simulation = bindings.simulationParameters;
         EnumCombo("Scene Type", &simulation.type, sceneTypeMappings);
-        ImGui::DragInt("Num Particles", reinterpret_cast<int *>(&simulation.numParticles), 16, 16, 1024 * 1024 * 1024);
+
+        ImGui::DragInt("Num Particles", reinterpret_cast<int *>(&simulation.numParticles), 16, 16, 4 * 1024 * 1024);
         ImGui::DragFloat("Gravity", &simulation.gravity, 0.1f);
         ImGui::DragFloat("Delta Time", &simulation.deltaTime, 0.001f);
         ImGui::DragFloat("Collision Damping", &simulation.collisionDampingFactor, 0.01f);

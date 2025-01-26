@@ -17,12 +17,12 @@ void fillIndex(uint index) {
 		entry.cellClass = cellClass(cell);
 
 		spatial_cache[index] = entry;
-		spatial_lookup[index] = quanitize(index, position);
+		spatial_lookup[index] = SpatialLookupEntry(quanitize(index, entry.cellClass, position));
 	} else {
 		spatial_cache[index] = SpatialCacheEntry(-1, -1);
-		spatial_lookup[index] = quanitize(uint(-1), SWIZZLE(vec3(0)));
+		spatial_lookup[index] = SpatialLookupEntry(quanitize(uint(-1), uint(-1), SWIZZLE(vec3(0))));
 	}
-	spatial_indices[index] = uint(-1);
+	spatial_indices[index] = SpatialIndexEntry(uint(-1), uint(-1));
 }
 
 void main() {

@@ -160,18 +160,18 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     std::vector<SpatialLookupEntry> spatial_lookup(lookupSize);
     fillHostWithStagingBuffer(simulationState->spatialLookup, spatial_lookup);
 
-    std::vector<SpatialLookupCache> spatial_cache(lookupSize);
+    std::vector<SpatialCacheEntry> spatial_cache(lookupSize);
     fillHostWithStagingBuffer(simulationState->spatialCache, spatial_cache);
 
     std::vector<uint32_t> spatial_lookup_keys(lookupSize);
     for (int i = 0; i < spatial_lookup.size(); ++i) spatial_lookup_keys[i] = spatial_cache[i].cellKey;
 
-    std::vector<uint32_t> spatial_indices(lookupSize);
+    std::vector<SpatialIndexEntry> spatial_indices(lookupSize);
     fillHostWithStagingBuffer(simulationState->spatialIndices, spatial_indices);
 
-    std::vector<SpatialLookupCache> spatial_lookup_sorted(spatial_cache.begin(), spatial_cache.end());
+    std::vector<SpatialCacheEntry> spatial_lookup_sorted(spatial_cache.begin(), spatial_cache.end());
     std::sort(spatial_lookup_sorted.begin(), spatial_lookup_sorted.end(),
-              [](SpatialLookupCache left, SpatialLookupCache right) -> bool {
+              [](SpatialCacheEntry left, SpatialCacheEntry right) -> bool {
                   if (left.cellKey == right.cellKey)
                       return left.cellClass < right.cellClass;
                   return left.cellKey < right.cellKey;
@@ -183,7 +183,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     auto dimensions = simulationParameters.type == SceneType::SPH_BOX_3D ? 3 : 2;
     for (uint32_t i = 0; i < lookupSize; i++) {
         SpatialLookupEntry lookup = spatial_lookup[i];
-        SpatialLookupCache cache = spatial_cache[i];
+        SpatialCacheEntry cache = spatial_cache[i];
 
         keys.insert(cache.cellKey);
 

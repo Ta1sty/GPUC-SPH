@@ -14,7 +14,12 @@ void writeIndex(uint index) {
 	if (index > 0) previousKey = spatial_cache[index - 1].cellKey;
 
 	if (currentKey != previousKey && currentKey != -1) {
-		spatial_indices[currentKey] = index;
+		uint end = index + 1;
+		while (end < constants.sort_n) {
+			if (spatial_cache[end].cellKey != currentKey) break;
+			end++;
+		}
+		spatial_indices[currentKey] = SpatialIndexEntry(index, end);
 	}
 }
 

@@ -5,11 +5,17 @@
 #include "simulation_parameters.h"
 #include <random>
 
+
 struct SpatialLookupEntry {
     uint64_t data;
 };
 
-struct SpatialLookupCache {
+struct SpatialIndexEntry {
+    uint32_t start;
+    uint32_t end;
+};
+
+struct SpatialCacheEntry {
     uint32_t cellKey;
     uint32_t cellClass;
 };
