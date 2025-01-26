@@ -58,8 +58,6 @@ void Simulation::updateTimestamps() {
 }
 
 void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::Semaphore signalRenderFinished, vk::Fence signalSubmitFinished) {
-    float spatialRadius = simulationState->spatialRadius;
-
     constexpr size_t CMD_COUNT = 7;
 
     if (nullptr != timelineSemaphore) {
@@ -79,13 +77,14 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     auto imguiCommandBuffer = imguiUi->updateCommandBuffer(imageIndex, uiBindings);
     lastUpdate = uiBindings.updateFlags;
 
-    bool doTick = updateTime();
+    bool doPhysicsTick = updateTime();
+    bool doComputeTick = doPhysicsTick | simulationState->time.frames == 1;
 
     std::array<std::tuple<vk::Queue, vk::CommandBuffer>, CMD_COUNT> buffers;
     buffers[0] = {resources.transferQueue, cmdReset};
-    buffers[1] = {resources.computeQueue, doTick ? particlePhysics->run(*simulationState) : nullptr};
-    buffers[2] = {resources.computeQueue, spatialLookup->run(*simulationState)};
-    buffers[3] = {resources.computeQueue, rendererCompute->run(*simulationState, renderParameters)};
+    buffers[1] = {resources.computeQueue, doPhysicsTick ? particlePhysics->run(*simulationState) : nullptr};
+    buffers[2] = {resources.computeQueue, doComputeTick ? spatialLookup->run(*simulationState) : nullptr};
+    buffers[3] = {resources.computeQueue, doComputeTick ? rendererCompute->run(*simulationState, renderParameters) : nullptr};
     buffers[4] = {resources.graphicsQueue, particleRenderer->run(*simulationState, renderParameters)};
     buffers[5] = {resources.graphicsQueue, copy(imageIndex)};
     buffers[6] = {resources.graphicsQueue, imguiCommandBuffer};
@@ -321,25 +320,7 @@ void Simulation::reset() {
 
     cmdEmpty.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eSimultaneousUse));
     cmdEmpty.end();
-
-    // the spatial-lookup needs to always run at least once before any run
-    spatialLookup->updateCmd(*simulationState);
-
-    {
-        vk::SubmitInfo submit({}, {}, cmdReset);
-        resources.transferQueue.submit(submit);
-        resources.device.waitIdle();
-    }
-
-    auto cmd = spatialLookup->run(*simulationState);
-    if (nullptr != cmd) {
-        vk::SubmitInfo submit({}, {}, cmd);
-        resources.computeQueue.submit(submit);
-        resources.device.waitIdle();
-    }
-
-    particlePhysics->updateCmd(*simulationState);
-    rendererCompute->updateCmd(*simulationState, renderParameters);
+    
     prevTime = glfwGetTime();
 
     std::cout << "Simulation reset done" << std::endl;

@@ -22,6 +22,7 @@ struct SpatialCacheEntry {
 
 struct SimulationTime {
     double time = 0.0;
+    long frames = 0;
     long ticks = 0;
     int tickRate = 25;
     double lastUpdate = 0.0;

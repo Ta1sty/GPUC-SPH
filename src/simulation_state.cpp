@@ -117,6 +117,7 @@ void SimulationTime::pause() {
 
 bool SimulationTime::advance(double add) {
     time += add;
+    frames++;
 
     // it's time for a tick
     if (time >= lastUpdate + tickRate) {

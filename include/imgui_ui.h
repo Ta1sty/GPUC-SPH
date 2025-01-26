@@ -16,7 +16,8 @@ private:
         double t_start = timestamps.at(start);
         double t_end = timestamps.at(end);
 
-        if (std::abs(t_start - t_end) < 0.0001) {
+
+        if ((t_end - t_start) < 0.0001) {
             return previous;
         }
         return (t_end - t_start) / 1000 / 1000;
