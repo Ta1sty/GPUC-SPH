@@ -28,3 +28,15 @@ inline std::string shaderPath(const char *file, std::optional<SceneType> type) {
             throw std::runtime_error("unknown case");
     }
 }
+
+// comment out this define to stop everything from pausing all the time •`_´•
+#define PAUSE_ON_ERROR
+#ifdef PAUSE_ON_ERROR
+#include <iostream>
+#endif
+inline void pauseExecution() {
+#ifdef PAUSE_ON_ERROR
+    std::cout << "PRESS SPACE TO CONTINUE" << std::endl;
+    std::cin.get();
+#endif
+}

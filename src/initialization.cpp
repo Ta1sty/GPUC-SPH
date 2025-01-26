@@ -197,8 +197,8 @@ debugUtilsMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeveri
             }
         }
     }
-    std::cout << "PRESS-ENTER to continue" << std::endl;
-    std::cin.get();
+
+    pauseExecution();
     return VK_TRUE;
 }
 
