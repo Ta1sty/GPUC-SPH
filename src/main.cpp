@@ -67,19 +67,19 @@ int main(int argc, char *argv[]) {
         resources.destroy();
     } catch (vk::SystemError &err) {
         std::cout << "vk::SystemError: " << err.what() << std::endl;
-        std::cin.get();
+        pauseExecution();
         exit(-1);
     } catch (std::exception &err) {
         std::cout << "std::exception: " << err.what() << std::endl;
-        std::cin.get();
+        pauseExecution();
         exit(-1);
     } catch (...) {
         std::cout << "unknown error/n";
-        std::cin.get();
+        pauseExecution();
         exit(-1);
     }
 
     std::cout << "PRESS ENTER TO EXIT" << std::endl;
-    std::cin.get();
+    pauseExecution();
     return EXIT_SUCCESS;
 }

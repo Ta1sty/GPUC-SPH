@@ -569,6 +569,10 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState, const R
     commandBuffer.begin(vk::CommandBufferBeginInfo {});
     writeTimestamp(commandBuffer, RenderBegin);
 
+    if (simulationState.parameters.type == SceneType::SPH_BOX_3D && renderParameters.backgroundField != RenderBackgroundField::NONE)
+        // needs to be done outside of render pass
+        rayMarcherPipeline->copyDensityGridToTexture(commandBuffer, simulationState);
+
     std::array<vk::ClearValue, 2> clearValues;
     clearValues[0].color.uint32 = {{0, 0, 0, 0}};
     clearValues[1].depthStencil.depth = 1.0f;
@@ -694,12 +698,90 @@ ParticleRenderer::SharedResources::~SharedResources() {
     resources.device.destroySampler(depthImageSampler);
 }
 
+RendererCompute::RendererCompute() {
+    densityGridDescriptorPool.addStorage(0, 1, vk::ShaderStageFlagBits::eCompute);
+    densityGridDescriptorPool.addStorage(1, 1, vk::ShaderStageFlagBits::eCompute);
+    densityGridDescriptorPool.addStorage(2, 1, vk::ShaderStageFlagBits::eCompute);
+    densityGridDescriptorPool.addStorage(3, 1, vk::ShaderStageFlagBits::eCompute);
+    densityGridDescriptorPool.allocate();
+
+    densityGridPipelineLayout = GraphicsPipeline::createPipelineLayout<PushStruct>(densityGridDescriptorPool);
+
+    vk::ShaderModule sm;
+    Cmn::createShader(resources.device, sm, shaderPath("density_grid.comp.3D", {}));
+    vk::PipelineShaderStageCreateInfo shaderStageCI {
+            {},
+            vk::ShaderStageFlagBits::eCompute,
+            sm,
+            "main",
+            nullptr};
+
+    vk::ComputePipelineCreateInfo pipelineCI {
+            {},
+            shaderStageCI,
+            densityGridPipelineLayout};
+
+    auto pipelines = resources.device.createComputePipeline(nullptr, pipelineCI);
+    if (pipelines.result != vk::Result::eSuccess)
+        throw std::runtime_error("Failed to create density grid compute pipeline");
+    densityGridPipeline = pipelines.value;
+
+    resources.device.destroyShaderModule(sm);
+}
+
+RendererCompute::~RendererCompute() {
+    resources.device.destroyPipeline(densityGridPipeline);
+    resources.device.destroyPipelineLayout(densityGridPipelineLayout);
+}
+
+vk::CommandBuffer RendererCompute::run(const SimulationState &simulationState, const RenderParameters &renderParameters) {
+    if (simulationState.parameters.type != SceneType::SPH_BOX_3D)
+        return nullptr;
+
+    if (commandBuffer == nullptr)
+        updateCmd(simulationState, renderParameters);
+
+    return commandBuffer;
+}
+
+
+void RendererCompute::updateCmd(const SimulationState &state, const RenderParameters &renderParameters) {
+    if (commandBuffer == nullptr)
+        commandBuffer = resources.device.allocateCommandBuffers(
+                {resources.computeCommandPool, vk::CommandBufferLevel::ePrimary, 1U})[0];
+    else
+        commandBuffer.reset();
+
+    auto bind = [&](const Buffer &buf, uint32_t index) {
+        Cmn::bindBuffers(resources.device, buf.buf, densityGridDescriptorPool.sets[0], index);
+    };
+
+    bind(state.particleCoordinateBuffer, 0);
+    bind(state.spatialLookup, 1);
+    bind(state.spatialIndices, 2);
+    bind(state.densityGrid, 3);
+
+    pushStruct.numParticles = state.parameters.numParticles;
+    pushStruct.spatialRadius = state.spatialRadius;
+
+    commandBuffer.begin(vk::CommandBufferBeginInfo {});
+    writeTimestamp(commandBuffer, RenderComputeBegin);
+    commandBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, densityGridPipeline);
+    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, densityGridPipelineLayout, 0, densityGridDescriptorPool.sets, {});
+    commandBuffer.pushConstants(densityGridPipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
+    commandBuffer.dispatch(32, 32, 32);
+    writeTimestamp(commandBuffer, RenderComputeEnd);
+    commandBuffer.end();
+}
+
 ParticleCirclePipeline::ParticleCirclePipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, SharedResources sharedResources) : sharedResources(sharedResources) {
     descriptorPool.addStorage(0, 1, vk::ShaderStageFlagBits::eFragment);
     descriptorPool.addSampler(1, 1, vk::ShaderStageFlagBits::eFragment);
     descriptorPool.addUniform(2, 1, vk::ShaderStageFlagBits::eFragment | vk::ShaderStageFlagBits::eGeometry);
     descriptorPool.addStorage(3, 1, vk::ShaderStageFlagBits::eFragment);// spatial-lookup
     descriptorPool.addStorage(4, 1, vk::ShaderStageFlagBits::eFragment);// spatial-indices
+    descriptorPool.addStorage(5, 1, vk::ShaderStageFlagBits::eFragment);// particle velocities
+    descriptorPool.addStorage(6, 1, vk::ShaderStageFlagBits::eFragment);// particle pressures
     descriptorPool.allocate();
 
     pipelineLayout = createPipelineLayout<PushStruct>(descriptorPool);
@@ -745,6 +827,8 @@ void ParticleCirclePipeline::updateDescriptorSets(const SimulationState &simulat
     Cmn::bindBuffers(resources.device, sharedResources->uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
     Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 3);
     Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, descriptorSet, 4);
+    Cmn::bindBuffers(resources.device, simulationState.particleVelocityBuffer.buf, descriptorSet, 5);
+    Cmn::bindBuffers(resources.device, simulationState.particleDensityBuffer.buf, descriptorSet, 6);
 }
 
 void ParticleCirclePipeline::draw(vk::CommandBuffer &cb, const SimulationState &simulationState) {
@@ -766,6 +850,7 @@ void ParticleCirclePipeline::draw(vk::CommandBuffer &cb, const SimulationState &
     pushStruct.width = resources.extent.width;
     pushStruct.height = resources.extent.height;
     pushStruct.mvp = simulationState.camera->viewProjectionMatrix();
+    pushStruct.targetDensity = simulationState.parameters.targetDensity;
 
     uint64_t offsets[] = {0UL};
     cb.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline);
@@ -832,9 +917,7 @@ RayMarcherPipeline::RayMarcherPipeline(const vk::RenderPass &renderPass, uint32_
     descriptorPool.addUniform(0, 1, vk::ShaderStageFlagBits::eFragment);
     descriptorPool.addInputAttachment(1, 1, vk::ShaderStageFlagBits::eFragment);
     descriptorPool.addSampler(2, 1, vk::ShaderStageFlagBits::eFragment);// colorscale
-    descriptorPool.addStorage(3, 1, vk::ShaderStageFlagBits::eFragment);// particle positions
-    descriptorPool.addStorage(4, 1, vk::ShaderStageFlagBits::eFragment);// spatial-lookup
-    descriptorPool.addStorage(5, 1, vk::ShaderStageFlagBits::eFragment);// spatial-indices
+    descriptorPool.addSampler(3, 1, vk::ShaderStageFlagBits::eFragment);
     descriptorPool.allocate();
 
     pipelineLayout = createPipelineLayout<PushStruct>(descriptorPool);
@@ -851,6 +934,65 @@ RayMarcherPipeline::RayMarcherPipeline(const vk::RenderPass &renderPass, uint32_
 
     auto pipelines = GraphicsPipelineBuilder::createPipelines(builders);
     pipeline = pipelines[0];
+
+    {// grid densities
+        auto imageFormat = vk::Format::eR32Sfloat;
+        vk::Extent3D imageExtent {256, 256, 256};
+        vk::ImageCreateInfo imageCI {
+                {},
+                vk::ImageType::e3D,
+                imageFormat,
+                imageExtent,
+                1,
+                1,
+                vk::SampleCountFlagBits::e1,
+                vk::ImageTiling::eOptimal,
+                {vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst},
+                vk::SharingMode::eExclusive,
+                1,
+                &resources.gQ,
+                vk::ImageLayout::eUndefined,
+        };
+
+        createImage(
+                resources.pDevice,
+                resources.device,
+                imageCI,
+                {vk::MemoryPropertyFlagBits::eDeviceLocal},
+                "environmentTexture",
+                densityGridTexture.image,
+                densityGridTexture.memory);
+
+        vk::ImageViewCreateInfo viewCI {
+                {},
+                densityGridTexture.image,
+                vk::ImageViewType::e3D,
+                imageFormat,
+                {},
+                {{vk::ImageAspectFlagBits::eColor}, 0, 1, 0, 1}};
+
+        densityGridTexture.view = resources.device.createImageView(viewCI);
+
+        vk::SamplerCreateInfo samplerCI {
+                {},
+                vk::Filter::eLinear,
+                vk::Filter::eLinear,
+                vk::SamplerMipmapMode::eNearest,
+                vk::SamplerAddressMode::eClampToEdge,
+                vk::SamplerAddressMode::eClampToEdge,
+                vk::SamplerAddressMode::eClampToEdge,
+                {},
+                vk::False,
+                {},
+                vk::False,
+                {},
+                0,
+                0,
+                vk::BorderColor::eFloatOpaqueBlack,
+                vk::False};
+
+        densityGridTexture.sampler = resources.device.createSampler(samplerCI);
+    }
 }
 
 RayMarcherPipeline::~RayMarcherPipeline() {
@@ -864,12 +1006,46 @@ void RayMarcherPipeline::draw(vk::CommandBuffer &cb, const SimulationState &simu
     pushStruct.mvp = simulationState.camera->viewProjectionMatrix();
     pushStruct.cameraPos = glm::vec4 {simulationState.camera->position, 0.0f};
     pushStruct.nearFar = {simulationState.camera->near, simulationState.camera->far};
+    pushStruct.targetDensity = simulationState.parameters.targetDensity;
 
     cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
     cb.bindVertexBuffers(0, 1, &sharedResources->cubeVertexBuffer.buf, offsets);
     cb.pushConstants(pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
     cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descriptorPool.sets[0], 0, nullptr);
     cb.draw(14, 1, 0, 0);
+}
+
+void RayMarcherPipeline::copyDensityGridToTexture(vk::CommandBuffer &cb, const SimulationState &simulationState) {
+    vk::ImageMemoryBarrier imageMemoryBarrier {
+            vk::AccessFlagBits::eNoneKHR,
+            vk::AccessFlagBits::eNoneKHR,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eTransferDstOptimal,
+            vk::QueueFamilyIgnored,
+            vk::QueueFamilyIgnored,
+            densityGridTexture.image,
+            {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}};
+
+    cb.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
+                       vk::PipelineStageFlagBits::eTransfer,
+                       vk::DependencyFlagBits::eByRegion,
+                       0, nullptr, 0, nullptr,
+                       1, &imageMemoryBarrier);
+    vk::BufferImageCopy bufferImageCopy {
+            0,
+            0,
+            0,
+            {vk::ImageAspectFlagBits::eColor, 0, 0, 1},
+            {},
+            {256, 256, 256}};
+    cb.copyBufferToImage(simulationState.densityGrid.buf, densityGridTexture.image, vk::ImageLayout::eTransferDstOptimal, 1, &bufferImageCopy);
+    imageMemoryBarrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+    imageMemoryBarrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+    cb.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
+                       vk::PipelineStageFlagBits::eTransfer,
+                       vk::DependencyFlagBits::eByRegion,
+                       0, nullptr, 0, nullptr,
+                       1, &imageMemoryBarrier);
 }
 
 void RayMarcherPipeline::updateDescriptorSets(const SimulationState &simulationState) {
@@ -893,9 +1069,7 @@ void RayMarcherPipeline::updateDescriptorSets(const SimulationState &simulationS
         resources.device.updateDescriptorSets(1U, &writeDescriptorSet, 0U, nullptr);
     }
     Cmn::bindCombinedImageSampler(resources.device, sharedResources->colormap.view, sharedResources->colormap.sampler, descriptorSet, 2);
-    Cmn::bindBuffers(resources.device, simulationState.particleCoordinateBuffer.buf, descriptorSet, 3);
-    Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 4);
-    Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, descriptorSet, 5);
+    Cmn::bindCombinedImageSampler(resources.device, densityGridTexture.view, densityGridTexture.sampler, descriptorSet, 3);
 }
 
 BackgroundEnvironmentPipeline::BackgroundEnvironmentPipeline(const vk::RenderPass &renderPass,

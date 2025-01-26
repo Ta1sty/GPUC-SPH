@@ -38,9 +38,10 @@ private:
 
     std::unique_ptr<ImguiUi> imguiUi;
 
-    std::unique_ptr<ParticleRenderer> particleRenderer;
-    std::unique_ptr<SpatialLookup> spatialLookup;
     std::unique_ptr<ParticleSimulation> particlePhysics;
+    std::unique_ptr<SpatialLookup> spatialLookup;
+    std::unique_ptr<RendererCompute> rendererCompute;
+    std::unique_ptr<ParticleRenderer> particleRenderer;
 
     // clears the color values for the debug images
     vk::CommandBuffer cmdReset;

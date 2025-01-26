@@ -56,7 +56,8 @@ const Mappings<RenderParticleColor> renderParticleColorMappings {
         {"white", RenderParticleColor::WHITE},
         {"none", RenderParticleColor::NONE},
         {"num_neighbours", RenderParticleColor::NUM_NEIGHBOURS},
-        {"density", RenderParticleColor::DENSITY}};
+        {"density", RenderParticleColor::DENSITY},
+        {"velocity", RenderParticleColor::VELOCITY}};
 
 SimulationParameters::SimulationParameters(const YAML::Node &yaml) {
     type = parseEnum<SceneType>(yaml, "type", sceneTypeMappings);

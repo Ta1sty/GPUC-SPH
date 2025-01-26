@@ -1,0 +1,143 @@
+#version 450
+
+#include "_defines.glsl"
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+layout (push_constant) uniform PushStruct {
+    uint numParticles;
+    float spatialRadius;
+} p;
+
+#define GRID_BINDING_COORDINATES 0
+#define GRID_BINDING_LOOKUP 1
+#define GRID_BINDING_INDEX 2
+#define GRID_NUM_ELEMENTS p.numParticles
+#define GRID_CELL_SIZE p.spatialRadius
+#include "spatial_lookup.glsl"
+
+layout (binding = 3) writeonly buffer gridValues { float grid[]; };
+
+#include "density.glsl"
+
+const uint WGSIZE = gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z;
+
+shared uint start_indices[WGSIZE];
+shared uint cell_sizes[WGSIZE];
+
+shared vec3 positions[WGSIZE];
+shared uint start_cell;
+shared uint last_cell;
+shared uint num_positions;
+
+#ifdef DEF_3D
+
+vec3 cellPositionForGID(in uvec3 gid) {
+    return (vec3(gid) + vec3(0.5)) * vec3(1.0f / 256.0f);
+}
+
+ivec3 getCell(in vec3 pos) {
+    return cellCoord(dequantize_position(quantize_position(pos)));
+}
+
+void main() {
+    uvec3 gid = gl_GlobalInvocationID;
+    uint lidx = gl_LocalInvocationIndex;
+    vec3 cellPos = cellPositionForGID(gid);
+    float density = 0.0f;
+
+    ivec3 wg_firstCell = getCell(cellPositionForGID(gl_WorkGroupID * gl_WorkGroupSize)) + ivec3(-1);
+    ivec3 wg_lastCell = getCell(
+                cellPositionForGID((gl_WorkGroupID + uvec3(1)) * gl_WorkGroupSize - uvec3(1))
+            ) + ivec3(1);
+    ivec3 wg_cellSpan = wg_lastCell - wg_firstCell + ivec3(1);
+    uint wg_cellSpanTotal = wg_cellSpan.x * wg_cellSpan.y * wg_cellSpan.z;
+
+    start_indices[lidx] = uint(-1);
+    cell_sizes[lidx] = 0;
+    positions[lidx] = vec3(-1e10);
+    if (lidx == 0) {
+        start_cell = 0;
+        last_cell = 0;
+    }
+
+    barrier();
+
+    // load index of one cell per thread until all cells are covered
+    for (uint startCellOffset = 0; startCellOffset < wg_cellSpanTotal; startCellOffset += WGSIZE) {
+        uint cellOffset = startCellOffset + lidx;
+
+        ivec3 cell = wg_firstCell + ivec3(
+            cellOffset % wg_cellSpan.x,
+            (cellOffset / wg_cellSpan.x) % wg_cellSpan.y,
+            cellOffset / (wg_cellSpan.x * wg_cellSpan.y)
+        );
+
+        if (startCellOffset + lidx < wg_cellSpanTotal) {
+            uint key = cellKey(cell);
+            SpatialIndexEntry entry = spatial_indices[key];
+            start_indices[lidx] = entry.start;
+            cell_sizes[lidx] = entry.end - entry.start;
+
+            atomicMax(last_cell, lidx);
+        } else {
+            start_indices[lidx] = uint(-1);
+            cell_sizes[lidx] = 0;
+        }
+
+        if (lidx == 0)
+            num_positions = WGSIZE;
+
+        // and now "the monster"
+        while (start_cell <= last_cell) {
+            barrier();
+
+            uint offset = lidx;
+            uint selected_cell = start_cell;
+
+            // skip cells until we find the lidx-th particle starting at this cell
+            while (selected_cell <= last_cell
+                && cell_sizes[selected_cell] <= offset) {
+
+                offset -= cell_sizes[selected_cell];
+                selected_cell++;
+            }
+
+            if (selected_cell <= last_cell && start_indices[selected_cell] != uint(-1)) {
+                uint64_t lookup = spatial_lookup[start_indices[selected_cell] + offset].data;
+                // TODO collisions?
+                positions[lidx] = dequantize_position(lookup);
+            } else {
+                // position that is guaranteed to not be in the radius
+                positions[lidx] = vec3(-1e10);
+                atomicMin(num_positions, lidx);
+            }
+
+            barrier();
+
+            // last thread has guaranteed highest selected_cell, update start_cell (and the start index of that cell)
+            if (lidx == WGSIZE - 1) {
+                if (cell_sizes[selected_cell] > offset + 1) {
+                    start_cell = selected_cell;
+                    start_indices[selected_cell] += offset + 1;
+                    cell_sizes[selected_cell] -= offset + 1;
+                } else {
+                    start_cell = selected_cell + 1;
+                }
+            }
+
+            // actually add the density values
+            for (uint i = 0; i < num_positions; i++) {
+                vec3 pos = positions[i];
+                float dist = length(pos - cellPos);
+                if (dist < GRID_CELL_SIZE) {
+                    addDensity(density, GRID_CELL_SIZE, particleMass, 0, vec3(0.0f), dist);
+                }
+            }
+        }
+    }
+
+    grid[gid.x + 256 * (gid.y + 256 * gid.z)] = density;
+}
+#else
+void main() {}
+#endif

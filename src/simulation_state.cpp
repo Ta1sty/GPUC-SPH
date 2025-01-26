@@ -102,6 +102,9 @@ SimulationState::SimulationState(const SimulationParameters &_parameters, std::s
     spatialLookup = createDeviceLocalBuffer("spatialLookup", lookupSize * sizeof(SpatialLookupEntry));
     spatialIndices = createDeviceLocalBuffer("spatialIndices", lookupSize * sizeof(SpatialIndexEntry));
     spatialCache = createDeviceLocalBuffer("spatialCache", lookupSize * sizeof(SpatialCacheEntry));
+
+    // precomputed render stuff
+    densityGrid = createDeviceLocalBuffer("density-grid", 256 * 256 * 256 * sizeof(float));
 }
 
 SimulationState::~SimulationState() {

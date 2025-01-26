@@ -1,0 +1,30 @@
+#version 450
+
+#include "_defines.glsl"
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+layout (push_constant) uniform PushStruct {
+    uint numParticles;
+    float spatialRadius;
+} p;
+
+#define GRID_BINDING_COORDINATES 0
+#define GRID_BINDING_LOOKUP 1
+#define GRID_BINDING_INDEX 2
+#define GRID_NUM_ELEMENTS p.numParticles
+#define GRID_CELL_SIZE p.spatialRadius
+#include "spatial_lookup.glsl"
+
+layout (binding = 3) writeonly buffer gridValues { float grid[]; };
+
+#include "density.glsl"
+
+void main() {
+#ifdef DEF_3D
+    vec3 pos = (vec3(gl_GlobalInvocationID) + vec3(0.5)) * vec3(1.0f / 256.0f);
+    float density = evaluateDensity(pos, p.spatialRadius);
+
+    uvec3 gid = gl_GlobalInvocationID;
+    grid[gid.x + 256 * (gid.y + 256 * gid.z)] = density;
+#endif
+}
