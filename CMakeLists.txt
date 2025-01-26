@@ -114,6 +114,7 @@ add_shader(${PROJECT_NAME} shaders/simulation_cube.vert)
 add_shader(${PROJECT_NAME} shaders/ray_marcher.frag)
 add_shader(${PROJECT_NAME} shaders/background_quad.vert)
 add_shader(${PROJECT_NAME} shaders/background_environment.frag)
+add_shader(${PROJECT_NAME} shaders/density_grid_naive.comp)
 add_shader(${PROJECT_NAME} shaders/density_grid.comp)
 
 add_shader(${PROJECT_NAME} shaders/spatial_lookup.write.comp)
