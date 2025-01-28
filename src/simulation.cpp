@@ -321,6 +321,9 @@ void Simulation::reset() {
     cmdEmpty.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eSimultaneousUse));
     cmdEmpty.end();
     
+    particlePhysics->updateCmd(*simulationState);
+    rendererCompute->updateCmd(*simulationState, renderParameters);
+    spatialLookup->updateCmd(*simulationState);
     prevTime = glfwGetTime();
 
     std::cout << "Simulation reset done" << std::endl;

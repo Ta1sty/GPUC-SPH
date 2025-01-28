@@ -58,26 +58,26 @@ int main(int argc, char *argv[]) {
         resources.args[i] = argv[i];
     }
 
-    try {
+    //try {
         initApp(true, "Project", width, height);
         renderdoc::initialize();
 
         render();
 
         resources.destroy();
-    } catch (vk::SystemError &err) {
-        std::cout << "vk::SystemError: " << err.what() << std::endl;
-        pauseExecution();
-        exit(-1);
-    } catch (std::exception &err) {
-        std::cout << "std::exception: " << err.what() << std::endl;
-        pauseExecution();
-        exit(-1);
-    } catch (...) {
-        std::cout << "unknown error/n";
-        pauseExecution();
-        exit(-1);
-    }
+    //} catch (vk::SystemError &err) {
+    //     std::cout << "vk::SystemError: " << err.what() << std::endl;
+    //     pauseExecution();
+    //     exit(-1);
+    // } catch (std::exception &err) {
+    //     std::cout << "std::exception: " << err.what() << std::endl;
+    //     pauseExecution();
+    //     exit(-1);
+    // } catch (...) {
+    //     std::cout << "unknown error/n";
+    //     pauseExecution();
+    //     exit(-1);
+    // }
 
     std::cout << "PRESS ENTER TO EXIT" << std::endl;
     pauseExecution();
