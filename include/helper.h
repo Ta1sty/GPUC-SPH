@@ -30,7 +30,7 @@ inline std::string shaderPath(const char *file, std::optional<SceneType> type) {
 }
 
 // comment out this define to stop everything from pausing all the time •`_´•
-#define PAUSE_ON_ERROR
+//#define PAUSE_ON_ERROR
 #ifdef PAUSE_ON_ERROR
 #include <iostream>
 #endif

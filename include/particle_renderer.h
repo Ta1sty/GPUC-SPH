@@ -7,6 +7,7 @@ class ParticleCirclePipeline;
 class Background2DPipeline;
 class RayMarcherPipeline;
 class BackgroundEnvironmentPipeline;
+class ChessboardPipeline;
 
 struct Texture {
     vk::Image image;
@@ -16,10 +17,10 @@ struct Texture {
 
     Texture() = default;
     Texture(const Texture &obj) = delete;
-    Texture(Texture &&obj) {
+    Texture(Texture &&obj) noexcept {
         *this = std::move(obj);
     }
-    Texture &operator=(Texture &&obj) {
+    Texture &operator=(Texture &&obj) noexcept {
         image = obj.image;
         memory = obj.memory;
         view = obj.view;
@@ -48,6 +49,7 @@ public:
 
     struct SharedResources {
         Texture colormap;
+        Texture environmentTexture;
         Buffer uniformBuffer;
 
         Buffer quadVertexBuffer;
@@ -78,6 +80,7 @@ private:
     std::unique_ptr<ParticleCirclePipeline> particleCirclePipeline;
     std::unique_ptr<Background2DPipeline> background2DPipeline;
     std::unique_ptr<RayMarcherPipeline> rayMarcherPipeline;
+    std::unique_ptr<ChessboardPipeline> chessboardPipeline;
     std::shared_ptr<SharedResources> sharedResources;
 
     struct UniformBufferStruct {
@@ -228,5 +231,24 @@ private:
     Cmn::DescriptorPool descriptorPool;
     vk::PipelineLayout pipelineLayout;
     vk::Pipeline pipeline;
-    Texture environmentTexture;
+};
+
+class ChessboardPipeline : public GraphicsPipeline {
+public:
+    ChessboardPipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, SharedResources renderer);
+    ~ChessboardPipeline() override;
+    void draw(vk::CommandBuffer &cb, const SimulationState &simulationState) override;
+    void updateDescriptorSets(const SimulationState &simulationState) override;
+
+private:
+    struct PushStruct {
+        glm::mat4 mvp;
+        uint32_t width = 0;
+        uint32_t height = 0;
+    } pushStruct;
+
+    Cmn::DescriptorPool descriptorPool;
+    SharedResources sharedResources;
+    vk::PipelineLayout pipelineLayout;
+    vk::Pipeline pipeline;
 };

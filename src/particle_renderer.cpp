@@ -521,6 +521,7 @@ ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resourc
 
     backgroundEnvironmentPipeline = std::make_unique<BackgroundEnvironmentPipeline>(renderPass, 0, framebuffer, sharedResources);
     background2DPipeline = std::make_unique<Background2DPipeline>(renderPass, 0, framebuffer, sharedResources);
+    chessboardPipeline = std::make_unique<ChessboardPipeline>(renderPass, 1, framebuffer, sharedResources);
     particleCirclePipeline = std::make_unique<ParticleCirclePipeline>(renderPass, 1, framebuffer, sharedResources);
     rayMarcherPipeline = std::make_unique<RayMarcherPipeline>(renderPass, 2, framebuffer, sharedResources);
 }
@@ -620,7 +621,8 @@ vk::Image ParticleRenderer::getImage() {
     return colorAttachment;
 }
 
-ParticleRenderer::SharedResources::SharedResources() : colormap(Texture::createColormapTexture(colormaps::viridis)) {
+ParticleRenderer::SharedResources::SharedResources() : colormap(Texture::createColormapTexture(colormaps::viridis)),
+                                                       environmentTexture(Texture::createFromImage("../Assets/kloppenheim_06_puresky_4k.hdr")) {
     // initialized in SharedResources()
     uniformBuffer = createBuffer(resources.pDevice, resources.device, sizeof(UniformBufferStruct),
                                  {vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst},
@@ -918,6 +920,7 @@ RayMarcherPipeline::RayMarcherPipeline(const vk::RenderPass &renderPass, uint32_
     descriptorPool.addInputAttachment(1, 1, vk::ShaderStageFlagBits::eFragment);
     descriptorPool.addSampler(2, 1, vk::ShaderStageFlagBits::eFragment);// colorscale
     descriptorPool.addSampler(3, 1, vk::ShaderStageFlagBits::eFragment);
+    descriptorPool.addSampler(4, 1, vk::ShaderStageFlagBits::eFragment);
     descriptorPool.allocate();
 
     pipelineLayout = createPipelineLayout<PushStruct>(descriptorPool);
@@ -978,9 +981,9 @@ RayMarcherPipeline::RayMarcherPipeline(const vk::RenderPass &renderPass, uint32_
                 vk::Filter::eLinear,
                 vk::Filter::eLinear,
                 vk::SamplerMipmapMode::eNearest,
-                vk::SamplerAddressMode::eClampToEdge,
-                vk::SamplerAddressMode::eClampToEdge,
-                vk::SamplerAddressMode::eClampToEdge,
+                vk::SamplerAddressMode::eClampToBorder,
+                vk::SamplerAddressMode::eClampToBorder,
+                vk::SamplerAddressMode::eClampToBorder,
                 {},
                 vk::False,
                 {},
@@ -1070,6 +1073,7 @@ void RayMarcherPipeline::updateDescriptorSets(const SimulationState &simulationS
     }
     Cmn::bindCombinedImageSampler(resources.device, sharedResources->colormap.view, sharedResources->colormap.sampler, descriptorSet, 2);
     Cmn::bindCombinedImageSampler(resources.device, densityGridTexture.view, densityGridTexture.sampler, descriptorSet, 3);
+    Cmn::bindCombinedImageSampler(resources.device, sharedResources->environmentTexture.view, sharedResources->environmentTexture.sampler, descriptorSet, 4);
 }
 
 BackgroundEnvironmentPipeline::BackgroundEnvironmentPipeline(const vk::RenderPass &renderPass,
@@ -1091,8 +1095,6 @@ BackgroundEnvironmentPipeline::BackgroundEnvironmentPipeline(const vk::RenderPas
 
     auto pipelines = GraphicsPipelineBuilder::createPipelines(builders);
     pipeline = pipelines[0];
-
-    environmentTexture = Texture::createFromImage("../Assets/kloppenheim_06_puresky_4k.hdr");
 }
 
 BackgroundEnvironmentPipeline::~BackgroundEnvironmentPipeline() {
@@ -1118,5 +1120,48 @@ void BackgroundEnvironmentPipeline::draw(vk::CommandBuffer &cb, const Simulation
 
 void BackgroundEnvironmentPipeline::updateDescriptorSets(const SimulationState &simulationState) {
     auto &descriptorSet = descriptorPool.sets[0];
-    Cmn::bindCombinedImageSampler(resources.device, environmentTexture.view, environmentTexture.sampler, descriptorSet, 0);
+    Cmn::bindCombinedImageSampler(resources.device, sharedResources->environmentTexture.view, sharedResources->environmentTexture.sampler, descriptorSet, 0);
+}
+
+ChessboardPipeline::ChessboardPipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, GraphicsPipeline::SharedResources renderer) : sharedResources(renderer) {
+    descriptorPool.addSampler(0, 1, vk::ShaderStageFlagBits::eFragment);
+    descriptorPool.allocate();
+    pipelineLayout = GraphicsPipeline::createPipelineLayout<PushStruct>(descriptorPool);
+
+    std::vector<GraphicsPipelineBuilder> builders;
+    builders.emplace_back(GraphicsPipelineBuilder {
+            {{vk::ShaderStageFlagBits::eVertex, "background2d.vert.2D"},
+             {vk::ShaderStageFlagBits::eFragment, "chessboard.frag.2D"}},
+            pipelineLayout,
+            renderPass,
+            subpass});
+    builders[0].rasterizationSCI.cullMode = vk::CullModeFlagBits::eNone;
+
+    pipeline = GraphicsPipelineBuilder::createPipelines(builders)[0];
+}
+ChessboardPipeline::~ChessboardPipeline() {
+    resources.device.destroyPipeline(pipeline);
+    resources.device.destroyPipelineLayout(pipelineLayout);
+}
+void ChessboardPipeline::draw(vk::CommandBuffer &cb, const SimulationState &simulationState) {
+    updateDescriptorSets(simulationState);
+    uint64_t offsets[] = {0UL};
+
+    glm::mat4 modelToWorld {
+            01.0, 00.0, 00.0, 0,
+            00.0, 00.0, -1.0, 0.5,
+            00.0, 01.0, 00.0, -0.5,
+            00.0, 00.0, 00.0, 01.0};
+
+    pushStruct.mvp = simulationState.camera->viewProjectionMatrix() * glm::transpose(modelToWorld);
+
+    cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+    cb.bindVertexBuffers(0, 1, &sharedResources->quadVertexBuffer.buf, offsets);
+    cb.bindIndexBuffer(sharedResources->quadIndexBuffer.buf, 0UL, vk::IndexType::eUint16);
+    cb.pushConstants(pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
+    //    cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descriptorPool.sets[0],
+    //                          0, nullptr);
+    cb.drawIndexed(6, 1, 0, 0, 0);// draw quad
+}
+void ChessboardPipeline::updateDescriptorSets(const SimulationState &simulationState) {
 }

@@ -58,6 +58,8 @@ void Simulation::updateTimestamps() {
 }
 
 void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::Semaphore signalRenderFinished, vk::Fence signalSubmitFinished) {
+    float spatialRadius = simulationState->spatialRadius;
+
     constexpr size_t CMD_COUNT = 7;
 
     if (nullptr != timelineSemaphore) {
@@ -320,10 +322,25 @@ void Simulation::reset() {
 
     cmdEmpty.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eSimultaneousUse));
     cmdEmpty.end();
-    
+
+    // the spatial-lookup needs to always run at least once before any run
+    spatialLookup->updateCmd(*simulationState);
+
+    {
+        vk::SubmitInfo submit({}, {}, cmdReset);
+        resources.transferQueue.submit(submit);
+        resources.device.waitIdle();
+    }
+
+    auto cmd = spatialLookup->run(*simulationState);
+    if (nullptr != cmd) {
+        vk::SubmitInfo submit({}, {}, cmd);
+        resources.computeQueue.submit(submit);
+        resources.device.waitIdle();
+    }
+
     particlePhysics->updateCmd(*simulationState);
     rendererCompute->updateCmd(*simulationState, renderParameters);
-    spatialLookup->updateCmd(*simulationState);
     prevTime = glfwGetTime();
 
     std::cout << "Simulation reset done" << std::endl;
