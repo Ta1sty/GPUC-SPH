@@ -88,9 +88,10 @@ void main() {
         if (lidx == 0)
             num_positions = WGSIZE;
 
+        barrier();
+
         // and now "the monster"
         while (start_cell <= last_cell) {
-            barrier();
 
             uint offset = lidx;
             uint selected_cell = start_cell;
@@ -140,6 +141,8 @@ void main() {
                     addDensity(density, GRID_CELL_SIZE, particleMass, 0, vec3(0.0f), dist);
                 }
             }
+
+            barrier();
         }
     }
 
