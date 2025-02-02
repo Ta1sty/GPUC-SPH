@@ -17,13 +17,15 @@
 class Simulation {
 public:
     Simulation() = delete;
-    explicit Simulation(std::shared_ptr<Camera> camera);
+    explicit Simulation(std::shared_ptr<Camera> camera, const std::string &sceneFile = {});
     ~Simulation();
 
     void reset();
     void updateTimestamps();
     bool updateTime();
     void run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::Semaphore signalRenderFinished, vk::Fence signalSubmitFinished);
+    SimulationState &getState() { return *simulationState; }
+    const QueryTimes &getQueryTimes() { return queryTimes; }
 
 private:
     std::map<Query, double> timestamps;

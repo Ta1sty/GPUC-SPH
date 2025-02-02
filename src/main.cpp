@@ -3,6 +3,8 @@
 #define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 
 #include <cstdlib>
+#include <ctime>
+#include <filesystem>
 #include <iostream>
 
 #include "initialization.h"
@@ -50,6 +52,73 @@ void render() {
     resources.device.waitIdle();
 }
 
+void benchmark() {
+    const std::array<std::string, 2> benchmarkScenes {
+            {"example_2d.yaml", "default.yaml"}};
+    constexpr size_t BENCHMARK_NUM_FRAMES = 512;
+
+    const auto t = std::time(nullptr);
+    const auto tm = *std::localtime(&t);
+    char _folderName[256];
+    std::strftime(_folderName, 256, "benchmark_%y-%m-%d_%H-%M", &tm);
+    std::string folderName {_folderName};
+    if (!std::filesystem::exists(folderName))
+        std::filesystem::create_directory(folderName);
+
+    if (!std::filesystem::is_directory(folderName))
+        throw std::runtime_error(folderName + " is not a valid directory");
+
+    folderName.append("/");
+
+    Render render(resources, 2);
+    for (auto &sceneFile: benchmarkScenes) {
+        std::ofstream f {folderName + sceneFile.substr(0, sceneFile.find('.')) + ".csv"};
+        f << "reset,physics,lookup,render_compute,render,copy,ui,\n";
+        auto w = [&](const double &v) {
+            f << v << ",";
+        };
+
+
+        Simulation simulation {render.camera, "../scenes/" + sceneFile};
+        simulation.getState().paused = false;
+
+        auto writeCSVRow = [&]() {
+            auto &qt = simulation.getQueryTimes();
+            w(qt.reset);
+            w(qt.physics);
+            w(qt.lookup);
+            w(qt.renderCompute);
+            w(qt.render);
+            w(qt.copy);
+            w(qt.ui);
+            f << '\n';
+        };
+
+        for (size_t i = 0; i < BENCHMARK_NUM_FRAMES; i++) {
+            double time = glfwGetTime();
+            render.timedelta = time - render.prevtime;
+            render.prevtime = time;
+
+            render.preInput();
+
+            // Poll for and process events
+            glfwPollEvents();
+
+            //render.input();
+
+            if (glfwWindowShouldClose(resources.window))
+                break;
+
+            render.renderSimulationFrame(simulation);
+            writeCSVRow();
+        }
+
+        f.close();
+    }
+
+    resources.device.waitIdle();
+}
+
 int main(int argc, char *argv[]) {
     std::cout << "ARGS:" << std::endl;
     resources.args.resize(argc);
@@ -59,12 +128,16 @@ int main(int argc, char *argv[]) {
     }
 
     //try {
-        initApp(true, "Project", width, height);
-        renderdoc::initialize();
+    initApp(true, "Project", width, height);
+    renderdoc::initialize();
 
+    if (argc > 1 && argv[1] == std::string("benchmark")) {
+        benchmark();
+    } else {
         render();
+    }
 
-        resources.destroy();
+    resources.destroy();
     //} catch (vk::SystemError &err) {
     //     std::cout << "vk::SystemError: " << err.what() << std::endl;
     //     pauseExecution();

@@ -9,10 +9,10 @@
 #include "render.h"
 #include "spatial_lookup.h"
 
-Simulation::Simulation(std::shared_ptr<Camera> camera) {
+Simulation::Simulation(std::shared_ptr<Camera> camera, const std::string &sceneFile) {
     imguiUi = std::make_unique<ImguiUi>();
 
-    auto [rParams, sParams] = SceneParameters::loadParametersFromFile(imguiUi->getSelectedSceneFile());
+    auto [rParams, sParams] = SceneParameters::loadParametersFromFile(!sceneFile.empty() ? sceneFile : imguiUi->getSelectedSceneFile());
     simulationParameters = sParams;
     renderParameters = rParams;
 
@@ -80,7 +80,7 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     lastUpdate = uiBindings.updateFlags;
 
     bool doPhysicsTick = updateTime();
-    bool doComputeTick = doPhysicsTick | simulationState->time.frames == 1;
+    bool doComputeTick = doPhysicsTick || simulationState->time.frames == 1;
 
     std::array<std::tuple<vk::Queue, vk::CommandBuffer>, CMD_COUNT> buffers;
     buffers[0] = {resources.transferQueue, cmdReset};
