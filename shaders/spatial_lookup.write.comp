@@ -9,7 +9,7 @@ layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 void fillIndex(uint index) {
 	if (index < GRID_NUM_ELEMENTS)
 	{
-		VEC_T position = dequantize_position(quantize_position(particle_coordinates[index]));
+		VEC_T position = particle_coordinates[index];
 		IVEC_T cell = cellCoord(position);
 
 		SpatialCacheEntry entry;

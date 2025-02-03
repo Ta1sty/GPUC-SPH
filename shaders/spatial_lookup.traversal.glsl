@@ -15,7 +15,6 @@
 #define NEIGHBOUR_DISTANCE_SQUARED n_distance_squared
 
 #define FOREACH_NEIGHBOUR(position, expression) { \
-position = dequantize_position(quantize_position(position)); \
 float radiusSquared = GRID_CELL_SIZE * GRID_CELL_SIZE; \
 IVEC_T center = cellCoord(position); \
  for (int i = 0; i < NEIGHBOUR_OFFSET_COUNT; i++) {\
