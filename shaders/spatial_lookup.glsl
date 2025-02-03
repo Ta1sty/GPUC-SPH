@@ -184,7 +184,7 @@ uint64_t quantize_position(VEC_T position) {
 	// [-bounds,bounds]
 	VEC_T normalized = ((position / QUANTIZATION_BOUNDS) + 1.0f) * 0.5f;
 	// [0,1]
-	UVEC_T quanitized = clamp(UVEC_T(normalized * float(quantizationRange)), 0, quantizationRange);
+	UVEC_T quanitized = clamp(UVEC_T(round(normalized * float(quantizationRange))), 0, quantizationRange);
 	// [0,range]
 
 	uint64_t value = uint64_t(0);
@@ -252,7 +252,7 @@ VEC_T dequantize_position(uint64_t data) {
 
 #ifdef DEF_2D
 #define NEIGHBOUR_OFFSET_COUNT 9
-const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =    {
+const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =     {
 IVEC_T(- 1, - 1),
 IVEC_T(- 1, 0),
 IVEC_T(- 1, 1),
