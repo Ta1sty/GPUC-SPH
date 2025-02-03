@@ -31,6 +31,11 @@ Simulation::Simulation(std::shared_ptr<Camera> camera) {
     cmdEmpty = allocated[2];
 
     reset();
+
+    bool start = std::any_of(resources.args.begin(), resources.args.end(), [&](std::string &s) { return s == "-unpaused"; });
+    if (start) {
+        simulationState->paused = false;
+    }
 }
 
 
@@ -77,8 +82,9 @@ void Simulation::run(uint32_t imageIndex, vk::Semaphore waitImageAvailable, vk::
     auto imguiCommandBuffer = imguiUi->updateCommandBuffer(imageIndex, uiBindings);
     lastUpdate = uiBindings.updateFlags;
 
-    bool doPhysicsTick = updateTime();
-    bool doComputeTick = doPhysicsTick | simulationState->time.frames == 1;
+    bool doTick = updateTime();
+    bool doPhysicsTick = doTick && simulationState->time.frames != 1;
+    bool doComputeTick = doPhysicsTick || simulationState->time.frames == 1;
 
     std::array<std::tuple<vk::Queue, vk::CommandBuffer>, CMD_COUNT> buffers;
     buffers[0] = {resources.transferQueue, cmdReset};
@@ -320,7 +326,7 @@ void Simulation::reset() {
 
     cmdEmpty.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eSimultaneousUse));
     cmdEmpty.end();
-    
+
     particlePhysics->updateCmd(*simulationState);
     rendererCompute->updateCmd(*simulationState, renderParameters);
     spatialLookup->updateCmd(*simulationState);
