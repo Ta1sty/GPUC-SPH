@@ -57,6 +57,7 @@ public:
 
     // the radius in which particles are considered close to each other, also the cell size for the spatial-lookup
     float spatialRadius = 0.05f;
+    bool spatialLocalSort = true;
     Buffer spatialLookup;
     Buffer spatialIndices;
     Buffer spatialCache;

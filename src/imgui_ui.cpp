@@ -237,6 +237,7 @@ void ImguiUi::drawUi(UiBindings &bindings) {
 
         ImGui::DragFloat("Particle Radius", &render.particleRadius, 0.5, 1.0, 64.0, "%.1f");
         ImGui::DragFloat("Spatial Radius", &bindings.simulationState->spatialRadius, 0.01, 0.01, 1.0, "%.2f");
+        ImGui::Checkbox("Local Sort", &bindings.simulationState->spatialLocalSort);
 
         ImGui::Separator();
         updateFlags.printRenderSettings = ImGui::Button("Print Render Settings");

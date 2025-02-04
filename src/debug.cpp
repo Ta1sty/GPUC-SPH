@@ -202,9 +202,9 @@ void Simulation::check() {
         keys.emplace(cache.cellKey);
         hashes.emplace_back(result);
 
-        //        if (result.lookupKey != result.testKey) {
-        //            throw std::runtime_error("key differs");
-        //        }
+        if (result.lookupKey != result.testKey) {
+            throw std::runtime_error("key differs");
+        }
 
         if (spatial_cache[i].cellKey != spatial_lookup_sorted[i].cellKey || spatial_cache[i].cellClass != spatial_lookup_sorted[i].cellClass) {
             throw std::runtime_error("spatial lookup not sorted");

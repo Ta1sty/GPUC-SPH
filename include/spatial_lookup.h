@@ -10,11 +10,11 @@ struct SpatialLookupPushConstants {
     uint32_t sort_n;
     uint32_t sort_k;
     uint32_t sort_j;
-    uint32_t sort_steps;
 };
 
 class SpatialLookup {
     SpatialLookupPushConstants currentPushConstants;
+    bool useSharedMemory;
 
     uint32_t workloadSize;
     uint32_t workgroupSize = -1;

@@ -68,6 +68,8 @@ SpatialLookup::~SpatialLookup() {
 }
 
 void SpatialLookup::updateCmd(const SimulationState &state) {
+    useSharedMemory = state.spatialLocalSort;
+
     vk::ArrayProxy<const SpatialLookupPushConstants> pcr;
 
     if (nullptr == cmd) {
@@ -108,50 +110,62 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
 
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipelineLayout, 0, descriptorSet, {});
 
+    uint32_t dispatchCounter = 0;
     // write into spatial-lookup and reset spatial-indices
     {
         cmd.bindPipeline(vk::PipelineBindPoint::eCompute, writePipeline);
         cmd.pushConstants(pipelineLayout, {vk::ShaderStageFlagBits::eCompute}, 0, (pcr = pushConstants));
         cmd.dispatch(workgroupNum, 1, 1);
         computeBarrier(cmd);
+        dispatchCounter++;
     }
 
-    uint32_t stepCounter = 0;
-    uint32_t stepBreak = -1;
-    {
-        uint32_t n = pushConstants.sort_n;
-        for (uint32_t k = 2; k <= pushConstants.sort_n; k *= 2) {
-            pushConstants.sort_k = k;
-            for (uint32_t j = k / 2; j > 0; j /= 2) {
-                stepCounter++;
-                pushConstants.sort_j = j;
+    uint32_t k = 1;
+    uint32_t j = 0;
+    bool merge = false;
 
-                if (stepCounter > stepBreak) continue;
+    while (true) {
+        if (j == 0) {
+            k *= 2;
+            j = k / 2;
+            if (k > pushConstants.sort_n) break;
+        }
 
-                bool local = pushConstants.sort_j <= workgroupSize;
+        pushConstants.sort_k = k;
+        pushConstants.sort_j = j;
 
-                std::cout << "n:" << pushConstants.sort_n << " ";
-                std::cout << "k:" << pushConstants.sort_k << " ";
-                std::cout << "j:" << pushConstants.sort_j << " ";
-                std::cout << "t:" << (local ? "local" : "global") << " ";
-                std::cout << std::endl;
+        bool local = pushConstants.sort_j <= workgroupSize;
+        if (!useSharedMemory) local = false;
 
-                if (local) {
-                    cmd.bindPipeline(vk::PipelineBindPoint::eCompute, sortLocalPipeline);
-                    cmd.pushConstants(pipelineLayout, {vk::ShaderStageFlagBits::eCompute}, 0, (pcr = pushConstants));
-                    cmd.dispatch(workgroupNum, 1, 1);
-                    computeBarrier(cmd);
-                    break;
-                } else {
-                    cmd.bindPipeline(vk::PipelineBindPoint::eCompute, sortPipeline);
-                    cmd.pushConstants(pipelineLayout, {vk::ShaderStageFlagBits::eCompute}, 0, (pcr = pushConstants));
-                    cmd.dispatch(workgroupNum, 1, 1);
-                    computeBarrier(cmd);
-                }
+        if (!local) {
+            merge = false;
+        }
+
+        //        std::cout << "n:" << pushConstants.sort_n << " ";
+        //        std::cout << "k:" << pushConstants.sort_k << " ";
+        //        std::cout << "j:" << pushConstants.sort_j << " ";
+        //        std::cout << "t:" << (local ? (merge ? "local-merged" : "local-start") : "global") << " ";
+        //        std::cout << std::endl;
+
+        if (!merge) {
+            if (local) {
+                cmd.bindPipeline(vk::PipelineBindPoint::eCompute, sortLocalPipeline);
+                cmd.pushConstants(pipelineLayout, {vk::ShaderStageFlagBits::eCompute}, 0, (pcr = pushConstants));
+                cmd.dispatch(workgroupNum, 1, 1);
+                computeBarrier(cmd);
+                dispatchCounter++;
+                merge = true;
+            } else {
+                cmd.bindPipeline(vk::PipelineBindPoint::eCompute, sortPipeline);
+                cmd.pushConstants(pipelineLayout, {vk::ShaderStageFlagBits::eCompute}, 0, (pcr = pushConstants));
+                cmd.dispatch(workgroupNum, 1, 1);
+                computeBarrier(cmd);
+                dispatchCounter++;
             }
         }
-    }
 
+        j /= 2;
+    }
 
     // write the start indices
     cmd.bindPipeline(vk::PipelineBindPoint::eCompute, indexPipeline);
@@ -161,7 +175,7 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
     writeTimestamp(cmd, LookupEnd);
     cmd.end();
 
-    std::cout << "Spatial-lookup-Dispatches: " << (stepCounter + 2) << std::endl;
+    std::cout << "Spatial-lookup-Dispatches: " << dispatchCounter << std::endl;
 
     currentPushConstants = pushConstants;
 }
@@ -169,6 +183,7 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
 
 vk::CommandBuffer SpatialLookup::run(SimulationState &state) {
     if (nullptr != cmd &&
+        state.spatialLocalSort == useSharedMemory &&
         state.spatialRadius == currentPushConstants.cellSize &&
         state.parameters.numParticles == currentPushConstants.numElements &&
         state.parameters.type == static_cast<SceneType>(currentPushConstants.type)) {
@@ -183,7 +198,7 @@ bool SpatialLookup::update(const SimulationParameters &parameters) {
     uint32_t size, groupSize, groupNum;
 
     size = nextPowerOfTwo(parameters.numParticles);
-    groupSize = std::min<uint32_t>(128, size / 2);
+    groupSize = std::min<uint32_t>(1024, size / 2);
     groupNum = size / 2 / groupSize;
 
     if (size == workgroupSize && parameters.type == static_cast<SceneType>(currentPushConstants.type)) return false;

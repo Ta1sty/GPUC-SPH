@@ -10,7 +10,6 @@ shared SpatialCacheEntry[gl_WorkGroupSize.x * 2] local_cache;
 shared SpatialLookupEntry[gl_WorkGroupSize.x * 2] local_lookup;
 
 void load(uint offset) {
-	barrier();
 	uint globalIndex = gl_WorkGroupID.x * gl_WorkGroupSize.x * 2 + gl_LocalInvocationID.x;
 	uint localIndex = gl_LocalInvocationID.x;
 	uint size = gl_WorkGroupSize.x;
@@ -33,7 +32,6 @@ void store(uint offset) {
 
 	spatial_lookup[offset + localIndex] = local_lookup[localIndex];
 	spatial_lookup[offset + localIndex + size] = local_lookup[localIndex + size];
-	barrier();
 }
 
 #define LD_CACHE(index) local_cache[(index) - offset]
@@ -49,10 +47,20 @@ void main() {
 
 	uint n = constants.sort_n;
 	uint k = constants.sort_k;
+	uint j = constants.sort_j;
 
-
-	for (uint j = constants.sort_j; j > 0; j /= 2) {
+	while (true) {
 		barrier();
+
+		if (j == 0) {
+			k *= 2;
+			j = k / 2;
+			if (k > n) break;
+		}
+
+		if (j > gl_WorkGroupSize.x) {
+			break;
+		}
 
 		uint group_number = gl_GlobalInvocationID.x / j;
 		uint group_index = gl_GlobalInvocationID.x % j;
@@ -66,16 +74,18 @@ void main() {
 		SpatialCacheEntry cache_l = LD_CACHE(l);
 		uint64_t key_l = (uint64_t(cache_l.cellKey) << 32) + cache_l.cellClass;
 
-		if (!(((i & k) == 0 && key_i > key_l) || ((i & k) != 0 && key_i < key_l))) continue;
+		if ((((i & k) == 0 && key_i > key_l) || ((i & k) != 0 && key_i < key_l))) {
+			SpatialLookupEntry value_i = LD_LOOKUP(i);
+			SpatialLookupEntry value_l = LD_LOOKUP(l);
 
-		SpatialLookupEntry value_i = LD_LOOKUP(i);
-		SpatialLookupEntry value_l = LD_LOOKUP(l);
+			ST_CACHE(i) = cache_l;
+			ST_LOOKUP(i) = value_l;
 
-		ST_CACHE(i) = cache_l;
-		ST_LOOKUP(i) = value_l;
+			ST_CACHE(l) = cache_i;
+			ST_LOOKUP(l) = value_i;
+		}
 
-		ST_CACHE(l) = cache_i;
-		ST_LOOKUP(l) = value_i;
+		j /= 2;
 	}
 
 	store(offset);
