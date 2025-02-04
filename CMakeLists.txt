@@ -119,6 +119,7 @@ add_shader(${PROJECT_NAME} shaders/density_grid.comp)
 
 add_shader(${PROJECT_NAME} shaders/spatial_lookup.write.comp)
 add_shader(${PROJECT_NAME} shaders/spatial_lookup.sort.bitonic.comp)
+add_shader(${PROJECT_NAME} shaders/spatial_lookup.sort.bitonic.local.comp)
 add_shader(${PROJECT_NAME} shaders/spatial_lookup.index.comp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_INCLUDE_DIRS})

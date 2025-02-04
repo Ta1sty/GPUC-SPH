@@ -67,6 +67,7 @@ struct SpatialCacheEntry {
 	uint sort_n;
 	uint sort_k;
 	uint sort_j;
+	uint sort_steps;
 } constants;
 
 layout (set = GRID_SET, binding = GRID_BINDING_CACHE) buffer spatialCacheBuffer { SpatialCacheEntry spatial_cache[]; };
@@ -252,7 +253,7 @@ VEC_T dequantize_position(uint64_t data) {
 
 #ifdef DEF_2D
 #define NEIGHBOUR_OFFSET_COUNT 9
-const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =     {
+const IVEC_T neighbourOffsets[NEIGHBOUR_OFFSET_COUNT] =      {
 IVEC_T(- 1, - 1),
 IVEC_T(- 1, 0),
 IVEC_T(- 1, 1),

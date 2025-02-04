@@ -1,0 +1,82 @@
+#version 450
+
+layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
+
+#define GRID_WRITEABLE
+#define GRID_PCR
+#include "spatial_lookup.glsl"
+
+shared SpatialCacheEntry[gl_WorkGroupSize.x * 2] local_cache;
+shared SpatialLookupEntry[gl_WorkGroupSize.x * 2] local_lookup;
+
+void load(uint offset) {
+	barrier();
+	uint globalIndex = gl_WorkGroupID.x * gl_WorkGroupSize.x * 2 + gl_LocalInvocationID.x;
+	uint localIndex = gl_LocalInvocationID.x;
+	uint size = gl_WorkGroupSize.x;
+
+	local_cache[localIndex] = spatial_cache[offset + localIndex];
+	local_cache[localIndex + size] = spatial_cache[offset + localIndex + size];
+
+	local_lookup[localIndex] = spatial_lookup[offset + localIndex];
+	local_lookup[localIndex + size] = spatial_lookup[offset + localIndex + size];
+	barrier();
+}
+
+void store(uint offset) {
+	barrier();
+	uint localIndex = gl_LocalInvocationID.x;
+	uint size = gl_WorkGroupSize.x;
+
+	spatial_cache[offset + localIndex] = local_cache[localIndex];
+	spatial_cache[offset + localIndex + size] = local_cache[localIndex + size];
+
+	spatial_lookup[offset + localIndex] = local_lookup[localIndex];
+	spatial_lookup[offset + localIndex + size] = local_lookup[localIndex + size];
+	barrier();
+}
+
+#define LD_CACHE(index) local_cache[(index) - offset]
+#define LD_LOOKUP(index) local_lookup[(index) - offset]
+
+#define ST_CACHE(index) local_cache[(index) - offset]
+#define ST_LOOKUP(index) local_lookup[(index) - offset]
+
+void main() {
+	uint offset = gl_WorkGroupID.x * gl_WorkGroupSize.x * 2;
+
+	load(offset);
+
+	uint n = constants.sort_n;
+	uint k = constants.sort_k;
+
+
+	for (uint j = constants.sort_j; j > 0; j /= 2) {
+		barrier();
+
+		uint group_number = gl_GlobalInvocationID.x / j;
+		uint group_index = gl_GlobalInvocationID.x % j;
+
+		uint i = 2 * group_number * j + group_index;
+		uint l = i ^ j;
+
+		SpatialCacheEntry cache_i = LD_CACHE(i);
+		uint64_t key_i = (uint64_t(cache_i.cellKey) << 32) + cache_i.cellClass;
+
+		SpatialCacheEntry cache_l = LD_CACHE(l);
+		uint64_t key_l = (uint64_t(cache_l.cellKey) << 32) + cache_l.cellClass;
+
+		if (!(((i & k) == 0 && key_i > key_l) || ((i & k) != 0 && key_i < key_l))) continue;
+
+		SpatialLookupEntry value_i = LD_LOOKUP(i);
+		SpatialLookupEntry value_l = LD_LOOKUP(l);
+
+		ST_CACHE(i) = cache_l;
+		ST_LOOKUP(i) = value_l;
+
+		ST_CACHE(l) = cache_i;
+		ST_LOOKUP(l) = value_i;
+	}
+
+	store(offset);
+}

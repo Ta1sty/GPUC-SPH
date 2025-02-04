@@ -13,6 +13,7 @@ void fillIndex(uint index) {
 		IVEC_T cell = cellCoord(position);
 
 		SpatialCacheEntry entry;
+		//		entry.cellKey = constants.sort_n - index - 1; // debug
 		entry.cellKey = cellKey(cell);
 		entry.cellClass = cellClass(cell);
 

@@ -10,6 +10,7 @@ struct SpatialLookupPushConstants {
     uint32_t sort_n;
     uint32_t sort_k;
     uint32_t sort_j;
+    uint32_t sort_steps;
 };
 
 class SpatialLookup {
@@ -31,6 +32,9 @@ class SpatialLookup {
 
     vk::ShaderModule sortShader;
     vk::Pipeline sortPipeline = nullptr;
+
+    vk::ShaderModule sortLocalShader;
+    vk::Pipeline sortLocalPipeline = nullptr;
 
     vk::ShaderModule indexShader;
     vk::Pipeline indexPipeline = nullptr;

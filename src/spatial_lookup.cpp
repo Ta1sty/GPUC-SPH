@@ -24,6 +24,8 @@ void SpatialLookup::destroyPipelines() {
     writePipeline = nullptr;
     resources.device.destroyPipeline(sortPipeline);
     sortPipeline = nullptr;
+    resources.device.destroyPipeline(sortLocalPipeline);
+    sortLocalPipeline = nullptr;
     resources.device.destroyPipeline(indexPipeline);
     indexPipeline = nullptr;
 
@@ -31,6 +33,8 @@ void SpatialLookup::destroyPipelines() {
     writeShader = nullptr;
     resources.device.destroyShaderModule(sortShader);
     sortShader = nullptr;
+    resources.device.destroyShaderModule(sortLocalShader);
+    sortLocalShader = nullptr;
     resources.device.destroyShaderModule(indexShader);
     indexShader = nullptr;
 }
@@ -46,10 +50,12 @@ void SpatialLookup::createPipelines(SceneType type) {
 
     Cmn::createShader(resources.device, writeShader, shaderPath("spatial_lookup.write.comp", type));
     Cmn::createShader(resources.device, sortShader, shaderPath("spatial_lookup.sort.bitonic.comp", type));
+    Cmn::createShader(resources.device, sortLocalShader, shaderPath("spatial_lookup.sort.bitonic.local.comp", type));
     Cmn::createShader(resources.device, indexShader, shaderPath("spatial_lookup.index.comp", type));
 
     Cmn::createPipeline(resources.device, writePipeline, pipelineLayout, specInfo, writeShader);
     Cmn::createPipeline(resources.device, sortPipeline, pipelineLayout, specInfo, sortShader);
+    Cmn::createPipeline(resources.device, sortLocalPipeline, pipelineLayout, specInfo, sortLocalShader);
     Cmn::createPipeline(resources.device, indexPipeline, pipelineLayout, specInfo, indexShader);
 }
 
@@ -113,7 +119,6 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
     uint32_t stepCounter = 0;
     uint32_t stepBreak = -1;
     {
-        cmd.bindPipeline(vk::PipelineBindPoint::eCompute, sortPipeline);
         uint32_t n = pushConstants.sort_n;
         for (uint32_t k = 2; k <= pushConstants.sort_n; k *= 2) {
             pushConstants.sort_k = k;
@@ -123,23 +128,26 @@ void SpatialLookup::updateCmd(const SimulationState &state) {
 
                 if (stepCounter > stepBreak) continue;
 
-                //                uint32_t gl_GlobalInvocationID = 5;
-                //                uint32_t group_number = gl_GlobalInvocationID / j;
-                //                uint32_t group_index = gl_GlobalInvocationID % j;
-                //
-                //                uint32_t i = 2 * group_number * j + group_index;
-                //                uint32_t l = i ^ j;
-                //
-                //                std::cout << "n:" << pushConstants.sort_n << " ";
-                //                std::cout << "k:" << pushConstants.sort_k << " ";
-                //                std::cout << "j:" << pushConstants.sort_j << " ";
-                //                std::cout << "t:" << gl_GlobalInvocationID << ":(" << i << "," << l << ") ";
-                //                std::cout << std::endl;
+                bool local = pushConstants.sort_j <= workgroupSize;
 
+                std::cout << "n:" << pushConstants.sort_n << " ";
+                std::cout << "k:" << pushConstants.sort_k << " ";
+                std::cout << "j:" << pushConstants.sort_j << " ";
+                std::cout << "t:" << (local ? "local" : "global") << " ";
+                std::cout << std::endl;
 
-                cmd.pushConstants(pipelineLayout, {vk::ShaderStageFlagBits::eCompute}, 0, (pcr = pushConstants));
-                cmd.dispatch(workgroupNum, 1, 1);
-                computeBarrier(cmd);
+                if (local) {
+                    cmd.bindPipeline(vk::PipelineBindPoint::eCompute, sortLocalPipeline);
+                    cmd.pushConstants(pipelineLayout, {vk::ShaderStageFlagBits::eCompute}, 0, (pcr = pushConstants));
+                    cmd.dispatch(workgroupNum, 1, 1);
+                    computeBarrier(cmd);
+                    break;
+                } else {
+                    cmd.bindPipeline(vk::PipelineBindPoint::eCompute, sortPipeline);
+                    cmd.pushConstants(pipelineLayout, {vk::ShaderStageFlagBits::eCompute}, 0, (pcr = pushConstants));
+                    cmd.dispatch(workgroupNum, 1, 1);
+                    computeBarrier(cmd);
+                }
             }
         }
     }

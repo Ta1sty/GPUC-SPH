@@ -8,8 +8,8 @@ layout (local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
 void main() {
 	uint n = constants.sort_n;
-	uint j = constants.sort_j;
 	uint k = constants.sort_k;
+	uint j = constants.sort_j;
 
 	uint group_number = gl_GlobalInvocationID.x / j;
 	uint group_index = gl_GlobalInvocationID.x % j;
