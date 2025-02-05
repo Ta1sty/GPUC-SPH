@@ -53,9 +53,24 @@ void render() {
 }
 
 void benchmark() {
-    const std::array<std::string, 2> benchmarkScenes {
-            {"example_2d.yaml", "default.yaml"}};
-    constexpr size_t BENCHMARK_NUM_FRAMES = 512;
+    const std::array<std::string, 16> benchmarkScenes {
+            {"3d_8k_8x8x8.yaml",
+             "3d_8k_8x8x8_naive.yaml",
+             "3d_16k_8x8x8.yaml",
+             "3d_16k_8x8x8_naive.yaml",
+             "3d_32k_8x8x8.yaml",
+             "3d_32k_8x8x8_naive.yaml",
+             "3d_64k_16x8x8.yaml",
+             "3d_64k_4x4x4.yaml",
+             "3d_64k_8x4x4.yaml",
+             "3d_64k_8x8x4.yaml",
+             "3d_64k_8x8x8.yaml",
+             "3d_64k_8x8x8_naive.yaml",
+             "3d_128k_8x8x8.yaml",
+             "3d_128k_8x8x8_naive.yaml",
+             "3d_256k_8x8x8.yaml",
+             "3d_512k_8x8x8.yaml"}};
+    constexpr size_t BENCHMARK_NUM_FRAMES = 256;
 
     const auto t = std::time(nullptr);
     const auto tm = *std::localtime(&t);
@@ -79,7 +94,7 @@ void benchmark() {
         };
 
 
-        Simulation simulation {render.camera, "../scenes/" + sceneFile};
+        Simulation simulation {render.camera, "../scenes_benchmark/" + sceneFile};
         simulation.getState().paused = false;
 
         auto writeCSVRow = [&]() {
