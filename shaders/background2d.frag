@@ -3,6 +3,7 @@
 #include "_defines.glsl"
 
 layout (binding = 0) readonly buffer particleBuffer { VEC_T coordinates[]; };
+layout (binding = 5) readonly buffer velocityBuffer { VEC_T velocities[]; };
 layout (binding = 1) uniform sampler1D colorscale;
 layout (binding = 2) uniform UniformBuffer {
 	uint numParticles;
@@ -36,6 +37,19 @@ float evaluateDensity(VEC_T position) {
 	return min(density / (numParticles * spatialRadius * spatialRadius * 2), 1);
 }
 
+void addVelocity(inout VEC_T velocity, uint neighbourIndex, VEC_T neighbourPosition, float neighbourDinstance) {
+	float normalized = neighbourDinstance / spatialRadius;
+	velocity += (1 - normalized) * velocities[neighbourIndex];
+}
+
+float evaluateVelocity(VEC_T position) {
+	VEC_T velocity = VEC_T(0.0);
+
+	FOREACH_NEIGHBOUR(position, addVelocity(velocity, NEIGHBOUR_INDEX, NEIGHBOUR_POSITION, NEIGHBOUR_DISTANCE));
+
+	return min(length(velocity) / (numParticles * spatialRadius * spatialRadius * 8), 1);
+}
+
 void main() {
 	//float value = float(getCellForCoordinate(position)) / float(GRID_NUM_ELEMENTS);
 	float value = 0.0f;
@@ -50,6 +64,10 @@ void main() {
 			break;
 		case 3:
 			value = evaluateDensity(position_t);
+			outColor = vec4(texture(colorscale, value).rgb, 1.0);
+			break;
+		case 4:
+			value = evaluateVelocity(position_t);
 			outColor = vec4(texture(colorscale, value).rgb, 1.0);
 			break;
 		default:

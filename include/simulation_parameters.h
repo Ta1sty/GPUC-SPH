@@ -74,6 +74,8 @@ enum class RenderBackgroundField {
     CELL_HASH,
     CELL_CLASS,
     DENSITY,
+    VELOCITY,
+    WATER,
 };
 extern const Mappings<RenderBackgroundField> renderBackgroundFieldMappings;
 

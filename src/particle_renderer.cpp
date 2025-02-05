@@ -597,7 +597,7 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState, const R
 
     /* ========== Particle Subpass ========== */
     commandBuffer.nextSubpass(vk::SubpassContents::eInline);
-    if (renderParameters.particleColor != RenderParticleColor::NONE)
+    if (renderParameters.particleColor != RenderParticleColor::NONE && renderParameters.backgroundField != RenderBackgroundField::WATER)
         particleCirclePipeline->draw(commandBuffer, simulationState);
 
     /* ========== Ray Marcher Subpass ========== */
@@ -605,7 +605,7 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState, const R
     switch (simulationState.parameters.type) {
         case SceneType::SPH_BOX_3D:
             if (renderParameters.backgroundField != RenderBackgroundField::NONE)
-                rayMarcherPipeline->draw(commandBuffer, simulationState);
+                rayMarcherPipeline->draw(commandBuffer, simulationState, renderParameters.backgroundField == RenderBackgroundField::WATER);
             break;
         default:
             break;
@@ -885,6 +885,7 @@ Background2DPipeline::Background2DPipeline(const vk::RenderPass &renderPass, uin
     descriptorPool.addUniform(2, 1, vk::ShaderStageFlagBits::eFragment);// uniform
     descriptorPool.addStorage(3, 1, vk::ShaderStageFlagBits::eFragment);// spatial-lookup
     descriptorPool.addStorage(4, 1, vk::ShaderStageFlagBits::eFragment);// spatial-indices
+    descriptorPool.addStorage(5, 1, vk::ShaderStageFlagBits::eFragment);// velocities
     descriptorPool.allocate();
 
     pipelineLayout = createPipelineLayout<PushStruct>(descriptorPool);
@@ -928,6 +929,7 @@ void Background2DPipeline::updateDescriptorSets(const SimulationState &simulatio
     Cmn::bindBuffers(resources.device, sharedResources->uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
     Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 3);
     Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, descriptorSet, 4);
+    Cmn::bindBuffers(resources.device, simulationState.particleVelocityBuffer.buf, descriptorSet, 5);
 }
 
 RayMarcherPipeline::RayMarcherPipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, GraphicsPipeline::SharedResources renderer) : sharedResources(renderer) {
@@ -949,9 +951,20 @@ RayMarcherPipeline::RayMarcherPipeline(const vk::RenderPass &renderPass, uint32_
     builders[0].vertexInputBindings[0].stride = 3 * 4;
     builders[0].vertexInputAttributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
     builders[0].inputAssemblySCI.topology = vk::PrimitiveTopology::eTriangleStrip;
+    builders.emplace_back(GraphicsPipelineBuilder {
+            {{vk::ShaderStageFlagBits::eVertex, "simulation_cube.vert.3D"},
+             {vk::ShaderStageFlagBits::eFragment, "ray_marcher_water.frag.3D"}},
+            pipelineLayout,
+            renderPass,
+            subpass});
+    builders[1].vertexInputBindings[0].stride = 3 * 4;
+    builders[1].vertexInputAttributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
+    builders[1].inputAssemblySCI.topology = vk::PrimitiveTopology::eTriangleStrip;
+
 
     auto pipelines = GraphicsPipelineBuilder::createPipelines(builders);
     pipeline = pipelines[0];
+    waterPipeline = pipelines[1];
 
     {// grid densities
         auto imageFormat = vk::Format::eR32Sfloat;
@@ -1019,6 +1032,10 @@ RayMarcherPipeline::~RayMarcherPipeline() {
 }
 
 void RayMarcherPipeline::draw(vk::CommandBuffer &cb, const SimulationState &simulationState) {
+    draw(cb, simulationState, false);
+}
+
+void RayMarcherPipeline::draw(vk::CommandBuffer &cb, const SimulationState &simulationState, bool waterShader) {
     updateDescriptorSets(simulationState);
     uint64_t offsets[] = {0UL};
     pushStruct.mvp = simulationState.camera->viewProjectionMatrix();
@@ -1026,7 +1043,7 @@ void RayMarcherPipeline::draw(vk::CommandBuffer &cb, const SimulationState &simu
     pushStruct.nearFar = {simulationState.camera->near, simulationState.camera->far};
     pushStruct.targetDensity = simulationState.parameters.targetDensity;
 
-    cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+    cb.bindPipeline(vk::PipelineBindPoint::eGraphics, waterShader ? waterPipeline : pipeline);
     cb.bindVertexBuffers(0, 1, &sharedResources->cubeVertexBuffer.buf, offsets);
     cb.pushConstants(pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
     cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descriptorPool.sets[0], 0, nullptr);

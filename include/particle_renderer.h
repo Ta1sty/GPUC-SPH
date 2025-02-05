@@ -196,6 +196,7 @@ public:
     RayMarcherPipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, SharedResources renderer);
     ~RayMarcherPipeline() override;
     void draw(vk::CommandBuffer &cb, const SimulationState &simulationState) override;
+    void draw(vk::CommandBuffer &cb, const SimulationState &simulationState, bool waterShader);
     void updateDescriptorSets(const SimulationState &simulationState) override;
     void copyDensityGridToTexture(vk::CommandBuffer &cb, const SimulationState &simulationState);
 
@@ -211,6 +212,7 @@ private:
     Cmn::DescriptorPool descriptorPool;
     vk::PipelineLayout pipelineLayout;
     vk::Pipeline pipeline;
+    vk::Pipeline waterPipeline;
 
     Texture densityGridTexture;
 };

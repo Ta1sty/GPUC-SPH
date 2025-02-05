@@ -51,7 +51,9 @@ const Mappings<RenderBackgroundField> renderBackgroundFieldMappings {
         {"none", RenderBackgroundField::NONE},
         {"cell_key", RenderBackgroundField::CELL_HASH},
         {"cell_class", RenderBackgroundField::CELL_CLASS},
-        {"density", RenderBackgroundField::DENSITY}};
+        {"density", RenderBackgroundField::DENSITY},
+        {"velocity", RenderBackgroundField::VELOCITY},
+        {"water", RenderBackgroundField::WATER}};
 const Mappings<RenderParticleColor> renderParticleColorMappings {
         {"white", RenderParticleColor::WHITE},
         {"none", RenderParticleColor::NONE},
