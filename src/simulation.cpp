@@ -9,10 +9,10 @@
 #include "render.h"
 #include "spatial_lookup.h"
 
-Simulation::Simulation(std::shared_ptr<Camera> camera) {
+Simulation::Simulation(std::shared_ptr<Camera> camera, const std::string &sceneFile) {
     imguiUi = std::make_unique<ImguiUi>();
 
-    auto [rParams, sParams] = SceneParameters::loadParametersFromFile(imguiUi->getSelectedSceneFile());
+    auto [rParams, sParams] = SceneParameters::loadParametersFromFile(!sceneFile.empty() ? sceneFile : imguiUi->getSelectedSceneFile());
     simulationParameters = sParams;
     renderParameters = rParams;
 
@@ -20,7 +20,7 @@ Simulation::Simulation(std::shared_ptr<Camera> camera) {
 
     particlePhysics = std::make_unique<ParticleSimulation>(simulationParameters);
     spatialLookup = std::make_unique<SpatialLookup>(simulationParameters);
-    rendererCompute = std::make_unique<RendererCompute>();
+    rendererCompute = std::make_unique<RendererCompute>(renderParameters);
     particleRenderer = std::make_unique<ParticleRenderer>();
 
     vk::CommandBufferAllocateInfo cmdAllocateInfo(resources.transferCommandPool, vk::CommandBufferLevel::ePrimary, 3);

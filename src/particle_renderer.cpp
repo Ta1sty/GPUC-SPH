@@ -521,6 +521,7 @@ ParticleRenderer::ParticleRenderer() : imageSize(resources.extent.width, resourc
 
     backgroundEnvironmentPipeline = std::make_unique<BackgroundEnvironmentPipeline>(renderPass, 0, framebuffer, sharedResources);
     background2DPipeline = std::make_unique<Background2DPipeline>(renderPass, 0, framebuffer, sharedResources);
+    chessboardPipeline = std::make_unique<ChessboardPipeline>(renderPass, 1, framebuffer, sharedResources);
     particleCirclePipeline = std::make_unique<ParticleCirclePipeline>(renderPass, 1, framebuffer, sharedResources);
     rayMarcherPipeline = std::make_unique<RayMarcherPipeline>(renderPass, 2, framebuffer, sharedResources);
 }
@@ -596,7 +597,7 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState, const R
 
     /* ========== Particle Subpass ========== */
     commandBuffer.nextSubpass(vk::SubpassContents::eInline);
-    if (renderParameters.particleColor != RenderParticleColor::NONE)
+    if (renderParameters.particleColor != RenderParticleColor::NONE && renderParameters.backgroundField != RenderBackgroundField::WATER)
         particleCirclePipeline->draw(commandBuffer, simulationState);
 
     /* ========== Ray Marcher Subpass ========== */
@@ -604,7 +605,7 @@ void ParticleRenderer::updateCmd(const SimulationState &simulationState, const R
     switch (simulationState.parameters.type) {
         case SceneType::SPH_BOX_3D:
             if (renderParameters.backgroundField != RenderBackgroundField::NONE)
-                rayMarcherPipeline->draw(commandBuffer, simulationState);
+                rayMarcherPipeline->draw(commandBuffer, simulationState, renderParameters.backgroundField == RenderBackgroundField::WATER);
             break;
         default:
             break;
@@ -620,7 +621,8 @@ vk::Image ParticleRenderer::getImage() {
     return colorAttachment;
 }
 
-ParticleRenderer::SharedResources::SharedResources() : colormap(Texture::createColormapTexture(colormaps::viridis)) {
+ParticleRenderer::SharedResources::SharedResources() : colormap(Texture::createColormapTexture(colormaps::viridis)),
+                                                       environmentTexture(Texture::createFromImage("../Assets/kloppenheim_06_puresky_4k.hdr")) {
     // initialized in SharedResources()
     uniformBuffer = createBuffer(resources.pDevice, resources.device, sizeof(UniformBufferStruct),
                                  {vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst},
@@ -698,7 +700,7 @@ ParticleRenderer::SharedResources::~SharedResources() {
     resources.device.destroySampler(depthImageSampler);
 }
 
-RendererCompute::RendererCompute() {
+RendererCompute::RendererCompute(const RenderParameters &renderParameters) : pushStruct(), workgroupSize(renderParameters.densityGridWGSize) {
     densityGridDescriptorPool.addStorage(0, 1, vk::ShaderStageFlagBits::eCompute);
     densityGridDescriptorPool.addStorage(1, 1, vk::ShaderStageFlagBits::eCompute);
     densityGridDescriptorPool.addStorage(2, 1, vk::ShaderStageFlagBits::eCompute);
@@ -708,13 +710,24 @@ RendererCompute::RendererCompute() {
     densityGridPipelineLayout = GraphicsPipeline::createPipelineLayout<PushStruct>(densityGridDescriptorPool);
 
     vk::ShaderModule sm;
-    Cmn::createShader(resources.device, sm, shaderPath("density_grid.comp.3D", {}));
+    Cmn::createShader(resources.device, sm, shaderPath(renderParameters.densityGridShader.c_str(), {}));
+    std::array<vk::SpecializationMapEntry, 3> specializationMap {
+            {{0, 0, 4},
+             {1, 4, 4},
+             {2, 8, 4}}};
+
+    vk::SpecializationInfo specializationInfo {
+            specializationMap.size(),
+            specializationMap.data(),
+            sizeof(workgroupSize),
+            &workgroupSize};
+
     vk::PipelineShaderStageCreateInfo shaderStageCI {
             {},
             vk::ShaderStageFlagBits::eCompute,
             sm,
             "main",
-            nullptr};
+            &specializationInfo};
 
     vk::ComputePipelineCreateInfo pipelineCI {
             {},
@@ -764,12 +777,16 @@ void RendererCompute::updateCmd(const SimulationState &state, const RenderParame
     pushStruct.numParticles = state.parameters.numParticles;
     pushStruct.spatialRadius = state.spatialRadius;
 
+    constexpr glm::uvec3 gridSize {256, 256, 256};
+
     commandBuffer.begin(vk::CommandBufferBeginInfo {});
     writeTimestamp(commandBuffer, RenderComputeBegin);
     commandBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, densityGridPipeline);
     commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, densityGridPipelineLayout, 0, densityGridDescriptorPool.sets, {});
     commandBuffer.pushConstants(densityGridPipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
-    commandBuffer.dispatch(32, 32, 32);
+
+    glm::uvec3 dispatchSize = gridSize / workgroupSize;
+    commandBuffer.dispatch(dispatchSize.x, dispatchSize.y, dispatchSize.z);
     writeTimestamp(commandBuffer, RenderComputeEnd);
     commandBuffer.end();
 }
@@ -868,6 +885,7 @@ Background2DPipeline::Background2DPipeline(const vk::RenderPass &renderPass, uin
     descriptorPool.addUniform(2, 1, vk::ShaderStageFlagBits::eFragment);// uniform
     descriptorPool.addStorage(3, 1, vk::ShaderStageFlagBits::eFragment);// spatial-lookup
     descriptorPool.addStorage(4, 1, vk::ShaderStageFlagBits::eFragment);// spatial-indices
+    descriptorPool.addStorage(5, 1, vk::ShaderStageFlagBits::eFragment);// velocities
     descriptorPool.allocate();
 
     pipelineLayout = createPipelineLayout<PushStruct>(descriptorPool);
@@ -911,6 +929,7 @@ void Background2DPipeline::updateDescriptorSets(const SimulationState &simulatio
     Cmn::bindBuffers(resources.device, sharedResources->uniformBuffer.buf, descriptorSet, 2, vk::DescriptorType::eUniformBuffer);
     Cmn::bindBuffers(resources.device, simulationState.spatialLookup.buf, descriptorSet, 3);
     Cmn::bindBuffers(resources.device, simulationState.spatialIndices.buf, descriptorSet, 4);
+    Cmn::bindBuffers(resources.device, simulationState.particleVelocityBuffer.buf, descriptorSet, 5);
 }
 
 RayMarcherPipeline::RayMarcherPipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, GraphicsPipeline::SharedResources renderer) : sharedResources(renderer) {
@@ -918,6 +937,7 @@ RayMarcherPipeline::RayMarcherPipeline(const vk::RenderPass &renderPass, uint32_
     descriptorPool.addInputAttachment(1, 1, vk::ShaderStageFlagBits::eFragment);
     descriptorPool.addSampler(2, 1, vk::ShaderStageFlagBits::eFragment);// colorscale
     descriptorPool.addSampler(3, 1, vk::ShaderStageFlagBits::eFragment);
+    descriptorPool.addSampler(4, 1, vk::ShaderStageFlagBits::eFragment);
     descriptorPool.allocate();
 
     pipelineLayout = createPipelineLayout<PushStruct>(descriptorPool);
@@ -931,9 +951,20 @@ RayMarcherPipeline::RayMarcherPipeline(const vk::RenderPass &renderPass, uint32_
     builders[0].vertexInputBindings[0].stride = 3 * 4;
     builders[0].vertexInputAttributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
     builders[0].inputAssemblySCI.topology = vk::PrimitiveTopology::eTriangleStrip;
+    builders.emplace_back(GraphicsPipelineBuilder {
+            {{vk::ShaderStageFlagBits::eVertex, "simulation_cube.vert.3D"},
+             {vk::ShaderStageFlagBits::eFragment, "ray_marcher_water.frag.3D"}},
+            pipelineLayout,
+            renderPass,
+            subpass});
+    builders[1].vertexInputBindings[0].stride = 3 * 4;
+    builders[1].vertexInputAttributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
+    builders[1].inputAssemblySCI.topology = vk::PrimitiveTopology::eTriangleStrip;
+
 
     auto pipelines = GraphicsPipelineBuilder::createPipelines(builders);
     pipeline = pipelines[0];
+    waterPipeline = pipelines[1];
 
     {// grid densities
         auto imageFormat = vk::Format::eR32Sfloat;
@@ -978,9 +1009,9 @@ RayMarcherPipeline::RayMarcherPipeline(const vk::RenderPass &renderPass, uint32_
                 vk::Filter::eLinear,
                 vk::Filter::eLinear,
                 vk::SamplerMipmapMode::eNearest,
-                vk::SamplerAddressMode::eClampToEdge,
-                vk::SamplerAddressMode::eClampToEdge,
-                vk::SamplerAddressMode::eClampToEdge,
+                vk::SamplerAddressMode::eClampToBorder,
+                vk::SamplerAddressMode::eClampToBorder,
+                vk::SamplerAddressMode::eClampToBorder,
                 {},
                 vk::False,
                 {},
@@ -1001,6 +1032,10 @@ RayMarcherPipeline::~RayMarcherPipeline() {
 }
 
 void RayMarcherPipeline::draw(vk::CommandBuffer &cb, const SimulationState &simulationState) {
+    draw(cb, simulationState, false);
+}
+
+void RayMarcherPipeline::draw(vk::CommandBuffer &cb, const SimulationState &simulationState, bool waterShader) {
     updateDescriptorSets(simulationState);
     uint64_t offsets[] = {0UL};
     pushStruct.mvp = simulationState.camera->viewProjectionMatrix();
@@ -1008,7 +1043,7 @@ void RayMarcherPipeline::draw(vk::CommandBuffer &cb, const SimulationState &simu
     pushStruct.nearFar = {simulationState.camera->near, simulationState.camera->far};
     pushStruct.targetDensity = simulationState.parameters.targetDensity;
 
-    cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+    cb.bindPipeline(vk::PipelineBindPoint::eGraphics, waterShader ? waterPipeline : pipeline);
     cb.bindVertexBuffers(0, 1, &sharedResources->cubeVertexBuffer.buf, offsets);
     cb.pushConstants(pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
     cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descriptorPool.sets[0], 0, nullptr);
@@ -1070,6 +1105,7 @@ void RayMarcherPipeline::updateDescriptorSets(const SimulationState &simulationS
     }
     Cmn::bindCombinedImageSampler(resources.device, sharedResources->colormap.view, sharedResources->colormap.sampler, descriptorSet, 2);
     Cmn::bindCombinedImageSampler(resources.device, densityGridTexture.view, densityGridTexture.sampler, descriptorSet, 3);
+    Cmn::bindCombinedImageSampler(resources.device, sharedResources->environmentTexture.view, sharedResources->environmentTexture.sampler, descriptorSet, 4);
 }
 
 BackgroundEnvironmentPipeline::BackgroundEnvironmentPipeline(const vk::RenderPass &renderPass,
@@ -1091,8 +1127,6 @@ BackgroundEnvironmentPipeline::BackgroundEnvironmentPipeline(const vk::RenderPas
 
     auto pipelines = GraphicsPipelineBuilder::createPipelines(builders);
     pipeline = pipelines[0];
-
-    environmentTexture = Texture::createFromImage("../Assets/kloppenheim_06_puresky_4k.hdr");
 }
 
 BackgroundEnvironmentPipeline::~BackgroundEnvironmentPipeline() {
@@ -1118,5 +1152,48 @@ void BackgroundEnvironmentPipeline::draw(vk::CommandBuffer &cb, const Simulation
 
 void BackgroundEnvironmentPipeline::updateDescriptorSets(const SimulationState &simulationState) {
     auto &descriptorSet = descriptorPool.sets[0];
-    Cmn::bindCombinedImageSampler(resources.device, environmentTexture.view, environmentTexture.sampler, descriptorSet, 0);
+    Cmn::bindCombinedImageSampler(resources.device, sharedResources->environmentTexture.view, sharedResources->environmentTexture.sampler, descriptorSet, 0);
+}
+
+ChessboardPipeline::ChessboardPipeline(const vk::RenderPass &renderPass, uint32_t subpass, const vk::Framebuffer &framebuffer, GraphicsPipeline::SharedResources renderer) : sharedResources(renderer) {
+    descriptorPool.addSampler(0, 1, vk::ShaderStageFlagBits::eFragment);
+    descriptorPool.allocate();
+    pipelineLayout = GraphicsPipeline::createPipelineLayout<PushStruct>(descriptorPool);
+
+    std::vector<GraphicsPipelineBuilder> builders;
+    builders.emplace_back(GraphicsPipelineBuilder {
+            {{vk::ShaderStageFlagBits::eVertex, "background2d.vert.2D"},
+             {vk::ShaderStageFlagBits::eFragment, "chessboard.frag.2D"}},
+            pipelineLayout,
+            renderPass,
+            subpass});
+    builders[0].rasterizationSCI.cullMode = vk::CullModeFlagBits::eNone;
+
+    pipeline = GraphicsPipelineBuilder::createPipelines(builders)[0];
+}
+ChessboardPipeline::~ChessboardPipeline() {
+    resources.device.destroyPipeline(pipeline);
+    resources.device.destroyPipelineLayout(pipelineLayout);
+}
+void ChessboardPipeline::draw(vk::CommandBuffer &cb, const SimulationState &simulationState) {
+    updateDescriptorSets(simulationState);
+    uint64_t offsets[] = {0UL};
+
+    glm::mat4 modelToWorld {
+            01.0, 00.0, 00.0, 0,
+            00.0, 00.0, -1.0, 0.5,
+            00.0, 01.0, 00.0, -0.5,
+            00.0, 00.0, 00.0, 01.0};
+
+    pushStruct.mvp = simulationState.camera->viewProjectionMatrix() * glm::transpose(modelToWorld);
+
+    cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+    cb.bindVertexBuffers(0, 1, &sharedResources->quadVertexBuffer.buf, offsets);
+    cb.bindIndexBuffer(sharedResources->quadIndexBuffer.buf, 0UL, vk::IndexType::eUint16);
+    cb.pushConstants(pipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
+    //    cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descriptorPool.sets[0],
+    //                          0, nullptr);
+    cb.drawIndexed(6, 1, 0, 0, 0);// draw quad
+}
+void ChessboardPipeline::updateDescriptorSets(const SimulationState &simulationState) {
 }

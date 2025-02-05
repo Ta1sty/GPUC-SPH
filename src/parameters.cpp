@@ -52,7 +52,9 @@ const Mappings<RenderBackgroundField> renderBackgroundFieldMappings {
         {"none", RenderBackgroundField::NONE},
         {"cell_key", RenderBackgroundField::CELL_HASH},
         {"cell_class", RenderBackgroundField::CELL_CLASS},
-        {"density", RenderBackgroundField::DENSITY}};
+        {"density", RenderBackgroundField::DENSITY},
+        {"velocity", RenderBackgroundField::VELOCITY},
+        {"water", RenderBackgroundField::WATER}};
 const Mappings<RenderParticleColor> renderParticleColorMappings {
         {"white", RenderParticleColor::WHITE},
         {"none", RenderParticleColor::NONE},
@@ -101,6 +103,14 @@ RenderParameters::RenderParameters(const YAML::Node &yaml) {
     backgroundField = parseEnum<RenderBackgroundField>(yaml, "background_field", renderBackgroundFieldMappings);
     particleColor = parseEnum<RenderParticleColor>(yaml, "particle_color", renderParticleColorMappings);
     particleRadius = parse<float>(yaml, "particle_radius", particleRadius);
+    densityGridShader = parse<std::string>(yaml, "density_grid_shader", densityGridShader);
+    if (yaml["density_grid_wg_size"]) {
+        auto &y = yaml["density_grid_wg_size"];
+        densityGridWGSize = {
+                y[0].as<uint32_t>(),
+                y[1].as<uint32_t>(),
+                y[2].as<uint32_t>()};
+    }
 }
 
 std::string RenderParameters::printToYaml() const {

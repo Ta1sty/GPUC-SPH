@@ -1,0 +1,16 @@
+simulation:
+  type: sph_box_3d
+  initialization_function: uniform
+  num_particles: 8129
+  deltaTime: 0.008
+  spatial_radius: 0.05
+  targetDensity: 4000000.0
+  pressureMultiplier: 15.0
+  viscosity: 60.0
+render:
+  background_field: density
+  background_environment: false
+  particle_radius: 6
+  particle_color: none
+  density_grid_shader: density_grid.comp.3D
+  density_grid_wg_size: [8, 8, 8]
