@@ -15,6 +15,8 @@ layout(push_constant) uniform PushStruct {
     float targetDensity;
     float pressureMultiplier;
     float viscosity;
+    float boundaryThreshold;
+    float boundaryForceStrength;
 }
 constants;
 
@@ -28,7 +30,7 @@ void main() {
 
     // Update position using velocity
     position += velocity * constants.deltaTime;
-
+    /*
     // Resolve collisions - handle both 2D and 3D cases
     if (position.x < 0.0) {
         position.x = -position.x;
@@ -54,7 +56,7 @@ void main() {
         velocity *= -constants.collisionDampingFactor;
     }
 #endif
-
+*/
     // Write updated position to output buffer
     positions[index] = position;
     velocities[index] = velocity;

@@ -17,6 +17,8 @@ layout(push_constant) uniform PushStruct {
     float targetDensity;
     float pressureMultiplier;
     float viscosity;
+    float boundaryThreshold;
+    float boundaryForceStrength;
 }
 constants;
 
@@ -106,5 +108,41 @@ void main() {
     velocity += VEC_T(0.0, 0.0, -constants.gravity * constants.deltaTime);
 #endif
 
+    // --------------------------------------------------------
+    // Compute smooth boundary forces instead of hard bounce.
+    float epsilon = constants.boundaryThreshold;      // boundary threshold
+    float kBoundary = constants.boundaryForceStrength;// boundary force strength
+    VEC_T boundaryForce = VEC_T(0.0);
+
+    // For x dimension.
+    if (position.x < epsilon) {
+        float penetration = epsilon - position.x;
+        boundaryForce.x += kBoundary * penetration * penetration;
+    } else if (position.x > 1.0 - epsilon) {
+        float penetration = position.x - (1.0 - epsilon);
+        boundaryForce.x += -kBoundary * penetration * penetration;
+    }
+    // For y dimension.
+    if (position.y < epsilon) {
+        float penetration = epsilon - position.y;
+        boundaryForce.y += kBoundary * penetration * penetration;
+    } else if (position.y > 1.0 - epsilon) {
+        float penetration = position.y - (1.0 - epsilon);
+        boundaryForce.y += -kBoundary * penetration * penetration;
+    }
+#ifdef DEF_3D
+    // For z dimension.
+    if (position.z < epsilon) {
+        float penetration = epsilon - position.z;
+        boundaryForce.z += kBoundary * penetration * penetration;
+    } else if (position.z > 1.0 - epsilon) {
+        float penetration = position.z - (1.0 - epsilon);
+        boundaryForce.z -= kBoundary * penetration * penetration;
+    }
+#endif
+
+    // Add the boundary force
+    velocity += boundaryForce * constants.deltaTime;
+    // --------------------------------------------------------
     velocitiesOutput[index] = velocity;
 }

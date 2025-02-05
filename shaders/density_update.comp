@@ -16,6 +16,8 @@ layout(push_constant) uniform PushStruct {
     float targetDensity;
     float pressureMultiplier;
     float viscosity;
+    float boundaryThreshold;
+    float boundaryForceStrength;
 }
 constants;
 
