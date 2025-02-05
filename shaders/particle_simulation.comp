@@ -114,34 +114,30 @@ void main() {
     float kBoundary = constants.boundaryForceStrength;// boundary force strength
     VEC_T boundaryForce = VEC_T(0.0);
 
-    // For x dimension.
     if (position.x < epsilon) {
         float penetration = epsilon - position.x;
-        boundaryForce.x += kBoundary * penetration * penetration;
+        boundaryForce.x += kBoundary * (penetration * penetration) / (epsilon * epsilon);
     } else if (position.x > 1.0 - epsilon) {
         float penetration = position.x - (1.0 - epsilon);
-        boundaryForce.x += -kBoundary * penetration * penetration;
+        boundaryForce.x -= kBoundary * (penetration * penetration) / (epsilon * epsilon);
     }
-    // For y dimension.
     if (position.y < epsilon) {
         float penetration = epsilon - position.y;
-        boundaryForce.y += kBoundary * penetration * penetration;
+        boundaryForce.y += kBoundary * (penetration * penetration) / (epsilon * epsilon);
     } else if (position.y > 1.0 - epsilon) {
         float penetration = position.y - (1.0 - epsilon);
-        boundaryForce.y += -kBoundary * penetration * penetration;
+        boundaryForce.y -= kBoundary * (penetration * penetration) / (epsilon * epsilon);
     }
 #ifdef DEF_3D
-    // For z dimension.
     if (position.z < epsilon) {
         float penetration = epsilon - position.z;
-        boundaryForce.z += kBoundary * penetration * penetration;
+        boundaryForce.z += kBoundary * (penetration * penetration) / (epsilon * epsilon);
     } else if (position.z > 1.0 - epsilon) {
         float penetration = position.z - (1.0 - epsilon);
-        boundaryForce.z -= kBoundary * penetration * penetration;
+        boundaryForce.z -= kBoundary * (penetration * penetration) / (epsilon * epsilon);
     }
 #endif
 
-    // Add the boundary force
     velocity += boundaryForce * constants.deltaTime;
     // --------------------------------------------------------
     velocitiesOutput[index] = velocity;

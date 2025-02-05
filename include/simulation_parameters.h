@@ -49,7 +49,7 @@ public:
     uint32_t randomSeed = 0;            // initialized with TRNG if omitted
     float gravity = 9.81f;              // Default Earth gravity
     float deltaTime = 1.0f / 60.0f;     // Default 60 FPS
-    float collisionDampingFactor = 0.8f;// Default 20% energy loss
+    float collisionDampingFactor = 0.0f;// Default energy loss
     float targetDensity = 2.75f;
     float pressureMultiplier = 0.5f;
     float viscosity = 0.0f;

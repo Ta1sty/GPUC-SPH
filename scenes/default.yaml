@@ -8,7 +8,7 @@ simulation:
   pressureMultiplier: 8.0
   viscosity: 60.0
   boundaryThreshold: 0.005
-  boundaryForceStrength: 540000.0
+  boundaryForceStrength: 20.0
 render:
   background_field: none
   particle_radius: 6

@@ -1,14 +1,14 @@
 simulation:
   type: sph_box_2d
-  initialization_function: uniform
+  initialization_function: jittered
   num_particles: 8192
   gravity: 9.81
   deltaTime: 0.008
-  targetDensity: 15000
-  pressureMultiplier: 15.0
+  targetDensity: 20000
+  pressureMultiplier: 10.0
   viscosity: 60.0
-  boundaryThreshold: 0.05
-  boundaryForceStrength: 1000.0
+  boundaryThreshold: 0.005
+  boundaryForceStrength: 60.0
 render:
   background_field: none
   particle_radius: 6
