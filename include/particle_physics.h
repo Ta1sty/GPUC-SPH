@@ -15,6 +15,8 @@ struct ParticleSimulationPushConstants {
     float targetDensity;
     float pressureMultiplier;
     float viscosity;
+    float boundaryThreshold;
+    float boundaryForceStrength;
 };
 
 

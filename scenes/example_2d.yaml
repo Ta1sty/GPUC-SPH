@@ -1,14 +1,14 @@
 simulation:
   type: sph_box_2d
   initialization_function: uniform
-  num_particles: 4096
-  deltaTime: 0.008
+  num_particles: 8192
   gravity: 9.81
-  collisionDampingFactor: 0.8
+  deltaTime: 0.008
   targetDensity: 15000
   pressureMultiplier: 15.0
   viscosity: 60.0
-
+  boundaryThreshold: 0.05
+  boundaryForceStrength: 1000.0
 render:
-  background_field: density
-  particle_radius: 12
+  background_field: none
+  particle_radius: 6

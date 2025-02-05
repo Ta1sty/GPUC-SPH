@@ -47,6 +47,55 @@ std::vector<float> initPoissonDisk(SceneType sceneType, uint32_t numParticles, s
     }
 }
 
+std::vector<float> initJittered(SceneType sceneType, uint32_t numParticles, std::mt19937 &random) {
+    std::vector<float> values;
+    if (sceneType == SceneType::SPH_BOX_2D) {
+        // Compute grid resolution.
+        int gridSize = static_cast<int>(std::ceil(std::sqrt(static_cast<float>(numParticles))));
+        float cellSize = 1.0f / gridSize;
+        values.reserve(2 * numParticles);
+        std::uniform_real_distribution<float> offsetDist(0.0f, cellSize);
+        int count = 0;
+        // Iterate over a grid and jitter within each cell.
+        for (int i = 0; i < gridSize && count < numParticles; i++) {
+            for (int j = 0; j < gridSize && count < numParticles; j++) {
+                float x = i * cellSize + offsetDist(random);
+                float y = j * cellSize + offsetDist(random);
+                values.push_back(x);
+                values.push_back(y);
+                count++;
+            }
+        }
+    } else if (sceneType == SceneType::SPH_BOX_3D) {
+        // Compute grid resolution.
+        int gridSize = static_cast<int>(std::ceil(std::cbrt(static_cast<float>(numParticles))));
+        float cellSize = 1.0f / gridSize;
+        values.reserve(4 * numParticles);
+        std::uniform_real_distribution<float> offsetDist(0.0f, cellSize);
+        int count = 0;
+        // Iterate over a 3D grid and jitter within each cell.
+        for (int i = 0; i < gridSize && count < numParticles; i++) {
+            for (int j = 0; j < gridSize && count < numParticles; j++) {
+                for (int k = 0; k < gridSize && count < numParticles; k++) {
+                    float x = i * cellSize + offsetDist(random);
+                    float y = j * cellSize + offsetDist(random);
+                    float z = k * cellSize + offsetDist(random);
+                    values.push_back(x);
+                    values.push_back(y);
+                    values.push_back(z);
+                    // The fourth component is reserved; keep as -FLT_MAX.
+                    values.push_back(-FLT_MAX);
+                    count++;
+                }
+            }
+        }
+    } else {
+        throw std::runtime_error("Jittered initialization not implemented for this scene type");
+    }
+
+    return values;
+}
+
 SimulationState::SimulationState(const SimulationParameters &_parameters, std::shared_ptr<Camera> _camera)
     : parameters(_parameters), spatialRadius(_parameters.spatialRadius), random(parameters.randomSeed), camera(std::move(_camera)) {
     std::cout << "------------- Initializing Simulation State -------------\n";
@@ -89,6 +138,9 @@ SimulationState::SimulationState(const SimulationParameters &_parameters, std::s
             break;
         case InitializationFunction::POISSON_DISK:
             coordinateValues = initPoissonDisk(parameters.type, parameters.numParticles, random);
+            break;
+        case InitializationFunction::JITTERED:
+            coordinateValues = initJittered(parameters.type, parameters.numParticles, random);
             break;
     }
 

@@ -253,9 +253,11 @@ void ImguiUi::drawUi(UiBindings &bindings) {
         ImGui::DragFloat("Gravity", &simulation.gravity, 0.1f);
         ImGui::DragFloat("Delta Time", &simulation.deltaTime, 0.001f);
         ImGui::DragFloat("Collision Damping", &simulation.collisionDampingFactor, 0.01f);
-        ImGui::DragFloat("Target Density", &simulation.targetDensity, 0.01f);
+        ImGui::DragFloat("Target Density", &simulation.targetDensity, 10.0f);
         ImGui::DragFloat("Pressure Multiplier", &simulation.pressureMultiplier, 0.01f);
         ImGui::DragFloat("Viscosity", &simulation.viscosity, 0.01f);
+        ImGui::DragFloat("Boundary Epsilon", &simulation.boundaryThreshold, 0.01f);
+        ImGui::DragFloat("Boundary Force Strength", &simulation.boundaryForceStrength, 1.0f);
     }
 
     if (ImGui::CollapsingHeader("Performance")) {

@@ -24,7 +24,8 @@ extern const Mappings<SceneType> sceneTypeMappings;
 
 enum class InitializationFunction {
     UNIFORM,
-    POISSON_DISK
+    POISSON_DISK,
+    JITTERED
 };
 extern const Mappings<InitializationFunction> initializationFunctionMappings;
 
@@ -53,6 +54,8 @@ public:
     float pressureMultiplier = 0.5f;
     float viscosity = 0.0f;
     float spatialRadius = 0.05f;
+    float boundaryThreshold = 0.05f;
+    float boundaryForceStrength = 1000.0f;
 
 public:
     SimulationParameters() = default;

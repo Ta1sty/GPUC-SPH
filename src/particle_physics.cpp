@@ -74,6 +74,9 @@ void ParticleSimulation::updateCmd(const SimulationState &simulationState) {
     pushConstants.targetDensity = simulationState.parameters.targetDensity;
     pushConstants.pressureMultiplier = simulationState.parameters.pressureMultiplier;
     pushConstants.viscosity = simulationState.parameters.viscosity;
+    pushConstants.boundaryThreshold = simulationState.parameters.boundaryThreshold;
+    pushConstants.boundaryForceStrength = simulationState.parameters.boundaryForceStrength;
+
 
     cmd.begin(vk::CommandBufferBeginInfo());
     writeTimestamp(cmd, PhysicsBegin);

@@ -41,7 +41,8 @@ const Mappings<SceneType> sceneTypeMappings {
         {"sph_box_3d", SceneType::SPH_BOX_3D}};
 const Mappings<InitializationFunction> initializationFunctionMappings {
         {"uniform", InitializationFunction::UNIFORM},
-        {"poisson_disk", InitializationFunction::POISSON_DISK}};
+        {"poisson_disk", InitializationFunction::POISSON_DISK},
+        {"jittered", InitializationFunction::JITTERED}};
 const Mappings<SelectedImage> selectedImageMappings {
         {"render", SelectedImage::RENDER},
         {"debug_physics", SelectedImage::DEBUG_PHYSICS},
@@ -75,6 +76,8 @@ SimulationParameters::SimulationParameters(const YAML::Node &yaml) {
     pressureMultiplier = parse<float>(yaml, "pressureMultiplier", pressureMultiplier);
     viscosity = parse<float>(yaml, "viscosity", viscosity);
     spatialRadius = parse<float>(yaml, "spatial_radius", spatialRadius);
+    boundaryForceStrength = parse<float>(yaml, "boundaryForceStrength", boundaryForceStrength);
+    boundaryThreshold = parse<float>(yaml, "boundaryThreshold", boundaryThreshold);
 }
 
 std::string SimulationParameters::printToYaml() const {
@@ -108,6 +111,7 @@ std::string RenderParameters::printToYaml() const {
     yaml["background_field"] = dumpEnum(backgroundField, renderBackgroundFieldMappings);
     yaml["particle_color"] = dumpEnum(particleColor, renderParticleColorMappings);
     yaml["particle_radius"] = particleRadius;
+
 
     return YAML::Dump(yaml);
 }
