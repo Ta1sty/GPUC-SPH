@@ -700,7 +700,7 @@ ParticleRenderer::SharedResources::~SharedResources() {
     resources.device.destroySampler(depthImageSampler);
 }
 
-RendererCompute::RendererCompute() {
+RendererCompute::RendererCompute(const RenderParameters &renderParameters) : pushStruct(), workgroupSize(renderParameters.densityGridWGSize) {
     densityGridDescriptorPool.addStorage(0, 1, vk::ShaderStageFlagBits::eCompute);
     densityGridDescriptorPool.addStorage(1, 1, vk::ShaderStageFlagBits::eCompute);
     densityGridDescriptorPool.addStorage(2, 1, vk::ShaderStageFlagBits::eCompute);
@@ -710,13 +710,24 @@ RendererCompute::RendererCompute() {
     densityGridPipelineLayout = GraphicsPipeline::createPipelineLayout<PushStruct>(densityGridDescriptorPool);
 
     vk::ShaderModule sm;
-    Cmn::createShader(resources.device, sm, shaderPath("density_grid.comp.3D", {}));
+    Cmn::createShader(resources.device, sm, shaderPath(renderParameters.densityGridShader.c_str(), {}));
+    std::array<vk::SpecializationMapEntry, 3> specializationMap {
+            {{0, 0, 4},
+             {1, 4, 4},
+             {2, 8, 4}}};
+
+    vk::SpecializationInfo specializationInfo {
+            specializationMap.size(),
+            specializationMap.data(),
+            sizeof(workgroupSize),
+            &workgroupSize};
+
     vk::PipelineShaderStageCreateInfo shaderStageCI {
             {},
             vk::ShaderStageFlagBits::eCompute,
             sm,
             "main",
-            nullptr};
+            &specializationInfo};
 
     vk::ComputePipelineCreateInfo pipelineCI {
             {},
@@ -766,12 +777,16 @@ void RendererCompute::updateCmd(const SimulationState &state, const RenderParame
     pushStruct.numParticles = state.parameters.numParticles;
     pushStruct.spatialRadius = state.spatialRadius;
 
+    constexpr glm::uvec3 gridSize {256, 256, 256};
+
     commandBuffer.begin(vk::CommandBufferBeginInfo {});
     writeTimestamp(commandBuffer, RenderComputeBegin);
     commandBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, densityGridPipeline);
     commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, densityGridPipelineLayout, 0, densityGridDescriptorPool.sets, {});
     commandBuffer.pushConstants(densityGridPipelineLayout, vk::ShaderStageFlagBits::eAll, 0, sizeof(PushStruct), &pushStruct);
-    commandBuffer.dispatch(32, 32, 32);
+
+    glm::uvec3 dispatchSize = gridSize / workgroupSize;
+    commandBuffer.dispatch(dispatchSize.x, dispatchSize.y, dispatchSize.z);
     writeTimestamp(commandBuffer, RenderComputeEnd);
     commandBuffer.end();
 }

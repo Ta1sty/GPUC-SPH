@@ -104,7 +104,7 @@ private:
  */
 class RendererCompute {
 public:
-    RendererCompute();
+    explicit RendererCompute(const RenderParameters &renderParameters);
     RendererCompute(const RendererCompute &obj) = delete;
     ~RendererCompute();
     vk::CommandBuffer run(const SimulationState &simulationState, const RenderParameters &renderParameters);
@@ -120,6 +120,7 @@ private:
     vk::PipelineLayout densityGridPipelineLayout;
     vk::Pipeline densityGridPipeline;
     vk::CommandBuffer commandBuffer;
+    glm::uvec3 workgroupSize;
 };
 
 class GraphicsPipeline {

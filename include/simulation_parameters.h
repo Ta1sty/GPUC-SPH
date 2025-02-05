@@ -91,6 +91,8 @@ struct RenderParameters {
     RenderParticleColor particleColor = RenderParticleColor::WHITE;
 
     float particleRadius = 12.0f;
+    std::string densityGridShader = "density_grid.comp.3D";// don't set via UI, is only used during pipeline initializations
+    glm::uvec3 densityGridWGSize = {8, 8, 8};
 
 public:
     RenderParameters() = default;

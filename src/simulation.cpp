@@ -20,7 +20,7 @@ Simulation::Simulation(std::shared_ptr<Camera> camera, const std::string &sceneF
 
     particlePhysics = std::make_unique<ParticleSimulation>(simulationParameters);
     spatialLookup = std::make_unique<SpatialLookup>(simulationParameters);
-    rendererCompute = std::make_unique<RendererCompute>();
+    rendererCompute = std::make_unique<RendererCompute>(renderParameters);
     particleRenderer = std::make_unique<ParticleRenderer>();
 
     vk::CommandBufferAllocateInfo cmdAllocateInfo(resources.transferCommandPool, vk::CommandBufferLevel::ePrimary, 3);

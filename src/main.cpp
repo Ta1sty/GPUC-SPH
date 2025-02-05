@@ -152,7 +152,6 @@ int main(int argc, char *argv[]) {
     //     exit(-1);
     // }
 
-    std::cout << "PRESS ENTER TO EXIT" << std::endl;
     pauseExecution();
     return EXIT_SUCCESS;
 }
